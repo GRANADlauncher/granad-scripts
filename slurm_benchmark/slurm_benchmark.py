@@ -75,7 +75,7 @@ def sim(params):
             end_time = params["end_time"],
             relaxation_rate=params["relaxation_rate"],
             illumination=params["illumination_default"],
-            expectation_values = [flake.dipole_operator,
+            expectation_values = [flake.dipole_operator],
             max_mem_gb = params["max_mem_gb"]
         )
         summary["runtimes"]["td_default"] = time.time() - start
