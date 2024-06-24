@@ -7,7 +7,7 @@ from granad import _numerics
 if __name__ == '__main__':
 
     # flake
-    n, m = 10, 10
+    n, m = 80, 80
     flake = MaterialCatalog.get("graphene").cut_flake(Rhomboid(n,m))    
     flake.show_2d(name = "flake.pdf")
     
