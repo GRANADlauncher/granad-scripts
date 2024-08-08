@@ -142,7 +142,7 @@ def chiral_ldos(name, omega_max, omega_min):
 
 def parallel_td_sim(args_list):
     with ProcessPoolExecutor() as executor:
-        executor.map(td_sim, args_list)
+        list(executor.map(td_sim, args_list))
 
 def plot_chiral_ldos(args_list, omega_max, omega_min):
     for arg in args_list:
