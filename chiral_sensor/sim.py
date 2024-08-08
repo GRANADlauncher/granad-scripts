@@ -142,7 +142,12 @@ def chiral_ldos(name, omega_max, omega_min):
 
 def parallel_td_sim(args_list):
     with ProcessPoolExecutor() as executor:
-        list(executor.map(td_sim, args_list))
+        # Submit all tasks and unpack arguments using a generator expression
+        futures = [executor.submit(td_sim, *args) for args in args_list]
+        # Wait for all futures to complete
+        for future in as_completed(futures):
+            # Retrieve the result to ensure that all tasks have completed
+            future.result()
 
 def plot_chiral_ldos(args_list, omega_max, omega_min):
     for arg in args_list:
