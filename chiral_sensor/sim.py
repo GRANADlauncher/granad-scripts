@@ -156,7 +156,7 @@ if __name__ == '__main__':
         for t2 in jnp.linspace(0, 0.1, 10)
         ]
     for arg in args_list:
-        td_sim(arg)
+        td_sim(*arg)
     plot_chiral_ldos(args_list, 5, 0)
     
     # flake = static_sim(*args_list[1])
