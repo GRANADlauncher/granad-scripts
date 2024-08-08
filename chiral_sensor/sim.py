@@ -152,13 +152,13 @@ def plot_chiral_ldos(args_list, omega_max, omega_min):
 if __name__ == '__main__':
     # (shape, t1, t2, delta, end_time, dipole_moment, source_location, omega, sigma, t0, postprocess, name)
     args_list = [
-        (Hexagon(20, armchair = True), 1.0, 1j*t2, 0.2, 40, [0, 0, 1.0], [0, 0, 1.0], 2.3, 0.5 / 2.355, 0.5, f"{t2}" )
+        (Hexagon(20, armchair = True), 1.0, 1j*t2, 0.2, 40, [0.05, 0.05, 0.05], [25., 10., 1.0], 2.3, 0.5 / 2.355, 0.5, f"{t2}" )
         for t2 in jnp.linspace(0, 0.1, 10)
         ]
-    for arg in args_list:
-        td_sim(*arg)
-    plot_chiral_ldos(args_list, 5, 0)
+    # for arg in args_list:
+    #     td_sim(*arg)
+    # plot_chiral_ldos(args_list, 5, 0)
     
-    # flake = static_sim(*args_list[1])
+    flake = static_sim(*args_list[1])
     # result = td_sim(*args_list[1])
     # plot_chiral_ldos( [args_list[1]], 5, 0 )
