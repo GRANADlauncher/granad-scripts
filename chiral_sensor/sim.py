@@ -140,14 +140,6 @@ def chiral_ldos(name, omega_max, omega_min):
     e_field = result.ft_output(omega_max = omega_max, omega_min = omega_min)[0]
     return omegas, e_field @ e_l, e_field @ e_r
 
-def parallel_td_sim(args_list):
-    with ProcessPoolExecutor() as executor:
-        # Submit all tasks and unpack arguments using a generator expression
-        futures = [executor.submit(td_sim, *args) for args in args_list]
-        # Wait for all futures to complete
-        for future in as_completed(futures):
-            # Retrieve the result to ensure that all tasks have completed
-            future.result()
 
 def plot_chiral_ldos(args_list, omega_max, omega_min):
     for arg in args_list:
@@ -163,7 +155,8 @@ if __name__ == '__main__':
         (Hexagon(20, armchair = True), 1.0, 1j*t2, 0.2, 40, [0, 0, 1.0], [0, 0, 1.0], 2.3, 0.5 / 2.355, 0.5, f"{t2}" )
         for t2 in jnp.linspace(0, 0.1, 10)
         ]
-    parallel_td_sim(args_list)    
+    for arg in args_list:
+        td_sim(arg)
     plot_chiral_ldos(args_list, 5, 0)
     
     # flake = static_sim(*args_list[1])
