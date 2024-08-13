@@ -140,25 +140,50 @@ def chiral_ldos(name, omega_max, omega_min):
     e_field = result.ft_output(omega_max = omega_max, omega_min = omega_min)[0]
     return omegas, e_field @ e_l, e_field @ e_r
 
-
 def plot_chiral_ldos(args_list, omega_max, omega_min):
+    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
     for arg in args_list:
         omegas, left, right = chiral_ldos(arg[-1], omega_max, omega_min)
-        plt.plot(omegas, left.imag)
-        plt.plot(omegas, right.imag, '--')
+
+        axs[0, 0].set_title('left real')
+        axs[0, 0].plot(omegas, left.real, label = f'{arg[-1]}')
+        axs[0, 0].legend()
+        
+        axs[0, 1].set_title('left imag')
+        axs[0, 1].plot(omegas, left.imag, label = f'{arg[-1]}')
+        axs[0, 1].legend()
+
+        axs[1, 0].set_title('right real')
+        axs[1, 0].plot(omegas, right.real, label = f'{arg[-1]}')
+        axs[1, 0].legend()
+
+        axs[1, 1].set_title('right imag')
+        axs[1, 1].plot(omegas, right.imag, label = f'{arg[-1]}')
+        axs[1, 1].legend()
+
+    plt.legend()
     plt.savefig("res.pdf")
+    plt.close()
+
+def plot_td(args_list):
+    for arg in args_list:
+        result = TDResult.load(arg[-1])        
+        plt.plot(result.time_axis, result.output[0], label = f'{arg[-1]}')
+    plt.legend()
+    plt.savefig("res_td.pdf")
     plt.close()
 
 if __name__ == '__main__':
     # (shape, t1, t2, delta, end_time, dipole_moment, source_location, omega, sigma, t0, postprocess, name)
     args_list = [
-        (Hexagon(20, armchair = True), 1.0, 1j*t2, 0.2, 40, [0.05, 0.05, 0.05], [25., 10., 1.0], 2.3, 0.5 / 2.355, 0.5, f"{t2}" )
-        for t2 in jnp.linspace(0, 0.1, 10)
+        (Hexagon(20, armchair = True), 1.0, 1j*t2, 0.2, 40, [0.05, 0.05, 0.05], [0., 0., 1.0], 0.2, 0.5 / 2.355, 0.5, f"{t2}" )
+        for t2 in [0, -1.]
         ]
-    # for arg in args_list:
-    #     td_sim(*arg)
-    # plot_chiral_ldos(args_list, 5, 0)
+    for arg in args_list:
+        td_sim(*arg)        
+    plot_chiral_ldos(args_list, 12, 0)
+    plot_td(args_list)
     
-    flake = static_sim(*args_list[1])
+    # flake = static_sim(*args_list[1])
     # result = td_sim(*args_list[1])
     # plot_chiral_ldos( [args_list[1]], 5, 0 )
