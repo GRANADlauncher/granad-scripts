@@ -49,7 +49,7 @@ if __name__ == '__main__':
     omega_0 = 1.36
     params = ["test", 60, [0.1, 0, 0], omega_0, 5, 2]
     
-    # sim(flake, params)
+    sim(flake, params)
     
-    plot_res(params[0], 4*omega_0, 0, omega_0)
+    plot_dipole(params[0], 4*omega_0, 0, omega_0)
     plot_td(params[0])
