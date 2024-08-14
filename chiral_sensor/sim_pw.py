@@ -79,31 +79,6 @@ def get_haldane_graphene(t1, t2, delta):
             )
             )
 
-def static_sim(shape,
-        t1,
-        t2,
-        delta,
-        end_time,
-        omega,
-        peak,
-        fwhm,
-        phi,
-        name):
-    """saves a pdf plot of the energy landscape and edge states in a cut of haldane graphene.
-    returns the constructed flake
-    """
-
-    flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)
-    
-    # energies
-    flake.show_energies(name = f"{name}.pdf")    
-    
-    # edge states    
-    for i, idx in enumerate(jnp.argwhere(jnp.abs(flake.energies) < 1e-1)):
-        flake.show_2d( display = flake.eigenvectors[:, idx.item()], scale = True, name = f"{name}_{i}_es.pdf" )
-
-    return flake
-
 def td_sim(shape,
            t1,
            t2,
@@ -132,6 +107,49 @@ def td_sim(shape,
 
 
 ### postprocessing ###
+def plot_edge_states(shape,
+                     t1,
+                     t2,
+                     delta,
+                     end_time,
+                     omega,
+                     peak,
+                     fwhm,
+                     phi,
+                     name):
+    """saves a pdf plot of the edge states in a cut of haldane graphene.
+    returns the constructed flake
+    """
+
+    flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)
+        
+    # edge states    
+    for i, idx in enumerate(jnp.argwhere(jnp.abs(flake.energies) < 1e-1)):
+        flake.show_2d( display = flake.eigenvectors[:, idx.item()], scale = True, name = f"{name}_{i}_es.pdf" )
+
+    return flake
+
+def plot_energies(shape,
+                  t1,
+                  t2,
+                  delta,
+                  end_time,
+                  omega,
+                  peak,
+                  fwhm,
+                  phi,
+                  name):
+    """saves a pdf plot of the energy landscape and edge states in a cut of haldane graphene.
+    returns the constructed flake
+    """
+
+    flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)
+    
+    # energies
+    flake.show_energies(name = f"{name}.pdf")    
+
+    return flake
+
 def get_abs(arg, omega_max, omega_min):
     """returns absorption and omega axis
     """
@@ -210,20 +228,27 @@ if __name__ == '__main__':
         for t2 in [0., 0.5, 1.] for phi in jnp.linspace(-jnp.pi, jnp.pi, 30)
         ]
     args_list = [
-        (Hexagon(20, armchair = True), 1.0, -1j*t2, 0.3, 40, 0.3, 5, 2, phi, f"graphene_two_phases{t2}_{phi}" )
+        (Hexagon(30, armchair = True), -2.66, -1j*t2, 0.3, 40, 0.3, 5, 2, phi, f"graphene_two_phases{t2}_{phi}" )
         for t2 in [0.04, 0.1] for phi in [-jnp.pi/2, 0, jnp.pi/2]
         ]
 
-    run = 0
+    # import pdb; pdb.set_trace()
+    flake = plot_energies(*args_list[-1])    
+    flake = plot_edge_states(*args_list[-1])    
+
+    run, plot = 0, 0
     if run:
         for arg in args_list:
             td_sim(*arg)
 
-    plot_absorption(args_list, 40, 0)
-    plot_td(args_list)
+    if plot:
+        plot_absorption(args_list, 40, 0)
+        plot_td(args_list)
     
-    # flake = static_sim(*args_list[-1])    
     # plot_cd(args_list, 40, 0)
     # flake = static_sim(Hexagon(31, armchair = True), 1.0, 1j*0.1, 0.3, 40, 2.6, 5, 2, "ff", f"g2_no_coul_pw")    
     # result = td_sim(*args_list[1])
     # plot_chiral_ldos( [args_list[1]], 5, 0 )
+
+    # shape, t1, t2, delta = Triangle(20), -2.66, -1j, 0.0
+    # jnp.abs(MaterialCatalog.get("graphene").cut_flake(shape).coulomb - get_haldane_graphene(t1, t2, delta).cut_flake(shape).coulomb).max()
