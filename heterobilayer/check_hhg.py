@@ -17,23 +17,29 @@ def get_dip(name, omega_max, omega_min, omega_0):
     p_normalized = jnp.linalg.norm(p_omega, axis = -1) / p_0
     return omegas, p_normalized
 
-def plot_dipole(name, omega_max, omega_min, omega_0):
+def plot_omega_dipole(name, omega_max, omega_min, omega_0):
     omegas, p = get_dip(name, omega_max, omega_min, omega_0)
     plt.plot(omegas / omega_0, p)
-    plt.savefig(f"dipole_moment_{name}.pdf")
+    plt.savefig(f"omega_dipole_moment_{name}.pdf")
     plt.close()
 
-def plot_td(name):
+def plot_t_dipole(params):
+    name, end_time, amplitudes, omega, peak, fwhm = params
+    time = jnp.linspace(0, end_time, 1000)
+    pulse = Pulse(amplitudes, omega, peak, fwhm)
+    e_field = jax.vmap(pulse) (time)
+    plt.plot(time, e_field.real)
+    # plt.plot(time, e_field.imag, '--')
     result = TDResult.load(name)        
-    plt.plot(result.time_axis, result.output[0])
-    plt.savefig(name)
+    plt.plot(result.time_axis, result.output[0], '--')
+    plt.savefig(f"t_dipole_moment_{name}.pdf")
     plt.close()
     
 def sim(flake, params):
     name, end_time, amplitudes, omega, peak, fwhm = params
     
     result = flake.master_equation(
-        dt = 1e-6,
+        dt = 1e-5,
         end_time = end_time,
         relaxation_rate = 1/10,
         expectation_values = [ flake.dipole_operator ],
@@ -43,18 +49,7 @@ def sim(flake, params):
         # max_mem_gb = 50,
         grid = 100
     )
-    
     result.save(name)
-
-def plot_illu(params):
-    name, end_time, amplitudes, omega, peak, fwhm = params
-    time = jnp.linspace(0, end_time, 1000)
-    pulse = Pulse(amplitudes, omega, peak, fwhm)
-    e_field = jax.vmap(pulse) (time)
-    plt.plot(time, e_field.real)
-    plt.plot(time, e_field.imag, '--')
-    plt.savefig("field.pdf")
-    plt.close()
     
 def get_abs(name, omega_max, omega_min):
     """returns absorption and omega axis
@@ -89,20 +84,21 @@ def sim_rpa(flake, name, omega_max, omega_min):
     jnp.savez(f"rpa_{name}.npz", **{"pol" : polarizability, "omegas" : omegas}  )
 
     
-if __name__ == '__main__':    
-    flake = MaterialCatalog.get("graphene").cut_flake(Triangle(40, armchair = True))
+if __name__ == '__main__':
+    # params: Q = 2, N = 330 armchair, light : frequency = 0.68 eV, fwhm = 166fs, pol perp to triangle side, duration: 700, peak at 200
+    flake = MaterialCatalog.get("graphene").cut_flake(Triangle(45, armchair = True))
     flake.set_electrons(flake.electrons + 2)
     flake.show_energies(name = "energies")
 
     # name, end_time, amplitudes, omega, peak, fwhm = params
-    omega_0 = 4
-    params = ["2_doping_higher_frequency", 80, [0.01, 0, 0], omega_0, 7, 5]
-    plot_illu(params)    
-    
+    omega_0 = 0.68
+    params = ["cox", 700, [0.03, 0, 0], omega_0, 0.659 * 200, 0.659 * 166]    
+
     sim(flake, params)
-    # sim_rpa(flake, params[0], 4, 0)
-    # plot_absorption(params[0], 4, 0, rpa = True)
     
-    plot_absorption(params[0], 4, 0)    
-    plot_dipole(params[0], 4*omega_0, 0, omega_0)
-    plot_td(params[0])
+    # sim_rpa(flake, params[0], 4, 0)
+    # plot_absorption(params[0], 4, 0, rpa = True)    
+    # plot_absorption(params[0], 4, 0)
+    
+    plot_omega_dipole(params[0], 4*omega_0, 0, omega_0)
+    plot_t_dipole(params)
