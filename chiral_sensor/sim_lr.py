@@ -46,7 +46,7 @@ def get_haldane_graphene(t1, t2, delta):
             "hamiltonian",
             participants=("pz2", "pz2"),
             parameters=[                
-                [0, 0, 0, delta], # onsite                
+                [0, 0, 0, 0], # onsite                
                 # clockwise hoppings
                 [-2.46, 0, 0, jnp.conj(t2)], 
                 [2.46, 0, 0, t2],
