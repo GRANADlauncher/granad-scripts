@@ -85,7 +85,7 @@ def rpa_conductivity(args_list):
 def conductivity(results_file):
     args_list = [
         (Hexagon(40, armchair = True), -2.66, -1j*t2, 0.3, f"haldane_graphene_{t2}" )
-        for t2 in [0, 0.001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, -0.03, -0.04, -0.05, -0.06]
+        for t2 in [0, 0.001, 0.01, 0.02, 0.03, 0.04, 0.1, 0.5, -0.03, -0.04, -0.1, -0.5]
         ]
     
     res = {}    
@@ -94,7 +94,6 @@ def conductivity(results_file):
         flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])
         v = flake.velocity_operator
         res[args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas) for i in range(2)] for j in range(2)])
-        print(res[args[-1]])        
     res["omegas"] = omegas
     jnp.savez(results_file, **res)
 
@@ -120,7 +119,7 @@ def plot_static():
         plot_edge_states(args)
         plot_energies(args)
 
-# MAYBE: sum current from sites i->j going around the flake clock-wise
+# TODO: net current in excited state going around the flake clock-wise
 def current_map(args_list):
     return
 
@@ -135,19 +134,27 @@ def average_chirality_density(sigma, illu):
 def to_helicity(mat):
     trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
     trafo_inv = jnp.linalg.inv(trafo)
-    return trafo @ mat @ trafo_inv
+    return jnp.einsum('ij,jmk,ml->ilk', trafo_inv, mat, trafo)
     
 def plot_chirality_difference(results_file, keys = None):
-    with jnp.load(results_file) as data:        
+    with jnp.load(results_file) as data:
+        data = dict(data)
         omegas = data.pop("omegas")        
         keys = data.keys() if keys is None else keys
         for key in keys:
-            mat = to_helicity(data[key])
-            print(mat)
-            plt.plot(mat[0, 0] - mat[1, 1], label = key.split("_")[-1])
+            # mat = to_helicity(data[key])
+            # plt.plot(mat[0, 0] - mat[1, 1], label = key.split("_")[-1])
+            mat = data[key]
+            plt.plot(mat[0, 0], label = key.split("_")[-1])
+            plt.plot(mat[1, 1], label = key.split("_")[-1])
+
+        plt.legend()
         plt.savefig("chirality_difference.pdf")
+        plt.close()
 
 if __name__ == '__main__':
     f = "conductivity_lrt.npz"
     conductivity(f)
-    plot_chirality_difference(f)
+    # keys = ['haldane_graphene_0', 'haldane_graphene_0.001', 'haldane_graphene_0.01', 'haldane_graphene_0.02', 'haldane_graphene_0.03', 'haldane_graphene_0.04', 'haldane_graphene_0.05', 'haldane_graphene_0.06', 'haldane_graphene_-0.03', 'haldane_graphene_-0.04', 'haldane_graphene_-0.05', 'haldane_graphene_-0.06']
+    keys = None
+    plot_chirality_difference(f, keys = keys)
