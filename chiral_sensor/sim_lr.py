@@ -5,6 +5,8 @@ import jax.numpy as jnp
 
 from granad import *
 
+# haldane model has topological phase for Im[t2] > \frac{M}{3 \sqrt{3}} => for 0.3 Im[t_2]_crit ~ 0.06
+# sim input : (shape, t1, t2, delta (mass term), name)
 def get_haldane_graphene(t1, t2, delta):
     """Constructs a graphene model with
     onsite hopping difference between sublattice A and B, nn hopping, nnn hopping = delta, t1, t2
@@ -80,7 +82,7 @@ def get_haldane_graphene(t1, t2, delta):
 def rpa_conductivity(args_list):    
     return
 
-def conductivity():
+def conductivity(results_file):
     args_list = [
         (Hexagon(40, armchair = True), -2.66, -1j*t2, 0.3, f"haldane_graphene_{t2}" )
         for t2 in [0, 0.001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, -0.03, -0.04, -0.05, -0.06]
@@ -92,8 +94,9 @@ def conductivity():
         flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])
         v = flake.velocity_operator
         res[args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas) for i in range(2)] for j in range(2)])
-        
-    jnp.savez(f"lr_results.npz", **res)
+        print(res[args[-1]])        
+    res["omegas"] = omegas
+    jnp.savez(results_file, **res)
 
 ### postprocessing ###
 def plot_edge_states(args):
@@ -129,15 +132,22 @@ def scattered_field(results_file, illu, r):
 def average_chirality_density(sigma, illu):
     return
 
-# TODO: turn matrix from cartesian to helicity basis        
-def to_helicity(mat):    
-    return
+def to_helicity(mat):
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
+    trafo_inv = jnp.linalg.inv(trafo)
+    return trafo @ mat @ trafo_inv
     
-# TODO: load file, convert each matrix into helicity basis => compute difference between sigma_{++} and sigma_{--}
-def plot_chirality_difference(results_file):    
-    return    
+def plot_chirality_difference(results_file, keys = None):
+    with jnp.load(results_file) as data:        
+        omegas = data.pop("omegas")        
+        keys = data.keys() if keys is None else keys
+        for key in keys:
+            mat = to_helicity(data[key])
+            print(mat)
+            plt.plot(mat[0, 0] - mat[1, 1], label = key.split("_")[-1])
+        plt.savefig("chirality_difference.pdf")
 
 if __name__ == '__main__':
-    # haldane model has topological phase for Im[t2] > \frac{M}{3 \sqrt{3}} => for 0.3 Im[t_2]_crit ~ 0.06
-    # (shape, t1, t2, delta (mass term), name)
-    conductivity()
+    f = "conductivity_lrt.npz"
+    conductivity(f)
+    plot_chirality_difference(f)
