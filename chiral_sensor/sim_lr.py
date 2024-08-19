@@ -85,7 +85,7 @@ def rpa_conductivity(args_list):
 def conductivity(results_file):
     args_list = [
         (Hexagon(40, armchair = True), -2.66, -1j*t2, 0.3, f"haldane_graphene_{t2}" )
-        for t2 in [0, 0.001, 0.01, 0.02, 0.03, 0.04, 0.1, 0.5, -0.03, -0.04, -0.1, -0.5]
+        for t2 in [0, 0.001, 0.01, 0.02, 0.1, 0.2, 0.3, 0.4, 0.5, -0.03, -0.04, -0.1, -0.2, -0.3, -0.4, -0.5]
         ]
     
     res = {}    
