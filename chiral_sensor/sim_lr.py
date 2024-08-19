@@ -166,10 +166,8 @@ def plot_chirality_difference(results_file, keys = None):
 
 if __name__ == '__main__':
     f = "conductivity_lrt.npz"    
-    # conductivity(f)
+    conductivity(f)
     # keys = ['haldane_graphene_0', 'haldane_graphene_0.001', 'haldane_graphene_0.01', 'haldane_graphene_0.02', 'haldane_graphene_0.03', 'haldane_graphene_0.04', 'haldane_graphene_0.05', 'haldane_graphene_0.06', 'haldane_graphene_-0.03', 'haldane_graphene_-0.04', 'haldane_graphene_-0.05', 'haldane_graphene_-0.06']
-    keys = ['haldane_graphene_-0.1', 'topological.haldane_graphene_-0.1']
     keys = ['haldane_graphene_0.1', 'topological.haldane_graphene_0.1']
-
     # keys = None
     plot_chirality_difference(f, keys = keys)
