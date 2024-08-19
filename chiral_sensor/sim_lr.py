@@ -91,9 +91,15 @@ def conductivity(results_file):
     res = {}    
     omegas = jnp.linspace(0, 10, 100)    
     for args in args_list:        
-        flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])
+        flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])        
         v = flake.velocity_operator
         res[args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas) for i in range(2)] for j in range(2)])
+
+        # compute only topological sector
+        trivial = jnp.abs(flake.energies) > 1e-1
+        mask = jnp.logical_and(trivial[:, None], trivial)
+        res["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, mask = mask) for i in range(2)] for j in range(2)])
+        
     res["omegas"] = omegas
     jnp.savez(results_file, **res)
 
@@ -111,9 +117,9 @@ def plot_energies(args):
 
 def plot_static():
     plot_args_list = [
-        (Triangle(10, armchair = True), -2.66, -1j, 0.3, f"triangle" ),
-        (Hexagon(40, armchair = True), -2.66, -1j, 0.3, f"hexagon" ),
-        (Rectangle(40, 20, armchair = True), -2.66, -1j, 0.3, f"ribbon" ),        
+        (Triangle(10, armchair = True), -2.66, -0.1j, 0.3, f"triangle" ),
+        (Hexagon(40, armchair = True), -2.66, -0.1j, 0.3, f"hexagon" ),
+        (Rectangle(40, 20, armchair = True), -2.66, -0.1j, 0.3, f"ribbon" ),        
         ]    
     for args in plot_args_list:
         plot_edge_states(args)
@@ -141,20 +147,24 @@ def plot_chirality_difference(results_file, keys = None):
         data = dict(data)
         omegas = data.pop("omegas")        
         keys = data.keys() if keys is None else keys
-        for key in keys:
-            # mat = to_helicity(data[key])
-            # plt.plot(mat[0, 0] - mat[1, 1], label = key.split("_")[-1])
-            mat = data[key]
-            plt.plot(mat[0, 0], label = key.split("_")[-1])
-            plt.plot(mat[1, 1], label = key.split("_")[-1])
+        print(data.keys())
+        
+        for i, key in enumerate(keys):
+            mat = to_helicity(data[key])
+            plt.semilogy(omegas, (mat[0, 0] - mat[1, 1]).imag, label = key.split("_")[-1])
+            plt.ylim(1)
+            # mat = data[key]
+            # plt.plot(mat[0, 0], label = key.split("_")[-1])
+            # plt.plot(mat[1, 1], label = key.split("_")[-1])
 
         plt.legend()
         plt.savefig("chirality_difference.pdf")
         plt.close()
 
 if __name__ == '__main__':
-    f = "conductivity_lrt.npz"
+    f = "conductivity_lrt.npz"    
     conductivity(f)
     # keys = ['haldane_graphene_0', 'haldane_graphene_0.001', 'haldane_graphene_0.01', 'haldane_graphene_0.02', 'haldane_graphene_0.03', 'haldane_graphene_0.04', 'haldane_graphene_0.05', 'haldane_graphene_0.06', 'haldane_graphene_-0.03', 'haldane_graphene_-0.04', 'haldane_graphene_-0.05', 'haldane_graphene_-0.06']
-    keys = None
+    keys = ['haldane_graphene_0', 'haldane_graphene_-0.1', 'haldane_graphene_-0.5']
+    # keys = None
     plot_chirality_difference(f, keys = keys)
