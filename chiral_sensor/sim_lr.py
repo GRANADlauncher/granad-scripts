@@ -89,7 +89,7 @@ def conductivity(results_file):
         ]
     
     res = {}    
-    omegas = jnp.linspace(0, 10, 100)    
+    omegas = jnp.linspace(10, 40, 300)    
     for args in args_list:        
         flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])        
         v = flake.velocity_operator
@@ -151,8 +151,11 @@ def plot_chirality_difference(results_file, keys = None):
         
         for i, key in enumerate(keys):
             mat = to_helicity(data[key])
-            plt.semilogy(omegas, (mat[0, 0] - mat[1, 1]).imag, label = key.split("_")[-1])
-            plt.ylim(1)
+            ls = '--' if 'topological' in key else '-'                
+            # plt.semilogy(omegas, (mat[0, 0] - mat[1, 1]).real, ls = ls, label = key.split("_")[-1])
+            plt.semilogy(omegas, (mat[0, 0]).imag, ls = ls, label = key.split("_")[-1])
+            plt.semilogy(omegas, (mat[1, 1]).imag, ls = ls, label = 'foo_' + key.split("_")[-1])            
+            # plt.ylim(1)
             # mat = data[key]
             # plt.plot(mat[0, 0], label = key.split("_")[-1])
             # plt.plot(mat[1, 1], label = key.split("_")[-1])
@@ -163,8 +166,10 @@ def plot_chirality_difference(results_file, keys = None):
 
 if __name__ == '__main__':
     f = "conductivity_lrt.npz"    
-    conductivity(f)
+    # conductivity(f)
     # keys = ['haldane_graphene_0', 'haldane_graphene_0.001', 'haldane_graphene_0.01', 'haldane_graphene_0.02', 'haldane_graphene_0.03', 'haldane_graphene_0.04', 'haldane_graphene_0.05', 'haldane_graphene_0.06', 'haldane_graphene_-0.03', 'haldane_graphene_-0.04', 'haldane_graphene_-0.05', 'haldane_graphene_-0.06']
-    keys = ['haldane_graphene_0', 'haldane_graphene_-0.1', 'haldane_graphene_-0.5']
+    keys = ['haldane_graphene_-0.1', 'topological.haldane_graphene_-0.1']
+    keys = ['haldane_graphene_0.1', 'topological.haldane_graphene_0.1']
+
     # keys = None
     plot_chirality_difference(f, keys = keys)
