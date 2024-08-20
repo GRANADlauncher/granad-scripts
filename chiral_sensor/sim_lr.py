@@ -85,7 +85,7 @@ def rpa_conductivity(args_list):
 def sim(results_file):    
     args_list = [
         (Hexagon(40, armchair = True), -2.66, -1j*t2, 0.3, f"haldane_graphene_{t2}" )
-        for t2 in [0.01, 0.5]
+        for t2 in [0.0, 0.5]
         ]
 
     print("plotting edge states")
@@ -95,7 +95,7 @@ def sim(results_file):
     print("lrt")
 
     cond, pol = {}, {}
-    omegas = jnp.linspace(0, 20, 200)    
+    omegas = jnp.linspace(0, 40, 400)    
     for args in args_list:        
         flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])        
         v, p = flake.velocity_operator, flake.dipole_operator
@@ -159,11 +159,13 @@ def plot_response_functions(results_file):
         pol = dict(data)
         pol_omegas = pol.pop("omegas")
         
-    keys = cond.keys() if keys is None else keys
+    keys = cond.keys()
     for k in keys:    
-        plt.plot(cond_omegas, cond[k], label = 'cond_' + key )
-        plt.plot(pol_omegas, pol_omegas ** 2 * pol[k], '--', label = 'pol_' + key)
+        plt.semilogy(cond_omegas, cond[k][0,0], label = 'cond_' + k )
+        # plt.plot(pol_omegas, pol_omegas ** (-2) * pol[k][0,0], '--', label = 'pol_' + k)
+        plt.legend(loc = "upper left")
     plt.savefig("cond_pol_comparison.pdf")
+    plt.close()
     
 def plot_chirality_difference(results_file, keys = None):
     with jnp.load(results_file) as data:
@@ -171,25 +173,30 @@ def plot_chirality_difference(results_file, keys = None):
         omegas = data.pop("omegas")        
         keys = data.keys() if keys is None else keys
         print(data.keys())
+
+        fig, axs = plt.subplots(2,1)
         
         for i, key in enumerate(keys):
             mat = to_helicity(data[key])
             mat_real, mat_imag = jnp.abs(mat.real), jnp.abs(mat.imag)
-            ls = '--' if 'topological' in key else '-'                
-            # plt.semilogy(omegas, (mat[0, 0] - mat[1, 1]).real, ls = ls, label = key.split("_")[-1])
-            plt.semilogy(omegas, mat_imag[0, 0], ls = ls, label = key.split("_")[-1])
-            plt.semilogy(omegas, mat_imag[1, 1], ls = ls, label = 'foo_' + key.split("_")[-1])
-            # mat = data[key]
-            # plt.plot(mat[0, 0], label = key.split("_")[-1])
-            # plt.plot(mat[1, 1], label = key.split("_")[-1])
+            
+            ls = '--' if 'topological' in key else '-'
+            
+            axs[0].semilogy(omegas, mat_imag[0, 0], ls = ls, label = key.split("_")[-1])
+            # axs[0].semilogy(omegas, mat_imag[1, 1], ls = ls, label = '--' + key.split("_")[-1])
+            axs[0].legend(loc = "upper left")
 
-        # plt.ylim(1)
-        plt.legend(loc = "upper left")
+            
+            axs[1].semilogy(omegas, mat_real[0, 0], ls = ls, label = key.split("_")[-1])
+            # axs[1].semilogy(omegas, mat_real[1, 1], ls = ls, label = '--' + key.split("_")[-1])
+            axs[1].legend(loc = "upper left")
+            
         plt.savefig("chirality_difference.pdf")
         plt.close()
 
+            
 if __name__ == '__main__':
     f = "lrt.npz"    
     sim(f)
     plot_response_functions(f)
-    plot_chirality_difference(f, keys = keys)
+    plot_chirality_difference("cond_" + f)
