@@ -144,8 +144,8 @@ def plot_omega_abs(name, omega_max, omega_min, omega_0):
     plt.close()
 
 
-def plot_t_dipole(params):
-    name, shape, delta1, delta2, g11, g12, g21, g22, inter_nn, inter_nnn, end_time, amplitudes, omega, peak, fwhm = params
+def plot_t_dipole(name, params):
+    shape, delta1, delta2, g11, g12, g21, g22, inter_nn, inter_nnn, end_time, amplitudes, omega, peak, fwhm = params
     time = jnp.linspace(0, end_time, 1000)
     pulse = Pulse(amplitudes, omega, peak, fwhm)
     e_field = jax.vmap(pulse) (time)
@@ -226,7 +226,8 @@ if __name__ == '__main__':
     # time domain simulation of bilayer
     sim(flake, params, bi)
 
-    # plot results    
-    plot_omega_dipole(params[0], 6*omega_0, 0, omega_0)
-    plot_t_dipole(params)
-    plot_absorption(params[0], 10, 0)
+    # plot results
+    for name in [single, bi]:
+        plot_omega_dipole(name, params[0], 6*omega_0, 0, omega_0)
+        plot_t_dipole(name, params)
+        plot_absorption(name, params[0], 10, 0)
