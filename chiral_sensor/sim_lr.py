@@ -82,7 +82,7 @@ def get_haldane_graphene(t1, t2, delta):
 def rpa_conductivity(args_list):    
     return
 
-def conductivity(results_file):    
+def sim(results_file):    
     args_list = [
         (Hexagon(40, armchair = True), -2.66, -1j*t2, 0.3, f"haldane_graphene_{t2}" )
         for t2 in [0.01, 0.5]
@@ -95,7 +95,7 @@ def conductivity(results_file):
     print("lrt")
 
     cond, pol = {}, {}
-    omegas = jnp.linspace(10, 40, 300)    
+    omegas = jnp.linspace(0, 20, 200)    
     for args in args_list:        
         flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])        
         v, p = flake.velocity_operator, flake.dipole_operator
@@ -190,6 +190,6 @@ def plot_chirality_difference(results_file, keys = None):
 
 if __name__ == '__main__':
     f = "lrt.npz"    
-    conductivity(f)
+    sim(f)
     plot_response_functions(f)
     plot_chirality_difference(f, keys = keys)
