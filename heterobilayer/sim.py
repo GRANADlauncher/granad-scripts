@@ -228,6 +228,6 @@ if __name__ == '__main__':
 
     # plot results
     for name in [single, bi]:
-        plot_omega_dipole(name, params[0], 6*omega_0, 0, omega_0)
+        plot_omega_dipole(name, 6*omega_0, 0, omega_0)
         plot_t_dipole(name, params)
-        plot_absorption(name, params[0], 10, 0)
+        plot_absorption(name, 10, 0)
