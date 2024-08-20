@@ -115,9 +115,12 @@ def sim(results_file):
 ### postprocessing ###
 def plot_edge_states(args):
     shape, t1, t2, delta, name = args
-    flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)    
-    idx = jnp.argwhere(jnp.abs(flake.energies) < 1e-1)[0].item()    
-    flake.show_2d(display = flake.eigenvectors[:, idx], scale = True, name = name + ".pdf")
+    flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)
+    try:
+        idx = jnp.argwhere(jnp.abs(flake.energies) < 1e-1)[0].item()
+        flake.show_2d(display = flake.eigenvectors[:, idx], scale = True, name = name + ".pdf")
+    except IndexError:
+        print(args, " has no edge states")
     
 def plot_energies(args):
     shape, t1, t2, delta, name = args
