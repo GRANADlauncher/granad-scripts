@@ -97,16 +97,19 @@ def sim(results_file):
     cond, pol = {}, {}
     omegas = jnp.linspace(0, 40, 400)    
     for args in args_list:        
-        flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])        
+        flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])
+
+        print("simulating ", flake)
+        
         v, p = flake.velocity_operator, flake.dipole_operator
         cond[args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.01) for i in range(2)] for j in range(2)])
-        pol[args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01) for i in range(2)] for j in range(2)])
+        # pol[args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01) for i in range(2)] for j in range(2)])
 
         # compute only topological sector
         trivial = jnp.abs(flake.energies) > 1e-1
         mask = jnp.logical_and(trivial[:, None], trivial)
         cond["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.01, mask = mask) for i in range(2)] for j in range(2)])
-        pol["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01, mask = mask) for i in range(2)] for j in range(2)])
+        # pol["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01, mask = mask) for i in range(2)] for j in range(2)])
         
     cond["omegas"], pol["omegas"] = omegas, omegas
     jnp.savez("cond_" + results_file, **cond)
