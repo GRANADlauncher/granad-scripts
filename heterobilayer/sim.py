@@ -204,7 +204,7 @@ def setup(params):
     print(len(flake1))
     flake2.show_energies(name="2.pdf")
     print(len(flake2))
-    flake = get_bilayer_graphene(*params[1:10])
+    flake = get_bilayer_graphene(*params[:9])
     flake.show_energies(name="1+2.pdf")
     flake.show_2d(name = "geometry.pdf")
 
