@@ -84,7 +84,7 @@ def rpa_conductivity(args_list):
 
 def sim(results_file):    
     args_list = [
-        (Hexagon(20, armchair = True), -2.66, -1j*t2, 0.3, f"haldane_graphene_{t2}" )
+        (Triangle(20, armchair = True), -2.66, -1j*t2, 0.3, f"haldane_graphene_{t2}" )
         for t2 in [0.0, 0.5]
         ]
 
