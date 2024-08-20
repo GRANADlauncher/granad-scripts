@@ -194,26 +194,36 @@ def sim(flake, params):
     )
     result.save(name)
 
-def plot_energies(params):
+def setup(params):
     """plots energies of single and bilayer"""
     name, shape, delta1, delta2, g11, g12, g21, g22, inter_nn, inter_nnn, end_time, amplitudes, omega, peak, fwhm = params    
     m1, m2 = get_haldane_graphene(g11, g12, delta1, 0), get_haldane_graphene(g21, g22, 0, delta2)    
     flake1, flake2 = m1.cut_flake(shape), m2.cut_flake(shape)
+    
     flake1.show_energies(name="1.pdf")
+    print(len(flake1))
     flake2.show_energies(name="2.pdf")
+    print(len(flake2))
     flake = get_bilayer_graphene(*params[1:10])
     flake.show_energies(name="1+2.pdf")
+    flake.show_2d(name = "geometry.pdf")
            
     
 if __name__ == '__main__':    
     # name, shape, delta1, delta2, g11, g12, g21, g22, inter_nn, inter_nnn, end_time, amplitudes, omega, peak, fwhm = params
     omega_0 = 4
-    params = ["normal_bilayer_linear", Triangle(10), 0.0, 0.0, 3.0, 0., 3.0, 0., 0.38, 0.1, 100, [1e-5, 0, 0], omega_0, 4, 0.5]
-    plot_energies(params)
-    
+    params = ["linear_response_normal_bilayer_linear", Triangle(30), 0.0, 0.0, 3.0, 0., 3.0, 0., 0.38, 0.1, 100, [1e-5, 0, 0], omega_0, 4, 0.5]
+
+    # plot geometry, combined and separate energies
+    setup(params)
+
+    # prepare flake
     flake = get_bilayer_graphene(*params[1:10])
-    
-    sim(flake, params)    
+
+    # time domain simulation
+    sim(flake, params)
+
+    # plot results    
     plot_omega_dipole(params[0], 6*omega_0, 0, omega_0)
     plot_t_dipole(params)
     plot_absorption(params[0], 10, 0)
