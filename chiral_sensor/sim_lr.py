@@ -82,33 +82,42 @@ def get_haldane_graphene(t1, t2, delta):
 def rpa_conductivity(args_list):    
     return
 
-def conductivity(results_file):
+def conductivity(results_file):    
     args_list = [
         (Hexagon(40, armchair = True), -2.66, -1j*t2, 0.3, f"haldane_graphene_{t2}" )
-        for t2 in [0, 0.001, 0.01, 0.02, 0.1, 0.2, 0.3, 0.4, 0.5, -0.03, -0.04, -0.1, -0.2, -0.3, -0.4, -0.5]
+        for t2 in [0.01, 0.5]
         ]
-    
-    res = {}    
+
+    print("plotting edge states")
+    for args in args_list:
+        plot_edge_states(args)
+        plot_energies(args)
+    print("lrt")
+
+    cond, pol = {}, {}
     omegas = jnp.linspace(10, 40, 300)    
     for args in args_list:        
         flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])        
-        v = flake.velocity_operator
-        res[args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas) for i in range(2)] for j in range(2)])
+        v, p = flake.velocity_operator, flake.dipole_operator
+        cond[args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.01) for i in range(2)] for j in range(2)])
+        pol[args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01) for i in range(2)] for j in range(2)])
 
         # compute only topological sector
         trivial = jnp.abs(flake.energies) > 1e-1
         mask = jnp.logical_and(trivial[:, None], trivial)
-        res["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, mask = mask) for i in range(2)] for j in range(2)])
+        cond["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.01, mask = mask) for i in range(2)] for j in range(2)])
+        pol["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01, mask = mask) for i in range(2)] for j in range(2)])
         
-    res["omegas"] = omegas
-    jnp.savez(results_file, **res)
+    cond["omegas"], pol["omegas"] = omegas, omegas
+    jnp.savez("cond_" + results_file, **cond)
+    jnp.savez("pol_" + results_file, **pol)
 
 ### postprocessing ###
 def plot_edge_states(args):
     shape, t1, t2, delta, name = args
     flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)    
     idx = jnp.argwhere(jnp.abs(flake.energies) < 1e-1)[0].item()    
-    flake.show_2d(display = flake.eigenvectors[:, idx], scale = True, name = name)
+    flake.show_2d(display = flake.eigenvectors[:, idx], scale = True, name = name + ".pdf")
     
 def plot_energies(args):
     shape, t1, t2, delta, name = args
@@ -141,6 +150,20 @@ def to_helicity(mat):
     trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
     trafo_inv = jnp.linalg.inv(trafo)
     return jnp.einsum('ij,jmk,ml->ilk', trafo_inv, mat, trafo)
+
+def plot_response_functions(results_file):
+    with jnp.load("cond_" + results_file) as data:
+        cond = dict(data)
+        cond_omegas = cond.pop("omegas")        
+    with jnp.load("pol_" + results_file) as data:
+        pol = dict(data)
+        pol_omegas = pol.pop("omegas")
+        
+    keys = cond.keys() if keys is None else keys
+    for k in keys:    
+        plt.plot(cond_omegas, cond[k], label = 'cond_' + key )
+        plt.plot(pol_omegas, pol_omegas ** 2 * pol[k], '--', label = 'pol_' + key)
+    plt.savefig("cond_pol_comparison.pdf")
     
 def plot_chirality_difference(results_file, keys = None):
     with jnp.load(results_file) as data:
@@ -151,23 +174,22 @@ def plot_chirality_difference(results_file, keys = None):
         
         for i, key in enumerate(keys):
             mat = to_helicity(data[key])
+            mat_real, mat_imag = jnp.abs(mat.real), jnp.abs(mat.imag)
             ls = '--' if 'topological' in key else '-'                
             # plt.semilogy(omegas, (mat[0, 0] - mat[1, 1]).real, ls = ls, label = key.split("_")[-1])
-            plt.semilogy(omegas, (mat[0, 0]).imag, ls = ls, label = key.split("_")[-1])
-            plt.semilogy(omegas, (mat[1, 1]).imag, ls = ls, label = 'foo_' + key.split("_")[-1])            
-            # plt.ylim(1)
+            plt.semilogy(omegas, mat_imag[0, 0], ls = ls, label = key.split("_")[-1])
+            plt.semilogy(omegas, mat_imag[1, 1], ls = ls, label = 'foo_' + key.split("_")[-1])
             # mat = data[key]
             # plt.plot(mat[0, 0], label = key.split("_")[-1])
             # plt.plot(mat[1, 1], label = key.split("_")[-1])
 
-        plt.legend()
+        # plt.ylim(1)
+        plt.legend(loc = "upper left")
         plt.savefig("chirality_difference.pdf")
         plt.close()
 
 if __name__ == '__main__':
-    f = "conductivity_lrt.npz"    
+    f = "lrt.npz"    
     conductivity(f)
-    # keys = ['haldane_graphene_0', 'haldane_graphene_0.001', 'haldane_graphene_0.01', 'haldane_graphene_0.02', 'haldane_graphene_0.03', 'haldane_graphene_0.04', 'haldane_graphene_0.05', 'haldane_graphene_0.06', 'haldane_graphene_-0.03', 'haldane_graphene_-0.04', 'haldane_graphene_-0.05', 'haldane_graphene_-0.06']
-    keys = ['haldane_graphene_0.1', 'topological.haldane_graphene_0.1']
-    # keys = None
+    plot_response_functions(f)
     plot_chirality_difference(f, keys = keys)
