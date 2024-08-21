@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import jax.numpy as jnp
 
 from granad import *
+from granad._numerics import rpa_susceptibility_function
 
 # haldane model has topological phase for Im[t2] > \frac{M}{3 \sqrt{3}} => for 0.3 Im[t_2]_crit ~ 0.06
 # sim input : (shape, t1, t2, delta (mass term), name)
@@ -77,10 +78,24 @@ def get_haldane_graphene(t1, t2, delta):
     )
 
 ### sim ###
-
-# TODO: conductivity from chi and RPA
-def rpa_conductivity(args_list):    
-    return
+def rpa_response(flake, results_file, cs):
+    """computes j-j response from p-p in RPA"""
+    
+    omegas =  jnp.linspace(0, 10, 100)
+    res = {}
+    
+    for c in cs:        
+        args = fake.get_args(relaxation_rate = 1/10,
+                             coulomb_strength = c,
+                             propagator = None)
+        
+        sus = jax.lax.map(rpa_susceptibility_function(args, hungry = 2), omegas)
+        
+        p = flake.positions
+        
+        res[args[-1]] = omegas**2 * jnp.einsum('Ii,ij,jJ->IJ', p, sus, p)
+        
+    jnp.savez("rpa_" + results_file, res)
 
 def sim(results_file):
     """runs simulation for IP j-j and p-p total and topological response.     
