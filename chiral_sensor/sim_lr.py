@@ -77,12 +77,14 @@ def get_haldane_graphene(t1, t2, delta):
         )
     )
 
-### sim ###
-def rpa_response(flake, results_file, cs):
+### RESPONSE FUNCTIONS ###
+def rpa_response(results_file, cs):
     """computes j-j response from p-p in RPA"""
     
+    flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
+    
     omegas =  jnp.linspace(0, 10, 100)
-    res = {}
+    res = []
     
     for c in cs:        
         args = fake.get_args(relaxation_rate = 1/10,
@@ -93,9 +95,9 @@ def rpa_response(flake, results_file, cs):
         
         p = flake.positions
         
-        res[args[-1]] = omegas**2 * jnp.einsum('Ii,ij,jJ->IJ', p, sus, p)
+        res.append( omegas**2 * jnp.einsum('Ii,ij,jJ->IJ', p, sus, p) )
         
-    jnp.savez("rpa_" + results_file, res)
+    jnp.savez("rpa_" + results_file, cond = res, omegas = omegas, cs = cs)
 
 def sim(results_file):
     """runs simulation for IP j-j and p-p total and topological response.     
@@ -134,6 +136,65 @@ def sim(results_file):
     jnp.savez("cond_" + results_file, **cond)
     jnp.savez("pol_" + results_file, **pol)
 
+# TODO: lookup greens function
+def chiral_ldos(results_file, illu, r):
+    return
+
+### GROUND STATE ###
+# TODO:
+def scf_loop(ham_0, f_mean_field, mixing, limit, max_steps):
+    """performs closed-shell scf calculation
+
+    Returns:
+        dict: holding density matrix, overlap, kinetic, nuclear and effective hamiltonian matrix
+    """
+    
+    def update(arg):
+        """scf update"""
+        
+        rho_old, step, error = arg
+
+        # initial effective hamiltonian
+        ham_eff =  kinetic + nuclear + f_mean_field(rho_old)
+
+        # diagonalize
+        vals, vecs = jnp.linalg.eigh(trafo.T @ ham_eff @ trafo)    
+
+        # build new density matrix
+        rho = f_rho(trafo @ vecs) + mixing * rho_old
+
+        # update breaks
+        error = jnp.abs(energy(rho, kinetic, nuclear, ham_eff) - energy(rho_old, kinetic, nuclear, ham_eff))
+
+        error = jnp.linalg.norm(rho - rho_old)
+
+        step = jax.lax.cond(error <= limit, lambda x: step, lambda x: step + 1, step)
+
+        return rho, step, error
+    
+    def step(idx, res):
+        """single SCF update step"""
+        return jax.lax.cond(res[-1] <= limit, lambda x: res, update, res)
+
+    # trafo orthogonalization
+    trafo = f_trafo(overlap)
+
+    # initial guess for the density matrix
+    rho_old = jnp.ones_like(overlap)
+
+    # scf loop
+    rho, steps, error = jax.lax.fori_loop(0, max_steps, step, (rho_old, 0, jnp.inf))
+
+    # TODO: a bit unelegant to recompute on return
+    return {"rho" : rho, "S" : overlap, "T": kinetic, "V" : nuclear, "ham_eff" : kinetic + nuclear + f_mean_field(rho)}
+
+# TODO: net current in excited state going around the flake clock-wise
+def current_directionality(args_list):
+    # identify edge state
+
+    # compute expectation value of current operator between sites
+    return
+
 ### postprocessing ###
 def plot_edge_states(args):
     """plot topological E~0 excitations, if present"""    
@@ -156,14 +217,6 @@ def plot_static(args):
     for args in args_list:
         plot_edge_states(args)
         plot_energies(args)
-
-# TODO: net current in excited state going around the flake clock-wise
-def current_map(args_list):
-    return
-
-# TODO: lookup greens function
-def scattered_field(results_file, illu, r):
-    return
 
 def to_helicity(mat):
     """converts mat to helicity basis"""
@@ -220,6 +273,67 @@ def plot_excess_chirality(results_file, keys = None):
     plt.savefig("excess_chirality.pdf")
     plt.close()
 
+
+def plot_chirality_difference(results_file, keys = None):
+    """plots excess chirality of the total response"""
+    omegas, data, keys = load_data(results_file, keys)
+    
+    # Assuming omegas, data, keys are loaded as per your code above
+    plt.style.use('seaborn-v0_8-darkgrid')
+
+    # Loop through each key to plot the data
+    for i, key in enumerate(keys):
+        mat = to_helicity(data[key])
+        mat_real, mat_imag = mat.real, mat.imag
+
+        if 'topological' in key:
+            continue
+
+        plt.plot(omegas, mat_imag[1, 1] - mat_imag[0, 0], label=key.split("_")[-1])
+
+    # Adding titles and labels to make it clear
+    plt.title(r'$\delta_{+-}$')
+    plt.ylabel(r'$\sigma$ (a.u.)')
+    plt.legend(loc="upper left")
+
+    # Adjusting layout and saving
+    plt.tight_layout()
+    plt.savefig("chirality_difference.pdf")
+    plt.close()    
+    
+def plot_chirality_components(results_file, keys = None):
+    """plots excess chirality of the total response"""
+    omegas, data, keys = load_data(results_file, keys)
+    
+    # Assuming omegas, data, keys are loaded as per your code above
+    plt.style.use('seaborn-v0_8-darkgrid')
+    fig, axs = plt.subplots(2, 1, figsize=(8, 6))  # Adjust figure size if needed
+
+    # Loop through each key to plot the data
+    for i, key in enumerate(keys):
+        mat = to_helicity(data[key])
+        mat_real, mat_imag = mat.real, mat.imag
+
+        if 'topological' in key:
+            continue
+
+        axs[0].plot(omegas, mat_imag[0, 0], label=key.split("_")[-1])
+        axs[1].plot(omegas, mat_imag[1, 1])
+
+    # Adding titles and labels to make it clear
+    axs[0].set_title(r'$\sigma_{++}$')
+    axs[0].set_ylabel(r'$\sigma$ (a.u.)')
+    axs[0].legend(loc="upper left")
+
+    axs[1].set_title(r'$\sigma_{--}$')
+    axs[1].set_ylabel(r'$\sigma$ (a.u.)')
+    axs[1].set_xlabel(r'$\omega$ (eV)')
+
+    # Adjusting layout and saving
+    plt.tight_layout()
+    plt.savefig("chirality_components.pdf")
+    plt.close()
+    
 def plot_topological_total(results_file, keys = None):
     """plots topological and total response on same x-axis"""
     
@@ -232,23 +346,40 @@ def plot_topological_total(results_file, keys = None):
         mat = to_helicity(data[key])
         mat_real, mat_imag = mat.real, mat.imag
 
-        ls = '--' if 'topological' in key else '-'
-        if 'topological' in key:            
-            ax2.plot(omegas, mat_imag[0, 0], ls = ls, label = key.split("_")[-1])
-            ax2.legend(loc = "upper left")
-
-        excess = jnp.abs(mat_imag[0,0]) / jnp.abs(mat_imag[1, 1])
-        excess /= excess.max()
-        ax1.plot(omegas, excess, ls = ls, label = key.split("_")[-1])
-        ax1.legend(loc = "upper left")
-
+        if '-' in key or not ('0.5' in key or '0.0' in key):
+            continue
+        
+        delta = mat_imag[1, 1] - mat_imag[0, 0]
+        
+        if 'topological' in key:
+            ax2.plot(omegas, delta, ls = '--', label = key.split("_")[-1])
+        else:
+            ax1.plot(omegas, delta, label = key.split("_")[-1])
+            
+    ax1.legend(loc = "upper left")
     plt.savefig("chirality_topological_total.pdf")
     plt.close()
 
+def plot_rpa_response(results_file):
+    with jnp.load(results_file) as data:
+        data = dict(data)
+        omegas = data["omegas"]
+        cond = data["cond"]
+        cs = data["cs"]
+        
+    cond = to_helicity(cond)
+    for i, c in enumerate(cs):
+        plt.plot(omegas, cond[i, 0, 0].imag, label = fr'$\lambda$ = {c}')
+    plt.legend(loc = "upper left")
+    plt.savefig("rpa.pdf")
+    
             
 if __name__ == '__main__':
     f = "lrt.npz"    
     # sim(f)
+    # rpa_response("triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
     plot_response_functions(f)
     plot_excess_chirality("cond_" + f)
+    plot_chirality_components("cond_" + f)
+    plot_chirality_difference("cond_" + f)
     plot_topological_total("cond_" + f)
