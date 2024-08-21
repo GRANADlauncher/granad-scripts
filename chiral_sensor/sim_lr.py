@@ -95,7 +95,7 @@ def rpa_response(results_file, cs):
         
         p = flake.positions.T
         
-        res.append( omegas**2 * jnp.einsum('Ii,wij,jJ->wIJ', p, sus, p) )
+        res.append( omegas**2 * jnp.einsum('Ii,wij,Jj->wIJ', p, sus, p) )
         
     jnp.savez("rpa_" + results_file, cond = res, omegas = omegas, cs = cs)
 
