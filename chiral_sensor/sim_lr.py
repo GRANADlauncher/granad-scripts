@@ -93,7 +93,7 @@ def rpa_response(results_file, cs):
         
         sus = jax.lax.map(rpa_susceptibility_function(args, hungry = 2), omegas)
         
-        p = flake.positions
+        p = flake.positions.T
         
         res.append( omegas**2 * jnp.einsum('Ii,wij,jJ->wIJ', p, sus, p) )
         
