@@ -87,9 +87,9 @@ def rpa_response(results_file, cs):
     res = []
     
     for c in cs:        
-        args = fake.get_args(relaxation_rate = 1/10,
-                             coulomb_strength = c,
-                             propagator = None)
+        args = flake.get_args(relaxation_rate = 1/10,
+                              coulomb_strength = c,
+                              propagator = None)
         
         sus = jax.lax.map(rpa_susceptibility_function(args, hungry = 2), omegas)
         
@@ -141,8 +141,11 @@ def chiral_ldos(results_file, illu, r):
     return
 
 ### GROUND STATE ###
-# TODO:
-def scf_loop(ham_0, f_mean_field, mixing, limit, max_steps):
+def rho_closed_shell(vecs, N):
+    """constructs the closed-shell density matrix"""
+    return 2*vecs[:, :N] @ vecs[:, :N].T
+
+def scf_loop(ham_0, U, mixing, limit, max_steps):
     """performs closed-shell scf calculation
 
     Returns:
@@ -155,13 +158,13 @@ def scf_loop(ham_0, f_mean_field, mixing, limit, max_steps):
         rho_old, step, error = arg
 
         # initial effective hamiltonian
-        ham_eff =  kinetic + nuclear + f_mean_field(rho_old)
+        ham_eff =  ham_0 + f_mean_field(rho_old)
 
         # diagonalize
-        vals, vecs = jnp.linalg.eigh(trafo.T @ ham_eff @ trafo)    
+        vals, vecs = jnp.linalg.eigh(ham_eff)    
 
         # build new density matrix
-        rho = f_rho(trafo @ vecs) + mixing * rho_old
+        rho = rho_closed_shell(vecs) + mixing * rho_old
 
         # update breaks
         error = jnp.abs(energy(rho, kinetic, nuclear, ham_eff) - energy(rho_old, kinetic, nuclear, ham_eff))
@@ -176,8 +179,7 @@ def scf_loop(ham_0, f_mean_field, mixing, limit, max_steps):
         """single SCF update step"""
         return jax.lax.cond(res[-1] <= limit, lambda x: res, update, res)
 
-    # trafo orthogonalization
-    trafo = f_trafo(overlap)
+    N, _ = ham_0.shape
 
     # initial guess for the density matrix
     rho_old = jnp.ones_like(overlap)
