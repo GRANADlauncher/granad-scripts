@@ -202,22 +202,25 @@ def scf_loop(ham_0, U, mixing, limit, max_steps):
 
 def get_edges_clockwise(flake):
     """returns indices of orbitals at the edges, ordered clockwise"""
-    
-    ### first, get edge positions ###    
-    positions = flake.positions
 
-    # all distances
+    # edge positions
+    positions = flake.positions
     distances = jnp.round(jnp.linalg.norm(positions - positions[:, None], axis = -1), 4)
-    
-    # nearest neighbor distance
     minimum = jnp.unique(distances)[1]
 
-    # exactly two nearest neighbors
-    mask = (distances <= minimum).sum(axis=0) == 2
+    # three neighbors for edge orbitals
+    mask = (distances <= minimum).sum(axis=0) == 3
 
-    # traversing the positions :
-    # 1. pick the first site
-    # 2. add next site from nearest neighbors with distance vector d in the following precedence : (d_x > 0, d_y > 0, d_x < 0, d_y < 0)
+    # compute polar angles
+    angles = jnp.atan2(positions[mask, 1], positions[mask, 0])
+
+    # order clockwise
+    order = angles.argsort()
+
+    # mask nonzero => edge orbital => reorder
+    indices = jnp.argwhere(mask)[order]
+
+    return indices
 
 # TODO: net current in excited state going around the flake clock-wise
 def current_directionality(args_list):
@@ -403,14 +406,14 @@ def plot_rpa_response(results_file):
         plt.plot(omegas, cond[i, :, 0, 0].imag, label = fr'$\lambda$ = {c}')
     plt.legend(loc = "upper left")
     plt.savefig("rpa.pdf")
-    
-            
+                
 if __name__ == '__main__':
     f = "lrt.npz"    
+    
     # sim(f)
     # rpa_response("triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
-    plot_response_functions(f)
-    plot_excess_chirality("cond_" + f)
-    plot_chirality_components("cond_" + f)
-    plot_chirality_difference("cond_" + f)
-    plot_topological_total("cond_" + f)
+    # plot_response_functions(f)
+    # plot_excess_chirality("cond_" + f)
+    # plot_chirality_components("cond_" + f)
+    # plot_chirality_difference("cond_" + f)
+    # plot_topological_total("cond_" + f)
