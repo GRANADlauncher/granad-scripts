@@ -95,7 +95,7 @@ def rpa_response(results_file, cs):
         
         p = flake.positions
         
-        res.append( omegas**2 * jnp.einsum('Ii,ij,jJ->IJ', p, sus, p) )
+        res.append( omegas**2 * jnp.einsum('Ii,wij,jJ->wIJ', p, sus, p) )
         
     jnp.savez("rpa_" + results_file, cond = res, omegas = omegas, cs = cs)
 
@@ -381,7 +381,7 @@ def plot_rpa_response(results_file):
         
     cond = to_helicity(cond)
     for i, c in enumerate(cs):
-        plt.plot(omegas, cond[i, 0, 0].imag, label = fr'$\lambda$ = {c}')
+        plt.plot(omegas, cond[i, :, 0, 0].imag, label = fr'$\lambda$ = {c}')
     plt.legend(loc = "upper left")
     plt.savefig("rpa.pdf")
     
