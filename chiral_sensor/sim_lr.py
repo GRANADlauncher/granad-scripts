@@ -95,7 +95,7 @@ def rpa_response(results_file, cs):
         
         p = flake.positions.T
         
-        res.append( omegas**2 * jnp.einsum('Ii,wij,Jj->wIJ', p, sus, p) )
+        res.append( omegas[:, None, None]**2 * jnp.einsum('Ii,wij,Jj->wIJ', p, sus, p) )
         
     jnp.savez("rpa_" + results_file, cond = res, omegas = omegas, cs = cs)
 
@@ -199,6 +199,25 @@ def scf_loop(ham_0, U, mixing, limit, max_steps):
             rho_down,
             rho_up + U * jnp.diagonal(jnp.diag(rho_old_down)),
             rho_down + U * jnp.diagonal(jnp.diag(rho_old_up)))
+
+def get_edges_clockwise(flake):
+    """returns indices of orbitals at the edges, ordered clockwise"""
+    
+    ### first, get edge positions ###    
+    positions = flake.positions
+
+    # all distances
+    distances = jnp.round(jnp.linalg.norm(positions - positions[:, None], axis = -1), 4)
+    
+    # nearest neighbor distance
+    minimum = jnp.unique(distances)[1]
+
+    # exactly two nearest neighbors
+    mask = (distances <= minimum).sum(axis=0) == 2
+
+    # traversing the positions :
+    # 1. pick the first site
+    # 2. add next site from nearest neighbors with distance vector d in the following precedence : (d_x > 0, d_y > 0, d_x < 0, d_y < 0)
 
 # TODO: net current in excited state going around the flake clock-wise
 def current_directionality(args_list):
