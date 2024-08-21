@@ -101,15 +101,15 @@ def sim(results_file):
 
         print("simulating ", flake)
         
-        v, p = flake.velocity_operator, flake.dipole_operator
+        v, p = flake.velocity_operator_e, flake.dipole_operator_e
         cond[args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.01) for i in range(2)] for j in range(2)])
-        # pol[args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01) for i in range(2)] for j in range(2)])
+        pol[args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01) for i in range(2)] for j in range(2)])
 
         # compute only topological sector
         trivial = jnp.abs(flake.energies) > 1e-1
         mask = jnp.logical_and(trivial[:, None], trivial)
         cond["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.01, mask = mask) for i in range(2)] for j in range(2)])
-        # pol["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01, mask = mask) for i in range(2)] for j in range(2)])
+        pol["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01, mask = mask) for i in range(2)] for j in range(2)])
         
     cond["omegas"], pol["omegas"] = omegas, omegas
     jnp.savez("cond_" + results_file, **cond)
@@ -168,7 +168,7 @@ def plot_response_functions(results_file):
     keys = cond.keys()
     for k in keys:    
         plt.semilogy(cond_omegas, cond[k][0,0], label = 'cond_' + k )
-        # plt.plot(pol_omegas, pol_omegas ** (-2) * pol[k][0,0], '--', label = 'pol_' + k)
+        plt.plot(pol_omegas, pol_omegas ** (-2) * pol[k][0,0], '--', label = 'pol_' + k)
         plt.legend(loc = "upper left")
     plt.savefig("cond_pol_comparison.pdf")
     plt.close()
