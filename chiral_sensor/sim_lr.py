@@ -84,8 +84,8 @@ def rpa_conductivity(args_list):
 
 def sim(results_file):    
     args_list = [
-        (Triangle(30, armchair = True), -2.66, -1j*t2, 0.3, f"haldane_graphene_{t2}" )
-        for t2 in [0.0, 0.5]
+        (Triangle(30, armchair = True), -2.66, -1j*t2, delta, f"haldane_graphene_{t2}" )
+        for (t2, delta) in [(0.0, 0.0), (0.5, 0.3)]
         ]
 
     print("plotting edge states")
@@ -95,7 +95,7 @@ def sim(results_file):
     print("lrt")
 
     cond, pol = {}, {}
-    omegas = jnp.linspace(0, 40, 400)    
+    omegas = jnp.linspace(0, 10, 100)    
     for args in args_list:        
         flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])
 
