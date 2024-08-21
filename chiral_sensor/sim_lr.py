@@ -78,11 +78,9 @@ def get_haldane_graphene(t1, t2, delta):
     )
 
 ### RESPONSE FUNCTIONS ###
-def rpa_response(results_file, cs):
+def rpa_response(flake, results_file, cs):
     """computes j-j response from p-p in RPA"""
-    
-    flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
-    
+       
     omegas =  jnp.linspace(0, 10, 100)
     res = []
     
@@ -99,7 +97,7 @@ def rpa_response(results_file, cs):
         
     jnp.savez("rpa_" + results_file, cond = res, omegas = omegas, cs = cs)
 
-def sim(results_file):
+def ip_response(results_file):
     """runs simulation for IP j-j and p-p total and topological response.     
     saves j-j, pp in "cond_" + results_file, "pol_" + results_file
     """
@@ -145,10 +143,7 @@ def rho_closed_shell(vecs, N):
     """constructs the closed-shell density matrix"""
     return 2*vecs[:, :N] @ vecs[:, :N].T
 
-def energy(rho, ham_eff):
-    return -0.5 * jnp.trace(rho @ ham_eff)
-
-def scf_loop(ham_0, U, mixing, limit, max_steps):
+def scf_loop(flake, U, mixing, limit, max_steps):
     """performs open-shell scf calculation
 
     Returns:
@@ -161,8 +156,8 @@ def scf_loop(ham_0, U, mixing, limit, max_steps):
         rho_old_up, rho_old_down, step, error = arg
 
         # H = H_+ + H_-
-        ham_eff_up =  ham_0 + U * jnp.diagonal(jnp.diag(rho_old_down))        
-        ham_eff_down =  ham_0 + U * jnp.diagonal(jnp.diag(rho_old_up))
+        ham_eff_up =  ham_0 + U * jnp.diag(jnp.diag(rho_old_down))        
+        ham_eff_down =  ham_0 + U * jnp.diag(jnp.diag(rho_old_up))
 
         # diagonalize
         vals_up, vecs_up = jnp.linalg.eigh(ham_eff_up)
@@ -183,6 +178,8 @@ def scf_loop(ham_0, U, mixing, limit, max_steps):
         """single SCF update step"""
         return jax.lax.cond(res[-1] <= limit, lambda x: res, update, res)
 
+    ham_0 = flake.hamiltonian
+    
     # GRANAD gives a closed-shell hamiltonian => for hubbard model, we split it into 2 NxN matrices, one for each spin component
     N, _ = ham_0.shape
 
@@ -197,37 +194,20 @@ def scf_loop(ham_0, U, mixing, limit, max_steps):
 
     return (rho_up,
             rho_down,
-            rho_up + U * jnp.diagonal(jnp.diag(rho_old_down)),
-            rho_down + U * jnp.diagonal(jnp.diag(rho_old_up)))
+            ham_0 + U * jnp.diag(jnp.diag(rho_down)),
+            ham_0 + U * jnp.diag(jnp.diag(rho_up)))
+            
 
-def get_edges_clockwise(flake):
-    """returns indices of orbitals at the edges, ordered clockwise"""
+def gs_stability(flake, Us):
+    """runs Hubbard model mean field simulation for a range of coupling constants"""
+    
+    res = []
+    for U in Us:
+        res.append(scf_loop(flake, U, 0.0, 1e-10, 100))
 
-    # edge positions
-    positions = flake.positions
-    distances = jnp.round(jnp.linalg.norm(positions - positions[:, None], axis = -1), 4)
-    minimum = jnp.unique(distances)[1]
-
-    # three neighbors for edge orbitals
-    mask = (distances <= minimum).sum(axis=0) == 3
-
-    # compute polar angles
-    angles = jnp.atan2(positions[mask, 1], positions[mask, 0])
-
-    # order clockwise
-    order = angles.argsort()
-
-    # mask nonzero => edge orbital => reorder
-    indices = jnp.argwhere(mask)[order]
-
-    return indices
-
-# TODO: net current in excited state going around the flake clock-wise
-def current_directionality(args_list):
-    # identify edge state
-
-    # compute expectation value of current operator between sites
-    return
+    jnp.savez("scf.npz",
+              res = res,
+              Us = Us)
 
 ### postprocessing ###
 def plot_edge_states(args):
@@ -406,14 +386,76 @@ def plot_rpa_response(results_file):
         plt.plot(omegas, cond[i, :, 0, 0].imag, label = fr'$\lambda$ = {c}')
     plt.legend(loc = "upper left")
     plt.savefig("rpa.pdf")
-                
-if __name__ == '__main__':
-    f = "lrt.npz"    
+
+def plot_stability(flake):
+    """loads scf results, plots energy landscape, current directionality"""
     
-    # sim(f)
-    # rpa_response("triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
+    with jnp.load("scf.npz") as data:
+        data = dict(data)
+        res = data["res"]
+        Us = data["Us"]
+
+    # energy landscapes
+    for i, U in enumerate(Us):
+        rho_up, rho_down, h_up, h_down = res[i]        
+        v_up, vecs_up = jnp.linalg.eigh(h_up)
+        v_down, vecs_down = jnp.linalg.eigh(h_down)        
+        c_up = vecs_up.conj().T @ rho_up @ vecs_up
+        c_down = vecs_down.conj().T @ rho_down @ vecs_down
+        
+        plt.scatter(
+            jnp.arange(v_up.size),
+            v_up,
+            c=c_up
+        )
+        plt.savefig(f"{U}_up.pdf")
+        plt.close()
+        
+        plt.scatter(
+            jnp.arange(v_down.size),
+            v_down,
+            c=c_down
+        )        
+        plt.savefig(f"{U}_down.pdf")
+        plt.close()
+
+    # current
+    current = []
+    for i, U in enumerate(Us):
+        rho_up, rho_down, h_up, h_down = res[i]        
+        v_up, vecs_up = jnp.linalg.eigh(h_up)
+
+        # zero energy edge state
+        idx = jnp.argwhere(jnp.abs(v_up) < 1e-1)[0].item()
+        state = vecs_up[:, 0]
+        current.append(state.conj().T @ flake.velocity_operator @ state)
+
+    plt.plot(Us, current)
+    plt.savefig("scf_current.pdf")
+        
+if __name__ == '__main__':
+    # f = "lrt.npz"
+
+    # TODO: plot edge states and energy landscape of a few structures
+
+    # TODO: investigate gs stability with Hubbard model
+    t1, t2, delta, shape = -2.66, -1j, 0.3, Triangle(30)
+    flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)
+    gs_stability(flake, [0, 0.1, 0.2, 0.3])
+    plot_stability(flake)
+
+    # TODO: compute IP response
+    ip_response(f)
+    plot_chirality_difference("cond_" + f)
+    
     # plot_response_functions(f)
     # plot_excess_chirality("cond_" + f)
     # plot_chirality_components("cond_" + f)
-    # plot_chirality_difference("cond_" + f)
     # plot_topological_total("cond_" + f)
+
+    # TODO: check response stability with RPA
+    flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
+    rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
+    plot_rpa_response("triangle")
+
+    # TODO: compute chiral LDOS of magnetic dipole antenna
