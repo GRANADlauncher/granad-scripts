@@ -145,50 +145,60 @@ def rho_closed_shell(vecs, N):
     """constructs the closed-shell density matrix"""
     return 2*vecs[:, :N] @ vecs[:, :N].T
 
+def energy(rho, ham_eff):
+    return -0.5 * jnp.trace(rho @ ham_eff)
+
 def scf_loop(ham_0, U, mixing, limit, max_steps):
-    """performs closed-shell scf calculation
+    """performs open-shell scf calculation
 
     Returns:
-        dict: holding density matrix, overlap, kinetic, nuclear and effective hamiltonian matrix
+        rho_up, rho_dow, ham_eff_up, ham_eff_down
     """
     
     def update(arg):
         """scf update"""
         
-        rho_old, step, error = arg
+        rho_old_up, rho_old_down, step, error = arg
 
-        # initial effective hamiltonian
-        ham_eff =  ham_0 + f_mean_field(rho_old)
+        # H = H_+ + H_-
+        ham_eff_up =  ham_0 + U * jnp.diagonal(jnp.diag(rho_old_down))        
+        ham_eff_down =  ham_0 + U * jnp.diagonal(jnp.diag(rho_old_up))
 
         # diagonalize
-        vals, vecs = jnp.linalg.eigh(ham_eff)    
+        vals_up, vecs_up = jnp.linalg.eigh(ham_eff_up)
+        vals_down, vecs_down = jnp.linalg.eigh(ham_eff_down)    
 
-        # build new density matrix
-        rho = rho_closed_shell(vecs) + mixing * rho_old
+        # build new density matrices
+        rho_up = rho_closed_shell(vecs_up, N) + mixing * rho_old_up
+        rho_down = rho_closed_shell(vecs_down, N) + mixing * rho_old_down
 
         # update breaks
-        error = jnp.abs(energy(rho, kinetic, nuclear, ham_eff) - energy(rho_old, kinetic, nuclear, ham_eff))
-
-        error = jnp.linalg.norm(rho - rho_old)
+        error = ( jnp.linalg.norm(rho_up - rho_old_up) +  jnp.linalg.norm(rho_down - rho_old_down) ) / 2
 
         step = jax.lax.cond(error <= limit, lambda x: step, lambda x: step + 1, step)
 
-        return rho, step, error
+        return rho_up, rho_down, step, error
     
     def step(idx, res):
         """single SCF update step"""
         return jax.lax.cond(res[-1] <= limit, lambda x: res, update, res)
 
+    # GRANAD gives a closed-shell hamiltonian => for hubbard model, we split it into 2 NxN matrices, one for each spin component
     N, _ = ham_0.shape
 
-    # initial guess for the density matrix
-    rho_old = jnp.ones_like(overlap)
+    # initial guess for the density matrices
+    rho_old_up = jnp.zeros_like(ham_0)
+    rho_old_down = jnp.zeros_like(ham_0)
 
     # scf loop
-    rho, steps, error = jax.lax.fori_loop(0, max_steps, step, (rho_old, 0, jnp.inf))
+    rho_up, rho_down, steps, error = jax.lax.fori_loop(0, max_steps, step, (rho_old_up, rho_old_down, 0, jnp.inf))
 
-    # TODO: a bit unelegant to recompute on return
-    return {"rho" : rho, "S" : overlap, "T": kinetic, "V" : nuclear, "ham_eff" : kinetic + nuclear + f_mean_field(rho)}
+    print(f"{steps} / {max_steps}")
+
+    return (rho_up,
+            rho_down,
+            rho_up + U * jnp.diagonal(jnp.diag(rho_old_down)),
+            rho_down + U * jnp.diagonal(jnp.diag(rho_old_up)))
 
 # TODO: net current in excited state going around the flake clock-wise
 def current_directionality(args_list):
