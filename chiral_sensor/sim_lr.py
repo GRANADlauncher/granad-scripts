@@ -139,9 +139,10 @@ def chiral_ldos(results_file, illu, r):
     return
 
 ### GROUND STATE ###
-def rho_closed_shell(vecs, N):
-    """constructs the closed-shell density matrix"""
-    return 2*vecs[:, :N] @ vecs[:, :N].T
+def rho(es, vecs, thresh):
+    """constructs the open-shell density matrix"""
+    d = jnp.where(es <= thresh, 1, 0)
+    return jnp.einsum('ij,j,kj->ik', vecs, d, vecs.conj())
 
 def scf_loop(flake, U, mixing, limit, max_steps):
     """performs open-shell scf calculation
@@ -164,8 +165,9 @@ def scf_loop(flake, U, mixing, limit, max_steps):
         vals_down, vecs_down = jnp.linalg.eigh(ham_eff_down)    
 
         # build new density matrices
-        rho_up = rho_closed_shell(vecs_up, N) + mixing * rho_old_up
-        rho_down = rho_closed_shell(vecs_down, N) + mixing * rho_old_down
+        thresh = jnp.concatenate([vals_up, vals_down]).sort()[N]
+        rho_up = rho(vals_up, vecs_up, thresh) + mixing * rho_old_up
+        rho_down = rho(vals_down, vecs_down, thresh) + mixing * rho_old_down
 
         # update breaks
         error = ( jnp.linalg.norm(rho_up - rho_old_up) +  jnp.linalg.norm(rho_down - rho_old_down) ) / 2
@@ -189,7 +191,7 @@ def scf_loop(flake, U, mixing, limit, max_steps):
 
     # scf loop
     rho_up, rho_down, steps, error = jax.lax.fori_loop(0, max_steps, step, (rho_old_up, rho_old_down, 0, jnp.inf))
-
+    
     print(f"{steps} / {max_steps}")
 
     return (rho_up,
@@ -209,6 +211,33 @@ def gs_stability(flake, Us):
               res = res,
               Us = Us)
 
+def localization(positions, states, energies):
+    """Compute eigenstates edge localization"""
+    # edges => neighboring unit cells are incomplete => all points that are not inside a "big hexagon" made up of nearest neighbors 
+    distances = jnp.round(jnp.linalg.norm(positions - positions[:, None], axis = -1), 4)
+    nnn = jnp.unique(distances)[2]
+    mask = (distances == nnn).sum(axis=0) < 6
+
+    # localization => how much eingenstate 
+    return (jnp.abs(states[mask, :]).sum(axis = 0) / jnp.abs(states).sum(axis = 0))**2
+    
+def plot_localization(positions, states, energies):
+    loc = localization(positions, states, energies)
+    
+    fig, ax = plt.subplots(1, 1)
+    plt.colorbar(
+        ax.scatter(
+            jnp.arange(energies.size),
+            energies,
+            c=loc,
+        ),
+        label=r"localization = $\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$",
+    )
+    ax.set_xlabel("eigenstate number")
+    ax.set_ylabel("energy (eV)")    
+    plt.savefig("localization.pdf")
+    plt.close()
+    
 ### postprocessing ###
 def plot_edge_states(args):
     """plot topological E~0 excitations, if present"""    
@@ -400,8 +429,8 @@ def plot_stability(flake):
         rho_up, rho_down, h_up, h_down = res[i]        
         v_up, vecs_up = jnp.linalg.eigh(h_up)
         v_down, vecs_down = jnp.linalg.eigh(h_down)        
-        c_up = vecs_up.conj().T @ rho_up @ vecs_up
-        c_down = vecs_down.conj().T @ rho_down @ vecs_down
+        c_up = jnp.diagonal(vecs_up.conj().T @ rho_up @ vecs_up)
+        c_down = jnp.diagonal(vecs_down.conj().T @ rho_down @ vecs_down)
         
         plt.scatter(
             jnp.arange(v_up.size),
@@ -420,33 +449,38 @@ def plot_stability(flake):
         plt.close()
 
     # current
-    current = []
+    l = []
     for i, U in enumerate(Us):
         rho_up, rho_down, h_up, h_down = res[i]        
         v_up, vecs_up = jnp.linalg.eigh(h_up)
 
         # zero energy edge state
-        idx = jnp.argwhere(jnp.abs(v_up) < 1e-1)[0].item()
-        state = vecs_up[:, 0]
-        current.append(state.conj().T @ flake.velocity_operator @ state)
+        idx = jnp.argwhere(jnp.abs(v_up) < 1e-1)[0].item()        
+        state = vecs_up[:, idx][:, None]
 
-    plt.plot(Us, current)
-    plt.savefig("scf_current.pdf")
+        # localization
+        l.append( localization(flake.positions, state, v_up) )
+
+    plt.plot(Us, l, '.')
+    plt.savefig("scf_localization.pdf")
         
 if __name__ == '__main__':
     # f = "lrt.npz"
 
-    # TODO: plot edge states and energy landscape of a few structures
-
-    # TODO: investigate gs stability with Hubbard model
+    # TODO: plot edge states vs localization-annotated energy landscape of a few structures    
+    # plot_localization(flake.positions, flake.eigenvectors, flake.energies)
+    
+    # TODO: plot edge state localization-annotated energy landscape for varying t2
+    
+    # plot localization depending on Hubbard-U
     t1, t2, delta, shape = -2.66, -1j, 0.3, Triangle(30)
     flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)
-    gs_stability(flake, [0, 0.1, 0.2, 0.3])
+    gs_stability(flake, [0, 0.1, 0.2, 1., 1.5, 2., 2.5, 3.])
     plot_stability(flake)
 
     # TODO: compute IP response
-    ip_response(f)
-    plot_chirality_difference("cond_" + f)
+    # ip_response(f)
+    # plot_chirality_difference("cond_" + f)
     
     # plot_response_functions(f)
     # plot_excess_chirality("cond_" + f)
@@ -454,8 +488,8 @@ if __name__ == '__main__':
     # plot_topological_total("cond_" + f)
 
     # TODO: check response stability with RPA
-    flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
-    rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
-    plot_rpa_response("triangle")
+    # flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
+    # rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
+    # plot_rpa_response("triangle")
 
     # TODO: compute chiral LDOS of magnetic dipole antenna
