@@ -93,7 +93,7 @@ def rpa_response(flake, results_file, cs):
         
         p = flake.positions.T
         
-        res.append( omegas[:, None, None]**2 * jnp.einsum('Ii,wij,Jj->wIJ', p, sus, p) )
+        res.append( omegas[:, None, None]**2 * jnp.einsum('Ii,wij,Jj->IJw', p, sus, p) )
         
     jnp.savez("rpa_" + results_file, cond = res, omegas = omegas, cs = cs)
 
@@ -407,14 +407,16 @@ def plot_rpa_response(results_file):
     with jnp.load(results_file) as data:
         data = dict(data)
         omegas = data["omegas"]
-        cond = data["cond"]
+        cond = data["cond"][:, :, :2, :2]
         cs = data["cs"]
         
-    cond = to_helicity(cond)
-    for i, c in enumerate(cs):
-        plt.plot(omegas, cond[i, :, 0, 0].imag, label = fr'$\lambda$ = {c}')
+    for i, coulomb_strength in enumerate(cs):
+        c = to_helicity(cond[i])
+        delta = c.imag[1, 1] - c.imag[0, 0]        
+        plt.plot(omegas, delta, label = fr'$\lambda$ = {coulomb_strength}')
     plt.legend(loc = "upper left")
     plt.savefig("rpa.pdf")
+    plt.close()
 
 def plot_stability(flake):
     """loads scf results, plots energy landscape, current directionality"""
@@ -462,9 +464,9 @@ if __name__ == '__main__':
     # plot_stability(flake)
 
     # compute IP response
-    # f = "lrt.npz"
+    f = "lrt.npz"
     # ip_response(f)
-    # plot_chirality_difference("cond_" + f)
+    plot_chirality_difference("cond_" + f)
     
     # plot_response_functions(f)
     # plot_excess_chirality("cond_" + f)
@@ -473,7 +475,7 @@ if __name__ == '__main__':
 
     # check response stability with RPA
     flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
-    rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
-    plot_rpa_response("triangle")
+    # rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
+    plot_rpa_response("rpa_triangle.npz")
 
     # TODO: compute chiral LDOS of magnetic dipole antenna
