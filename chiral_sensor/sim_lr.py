@@ -455,11 +455,14 @@ def plot_stability(flake):
         v_up, vecs_up = jnp.linalg.eigh(h_up)
 
         # zero energy edge state
-        idx = jnp.argwhere(jnp.abs(v_up) < 1e-1)[0].item()        
-        state = vecs_up[:, idx][:, None]
+        try:
+            idx = jnp.argwhere(jnp.abs(v_up) < 1e-1)[0].item()        
+            state = vecs_up[:, idx][:, None]
 
-        # localization
-        l.append( localization(flake.positions, state, v_up) )
+            # localization
+            l.append( localization(flake.positions, state, v_up) )
+        except:
+            print(U, "no localization")
 
     plt.plot(Us, l, '.')
     plt.savefig("scf_localization.pdf")
