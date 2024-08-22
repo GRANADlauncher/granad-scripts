@@ -221,7 +221,7 @@ def localization(positions, states, energies):
     # localization => how much eingenstate 
     return (jnp.abs(states[mask, :]).sum(axis = 0) / jnp.abs(states).sum(axis = 0))**2
     
-def plot_localization(positions, states, energies):
+def plot_localization(positions, states, energies, name = "localization.pdf"):
     loc = localization(positions, states, energies)
     
     fig, ax = plt.subplots(1, 1)
@@ -235,7 +235,7 @@ def plot_localization(positions, states, energies):
     )
     ax.set_xlabel("eigenstate number")
     ax.set_ylabel("energy (eV)")    
-    plt.savefig("localization.pdf")
+    plt.savefig(name)
     plt.close()
     
 ### postprocessing ###
@@ -432,56 +432,37 @@ def plot_stability(flake):
         c_up = jnp.diagonal(vecs_up.conj().T @ rho_up @ vecs_up)
         c_down = jnp.diagonal(vecs_down.conj().T @ rho_down @ vecs_down)
         
-        plt.scatter(
-            jnp.arange(v_up.size),
-            v_up,
-            c=c_up
-        )
-        plt.savefig(f"{U}_up.pdf")
-        plt.close()
-        
-        plt.scatter(
-            jnp.arange(v_down.size),
-            v_down,
-            c=c_down
-        )        
-        plt.savefig(f"{U}_down.pdf")
-        plt.close()
+        plot_localization(flake.positions, vecs_up, v_up, f"{U}_up.pdf")
+        plot_localization(flake.positions, vecs_down, v_down, f"{U}_down.pdf")
 
     # current
     l = []
     for i, U in enumerate(Us):
         rho_up, rho_down, h_up, h_down = res[i]        
         v_up, vecs_up = jnp.linalg.eigh(h_up)
+        
+        l_up = localization(flake.positions, vecs_up, v_up).max()
+        l_down = localization(flake.positions, vecs_down, v_down).max()
 
-        # zero energy edge state
-        try:
-            idx = jnp.argwhere(jnp.abs(v_up) < 1e-1)[0].item()        
-            state = vecs_up[:, idx][:, None]
-
-            # localization
-            l.append( localization(flake.positions, state, v_up) )
-        except:
-            print(U, "no localization")
-
+        l.append( (l_up + l_down) / 2)
+            
     plt.plot(Us, l, '.')
     plt.savefig("scf_localization.pdf")
         
 if __name__ == '__main__':
-    # f = "lrt.npz"
-
     # TODO: plot edge states vs localization-annotated energy landscape of a few structures    
     # plot_localization(flake.positions, flake.eigenvectors, flake.energies)
     
     # TODO: plot edge state localization-annotated energy landscape for varying t2
     
     # plot localization depending on Hubbard-U
-    t1, t2, delta, shape = -2.66, -1j, 0.3, Triangle(30)
-    flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)
-    gs_stability(flake, [0, 0.1, 0.2, 1., 1.5, 2., 2.5, 3.])
-    plot_stability(flake)
+    # t1, t2, delta, shape = -2.66, -1j, 0.3, Triangle(30)
+    # flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)
+    # gs_stability(flake, [0, 0.1, 0.2, 1., 1.5, 2., 2.5, 3.])
+    # plot_stability(flake)
 
-    # TODO: compute IP response
+    # compute IP response
+    # f = "lrt.npz"
     # ip_response(f)
     # plot_chirality_difference("cond_" + f)
     
@@ -490,9 +471,9 @@ if __name__ == '__main__':
     # plot_chirality_components("cond_" + f)
     # plot_topological_total("cond_" + f)
 
-    # TODO: check response stability with RPA
-    # flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
-    # rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
-    # plot_rpa_response("triangle")
+    # check response stability with RPA
+    flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
+    rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
+    plot_rpa_response("triangle")
 
     # TODO: compute chiral LDOS of magnetic dipole antenna
