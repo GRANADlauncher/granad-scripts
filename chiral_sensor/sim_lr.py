@@ -222,7 +222,7 @@ def localization(positions, states, energies, uniform = False):
     l = (jnp.abs(states[mask, :]).sum(axis = 0) / jnp.abs(states).sum(axis = 0))**2
 
     if uniform:
-        return l, mask.nonzero().size / mask.size
+        return l, mask.nonzero()[0].size / mask.size
 
     return l    
     
@@ -561,7 +561,7 @@ def plot_localization_varying_hopping():
         flake = get_haldane_graphene(*s[1:4]).cut_flake(s[0])
         _, v = localization(flake.positions, flake.eigenvectors, flake.energies, uniform = True)
         
-        axs[i].axhline(y=v, '--')
+        axs[i].axhline(v, '--')
         axs[i].set_xlabel(r'$t_2$')
         axs[i].set_ylabel(r'$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$')
 
