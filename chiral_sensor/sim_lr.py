@@ -127,8 +127,8 @@ def ip_response(results_file):
         cond[args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.01) for i in range(2)] for j in range(2)])
         pol[args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01) for i in range(2)] for j in range(2)])
         
-        cond["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.01, mask = mask) for i in range(2)] for j in range(2)])
-        pol["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01, mask = mask) for i in range(2)] for j in range(2)])
+        cond["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.1, mask = mask) for i in range(2)] for j in range(2)])
+        pol["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.1, mask = mask) for i in range(2)] for j in range(2)])
         
     cond["omegas"], pol["omegas"] = omegas, omegas
     jnp.savez("cond_" + results_file, **cond)
@@ -329,11 +329,13 @@ def plot_chirality_difference(results_file, keys = None):
         if 'topological' in key:
             continue
 
-        plt.plot(omegas, mat_imag[1, 1] - mat_imag[0, 0], label=key.split("_")[-1])
+        idx = 10
+        diff = (mat_imag[1, 1] - mat_imag[0, 0]) / (mat_imag[1, 1] + mat_imag[0, 0])
+        plt.plot(omegas[idx:], diff[idx:], label=key.split("_")[-1])
 
     # Adding titles and labels to make it clear
-    plt.title(r'$\delta_{+-}$')
-    plt.ylabel(r'$\sigma$ (a.u.)')
+    plt.xlabel(r'$\omega$ (eV)$')
+    plt.ylabel(r'$\delta_{+-}$')
     plt.legend(loc="upper left")
 
     # Adjusting layout and saving
@@ -345,8 +347,6 @@ def plot_chirality_components(results_file, keys = None):
     """plots excess chirality of the total response"""
     omegas, data, keys = load_data(results_file, keys)
     
-    # Assuming omegas, data, keys are loaded as per your code above
-    plt.style.use('seaborn-v0_8-darkgrid')
     fig, axs = plt.subplots(2, 1, figsize=(8, 6))  # Adjust figure size if needed
 
     # Loop through each key to plot the data
@@ -415,8 +415,11 @@ def plot_rpa_response(results_file):
         
     for i, coulomb_strength in enumerate(cs):
         c = to_helicity(cond[i])
-        delta = c.imag[1, 1] - c.imag[0, 0]        
+        delta = (c.imag[1, 1] - c.imag[0, 0]) / (c.imag[1, 1] + c.imag[0, 0])
         plt.plot(omegas, delta, label = fr'$\lambda$ = {coulomb_strength}')
+
+    plt.xlabel(r'$\omega$ (eV)$')
+    plt.ylabel(r'$\delta_{+-}$')
     plt.legend(loc = "upper left")
     plt.savefig("rpa.pdf")
     plt.close()
@@ -452,6 +455,8 @@ def plot_stability(flake):
         l.append( (l_up + l_down) / 2)
             
     plt.plot(Us, l, '.')
+    plt.xlabel('U (eV)')
+    plt.ylabel(r"$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$")
     plt.savefig("scf_localization.pdf")
     plt.close()      
 
@@ -535,7 +540,7 @@ def plot_localization_varying_hopping():
         for shape in [Triangle(18, armchair = False), Rectangle(10, 10), Hexagon(20, armchair = True)]
         ]
 
-    fig, axs = plt.subplots(1,3)
+    fig, axs = plt.subplots(3,1)
     axs_flat = list(axs.flat)
 
     def loc(shape, n, nn, delta):
@@ -558,20 +563,20 @@ if __name__ == '__main__':
     plt.style.use('seaborn-v0_8-darkgrid')
     
     # plot edge states vs localization-annotated energy landscape of a few structures    
-    plot_edge_states_energy_landscape()
+    # plot_edge_states_energy_landscape()
     
     # plot edge state localization-annotated energy landscape for varying t2
-    plot_localization_varying_hopping()
+    # plot_localization_varying_hopping()
     
     # plot localization depending on Hubbard-U
-    t1, t2, delta, shape = -2.66, -1j, 0.3, Triangle(30)
-    flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)
-    gs_stability(flake, [0, 0.1, 0.2, 1., 1.5, 2., 2.5, 3.])
-    plot_stability(flake)
+    # t1, t2, delta, shape = -2.66, -1j, 0.3, Triangle(30)
+    # flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)
+    # gs_stability(flake, [0, 0.1, 0.2, 1., 1.5, 2., 2.5, 3.])
+    # plot_stability(flake)
 
     # compute IP response
     f = "lrt.npz"
-    ip_response(f)
+    # ip_response(f)
     plot_chirality_difference("cond_" + f)
     
     # plot_response_functions(f)
@@ -580,8 +585,8 @@ if __name__ == '__main__':
     # plot_topological_total("cond_" + f)
 
     # check response stability with RPA
-    flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
-    rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
-    plot_rpa_response("rpa_triangle.npz")
+    # flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
+    # rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
+    # plot_rpa_response("rpa_triangle.npz")
 
     # TODO: compute chiral LDOS of magnetic dipole antenna
