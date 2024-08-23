@@ -540,7 +540,8 @@ def plot_localization_varying_hopping():
 
     def loc(shape, n, nn, delta):
         flake = get_haldane_graphene(n, nn, delta).cut_flake(shape)
-        return localization(flake.positions, flake.eigenvectors, flake.energies)
+        l = localization(flake.positions, flake.eigenvectors, flake.energies)
+        return jnp.max(l)
 
     nns = jnp.linspace(0, 0.2, 10)
     for i, s in enumerate(setups):
