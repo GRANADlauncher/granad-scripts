@@ -297,11 +297,11 @@ def plot_response_functions(results_file):
     fig, axs = plt.subplots(2, 2, figsize=(10, 8))
     
     keys = cond.keys()
-    for k in keys:    
+    for k in keys:
+        if 'topo' in k:
+            continue
         for i in range(2):
             for j in range(2):
-                if 'topo' in key:
-                    continue
                 axs[i, j].plot(cond_omegas, cond[k][i, j].imag, label='cond_' + k)
                 axs[i, j].plot(pol_omegas, pol_omegas**2 * pol[k][i, j].imag, '--', label='pol_' + k)
                 axs[i, j].set_title(f'i,j = {i,j}')
@@ -312,11 +312,11 @@ def plot_response_functions(results_file):
 
     fig, axs = plt.subplots(2, 2, figsize=(10, 8))
     keys = cond.keys()
-    for k in keys:    
+    for k in keys:
+        if 'topo' in k:
+            continue
         for i in range(2):
             for j in range(2):
-                if 'topo' in key:
-                    continue
                 axs[i, j].plot(cond_omegas, cond[k][i, j].real, label='cond_' + k)
                 axs[i, j].plot(pol_omegas, pol_omegas**2 * pol[k][i, j].real, '--', label='pol_' + k)
                 axs[i, j].set_title(f'i,j = {i,j}')
@@ -593,7 +593,7 @@ def plot_localization_varying_hopping():
         _, v = localization(flake.positions, flake.eigenvectors, flake.energies, uniform = True)
         
         axs[i].axhline(y=v, ls='--', label = 'uniform')
-        axs[i].axvline(x=0.03, ls='--', label = 'bulk transition')
+        axs[i].axvline(x=0.03, c = 'r', label = 'bulk transition')
 
         axs[i].set_xlabel(r'$t_2$')
         axs[i].set_ylabel(r'$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$')
