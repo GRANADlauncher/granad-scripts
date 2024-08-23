@@ -519,43 +519,30 @@ def plot_edge_states_energy_landscape():
 
 
     plt.tight_layout()
-    plt.savefig("grid.pdf")
+    plt.savefig("edge_states_energy_landscape.pdf")
 
-def plot_edge_states_energy_landscape():
+def plot_localization_varying_hopping():
     setups = [
         (shape, -2.66, -1j, 0.3, f"haldane_graphene" )
         for shape in [Triangle(18, armchair = False), Rectangle(10, 10), Hexagon(20, armchair = True)]
         ]
 
-    fig, axs = plt.subplots(3,2)
+    fig, axs = plt.subplots(1,3)
     axs_flat = list(axs.flat)
-    
-    for i, s in enumerate(setups):        
-        flake = get_haldane_graphene(*s[1:4]).cut_flake(s[0])
-        
-        loc = localization(flake.positions, flake.eigenvectors, flake.energies)
 
-        sc1 = show_2d(flake, axs_flat[2*i], display = jnp.abs(flake.eigenvectors[:, loc.argmax()]) )
-        axs_flat[2*i].set_xlabel('X')
-        axs_flat[2*i].set_ylabel('Y')
+    def loc(shape, n, nn, delta):
+        flake = get_haldane_graphene(n, nn, delta).cut_flake(shape)
+        return localization(flake.positions, flake.eigenvectors, flake.energies)
 
-        cb1 = fig.colorbar(sc1, ax=axs_flat[2*i])
-        cb1.set_label(r'$|\psi|^2$')
-
-
-        sc2 = axs_flat[2*i + 1].scatter(
-            jnp.arange(flake.energies.size),
-            flake.energies,
-            c=loc)
-        axs_flat[2*i+1].set_xlabel('# eigenstate')
-        axs_flat[2*i+1].set_ylabel('E (eV)')
-
-        cb2 = fig.colorbar(sc2, ax=axs_flat[2*i + 1])
-        cb2.set_label(r"$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$")  
-
+    nns = jnp.linspace(0, 0.2, 10)
+    for i, s in enumerate(setups):
+        locs = [loc(s[0], s[1], 1j*nn, s[3]) for nn in nns]
+        axs[i].plot(nns, locs)
+        axs[i].set_xlabel(r'$t_2$')
+        axs[i].set_ylabel(r'$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$')
 
     plt.tight_layout()
-    plt.savefig("grid.pdf")
+    plt.savefig("localization_varying_hopping.pdf")
 
         
 if __name__ == '__main__':
@@ -564,18 +551,19 @@ if __name__ == '__main__':
     # plot edge states vs localization-annotated energy landscape of a few structures    
     plot_edge_states_energy_landscape()
     
-    # TODO: plot edge state localization-annotated energy landscape for varying t2
+    # plot edge state localization-annotated energy landscape for varying t2
+    plot_localization_varying_hopping()
     
     # plot localization depending on Hubbard-U
-    # t1, t2, delta, shape = -2.66, -1j, 0.3, Triangle(30)
-    # flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)
-    # gs_stability(flake, [0, 0.1, 0.2, 1., 1.5, 2., 2.5, 3.])
-    # plot_stability(flake)
+    t1, t2, delta, shape = -2.66, -1j, 0.3, Triangle(30)
+    flake = get_haldane_graphene(t1, t2, delta).cut_flake(shape)
+    gs_stability(flake, [0, 0.1, 0.2, 1., 1.5, 2., 2.5, 3.])
+    plot_stability(flake)
 
     # compute IP response
-    # f = "lrt.npz"
-    # ip_response(f)
-    # plot_chirality_difference("cond_" + f)
+    f = "lrt.npz"
+    ip_response(f)
+    plot_chirality_difference("cond_" + f)
     
     # plot_response_functions(f)
     # plot_excess_chirality("cond_" + f)
@@ -583,8 +571,8 @@ if __name__ == '__main__':
     # plot_topological_total("cond_" + f)
 
     # check response stability with RPA
-    # flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
-    # rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
-    # plot_rpa_response("rpa_triangle.npz")
+    flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
+    rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
+    plot_rpa_response("rpa_triangle.npz")
 
     # TODO: compute chiral LDOS of magnetic dipole antenna
