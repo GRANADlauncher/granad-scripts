@@ -81,7 +81,7 @@ def get_haldane_graphene(t1, t2, delta):
 def rpa_response(flake, results_file, cs):
     """computes j-j response from p-p in RPA"""
        
-    omegas =  jnp.linspace(0, 10, 100)
+    omegas =  jnp.linspace(0, 15, 150)
     res = []
     
     for c in cs:        
@@ -404,8 +404,14 @@ def plot_rpa_response(results_file):
     with jnp.load(results_file) as data:
         data = dict(data)
         omegas = data["omegas"]
-        cond = data["cond"][:, :, :2, :2]
+        cond = data["cond"][:, :2, :2, :]
         cs = data["cs"]
+        
+    def to_helicity(mat):
+        """converts mat to helicity basis"""
+        trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
+        trafo_inv = jnp.linalg.inv(trafo)
+        return jnp.einsum('ij,jmk,ml->ilk', trafo_inv, mat, trafo)
         
     for i, coulomb_strength in enumerate(cs):
         c = to_helicity(cond[i])
@@ -447,6 +453,7 @@ def plot_stability(flake):
             
     plt.plot(Us, l, '.')
     plt.savefig("scf_localization.pdf")
+    plt.close()      
 
 def show_2d(orbs, ax, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 2*1e2, title = None):
     # decider whether to take abs val and normalize 
@@ -520,6 +527,7 @@ def plot_edge_states_energy_landscape():
 
     plt.tight_layout()
     plt.savefig("edge_states_energy_landscape.pdf")
+    plt.close()
 
 def plot_localization_varying_hopping():
     setups = [
@@ -543,7 +551,7 @@ def plot_localization_varying_hopping():
 
     plt.tight_layout()
     plt.savefig("localization_varying_hopping.pdf")
-
+    plt.close()
         
 if __name__ == '__main__':
     plt.style.use('seaborn-v0_8-darkgrid')
