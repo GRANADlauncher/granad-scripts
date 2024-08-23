@@ -300,14 +300,32 @@ def plot_response_functions(results_file):
     for k in keys:    
         for i in range(2):
             for j in range(2):
+                if 'topo' in key:
+                    continue
+                axs[i, j].plot(cond_omegas, cond[k][i, j].imag, label='cond_' + k)
+                axs[i, j].plot(pol_omegas, pol_omegas**2 * pol[k][i, j].imag, '--', label='pol_' + k)
+                axs[i, j].set_title(f'i,j = {i,j}')
+                
+    axs[0, 0].legend(loc="upper left")
+    plt.savefig("cond_pol_comparison_imag.pdf")
+    plt.close()
+
+    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+    keys = cond.keys()
+    for k in keys:    
+        for i in range(2):
+            for j in range(2):
+                if 'topo' in key:
+                    continue
                 axs[i, j].plot(cond_omegas, cond[k][i, j].real, label='cond_' + k)
                 axs[i, j].plot(pol_omegas, pol_omegas**2 * pol[k][i, j].real, '--', label='pol_' + k)
                 axs[i, j].set_title(f'i,j = {i,j}')
                 
     axs[0, 0].legend(loc="upper left")
-    plt.savefig("cond_pol_comparison.pdf")
+    plt.savefig("cond_pol_comparison_real.pdf")
     plt.close()
 
+    
 def load_data(results_file, keys):
     with jnp.load(results_file) as data:
         data = dict(data)
@@ -589,10 +607,10 @@ if __name__ == '__main__':
     plt.style.use('seaborn-v0_8-darkgrid')
     
     # plot edge states vs localization-annotated energy landscape of a few structures    
-    # plot_edge_states_energy_landscape()
+    plot_edge_states_energy_landscape()
     
     # plot edge state localization-annotated energy landscape for varying t2
-    # plot_localization_varying_hopping()
+    plot_localization_varying_hopping()
     
     # plot localization depending on Hubbard-U
     # t1, t2, delta, shape = -2.66, -1j, 0.3, Triangle(30)
@@ -604,8 +622,8 @@ if __name__ == '__main__':
     f = "lrt.npz"
     ip_response(f)
     plot_chirality_difference("cond_" + f)
+    plot_response_functions(f)
     
-    # plot_response_functions(f)
     # plot_excess_chirality("cond_" + f)
     # plot_chirality_components("cond_" + f)
     # plot_topological_total("cond_" + f)
