@@ -321,9 +321,6 @@ def plot_chirality_difference(results_file, keys = None):
     """plots excess chirality of the total response"""
     omegas, data, keys = load_data(results_file, keys)
     
-    # Assuming omegas, data, keys are loaded as per your code above
-    plt.style.use('seaborn-v0_8-darkgrid')
-
     # Loop through each key to plot the data
     for i, key in enumerate(keys):
         mat = to_helicity(data[key])
@@ -450,10 +447,85 @@ def plot_stability(flake):
             
     plt.plot(Us, l, '.')
     plt.savefig("scf_localization.pdf")
+
+def show_2d(orbs, ax, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 2*1e2, title = None):
+    # decider whether to take abs val and normalize 
+    def scale_vals( vals ):
+        return jnp.abs(vals) / jnp.abs(vals).max() if scale else vals
+    
+    # Determine which tags to display
+    if show_tags is None:
+        show_tags = {orb.tag for orb in orbs}
+    else:
+        show_tags = set(show_tags)
+
+    # Prepare data structures for plotting
+    tags_to_pos, tags_to_idxs = defaultdict(list), defaultdict(list)
+    for orb in orbs:
+        if orb.tag in show_tags:
+            tags_to_pos[orb.tag].append(orb.position)
+            tags_to_idxs[orb.tag].append(orbs.index(orb))
+
+    cmap = plt.cm.bwr if cmap is None else cmap
+    colors = scale_vals(display)
+    scatter = ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], c=colors, edgecolor='black', cmap=cmap, s = circle_scale*jnp.abs(display) )
+    # ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], color='black', s=1, marker='o')
+    # cbar = fig.colorbar(scatter, ax=ax)
+
+    # Optionally annotate points with their indexes
+    if show_index:
+        for orb in [orb for orb in orbs if orb.tag in show_tags]:
+            pos = orb.position
+            idx = orbs.index(orb)
+            ax.annotate(str(idx), (pos[0], pos[1]), textcoords="offset points", xytext=(0,10), ha='center')
+
+    # Finalize plot settings
+    # plt.title('Orbital positions in the xy-plane' if title is None else title)
+    ax.grid(True)
+    ax.axis('equal')
+    return scatter
+
+def plot_edge_states_energy_landscape():
+    setups = [
+        (shape, -2.66, -1j, 0.3, f"haldane_graphene" )
+        for shape in [Triangle(18, armchair = False), Rectangle(10, 10), Hexagon(20, armchair = True)]
+        ]
+
+    fig, axs = plt.subplots(3,2)
+    axs_flat = list(axs.flat)
+    
+    for i, s in enumerate(setups):        
+        flake = get_haldane_graphene(*s[1:4]).cut_flake(s[0])
+        
+        loc = localization(flake.positions, flake.eigenvectors, flake.energies)
+
+        sc1 = show_2d(flake, axs_flat[2*i], display = jnp.abs(flake.eigenvectors[:, loc.argmax()]) )
+        axs_flat[2*i].set_xlabel('X')
+        axs_flat[2*i].set_ylabel('Y')
+
+        cb1 = fig.colorbar(sc1, ax=axs_flat[2*i])
+        cb1.set_label(r'$|\psi|^2$')
+
+
+        sc2 = axs_flat[2*i + 1].scatter(
+            jnp.arange(flake.energies.size),
+            flake.energies,
+            c=loc)
+        axs_flat[2*i+1].set_xlabel('# eigenstate')
+        axs_flat[2*i+1].set_ylabel('E (eV)')
+
+        cb2 = fig.colorbar(sc2, ax=axs_flat[2*i + 1])
+        cb2.set_label(r"$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$")  
+
+
+    plt.tight_layout()
+    plt.savefig("grid.pdf")
         
 if __name__ == '__main__':
-    # TODO: plot edge states vs localization-annotated energy landscape of a few structures    
-    # plot_localization(flake.positions, flake.eigenvectors, flake.energies)
+    plt.style.use('seaborn-v0_8-darkgrid')
+    
+    # plot edge states vs localization-annotated energy landscape of a few structures    
+    plot_edge_states_energy_landscape()
     
     # TODO: plot edge state localization-annotated energy landscape for varying t2
     
@@ -464,9 +536,9 @@ if __name__ == '__main__':
     # plot_stability(flake)
 
     # compute IP response
-    f = "lrt.npz"
+    # f = "lrt.npz"
     # ip_response(f)
-    plot_chirality_difference("cond_" + f)
+    # plot_chirality_difference("cond_" + f)
     
     # plot_response_functions(f)
     # plot_excess_chirality("cond_" + f)
@@ -474,8 +546,8 @@ if __name__ == '__main__':
     # plot_topological_total("cond_" + f)
 
     # check response stability with RPA
-    flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
+    # flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
     # rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
-    plot_rpa_response("rpa_triangle.npz")
+    # plot_rpa_response("rpa_triangle.npz")
 
     # TODO: compute chiral LDOS of magnetic dipole antenna
