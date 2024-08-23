@@ -211,7 +211,7 @@ def gs_stability(flake, Us):
               res = res,
               Us = Us)
 
-def localization(positions, states, energies):
+def localization(positions, states, energies, uniform = False):
     """Compute eigenstates edge localization"""
     # edges => neighboring unit cells are incomplete => all points that are not inside a "big hexagon" made up of nearest neighbors 
     distances = jnp.round(jnp.linalg.norm(positions - positions[:, None], axis = -1), 4)
@@ -219,7 +219,12 @@ def localization(positions, states, energies):
     mask = (distances == nnn).sum(axis=0) < 6
 
     # localization => how much eingenstate 
-    return (jnp.abs(states[mask, :]).sum(axis = 0) / jnp.abs(states).sum(axis = 0))**2
+    l = (jnp.abs(states[mask, :]).sum(axis = 0) / jnp.abs(states).sum(axis = 0))**2
+
+    if uniform:
+        return l, mask.nonzero().size / mask.size
+
+    return l    
     
 def plot_localization(positions, states, energies, name = "localization.pdf"):
     loc = localization(positions, states, energies)
@@ -549,9 +554,14 @@ def plot_localization_varying_hopping():
         return jnp.max(l)
 
     nns = jnp.linspace(0, 0.2, 10)
-    for i, s in enumerate(setups):
+    for i, s in enumerate(setups):        
         locs = [loc(s[0], s[1], 1j*nn, s[3]) for nn in nns]
         axs[i].plot(nns, locs)
+
+        flake = get_haldane_graphene(*s[1:4]).cut_flake(s[0])
+        _, v = localization(flake.positions, flake.eigenvectors, flake.energies, uniform = True)
+        
+        axs[i].axhline(y=v, '--')
         axs[i].set_xlabel(r'$t_2$')
         axs[i].set_ylabel(r'$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$')
 
