@@ -94,6 +94,14 @@ def rpa_response(flake, results_file, cs):
         p = flake.positions.T
         
         res.append( omegas[None, None, :]**2 * jnp.einsum('Ii,wij,Jj->IJw', p, sus, p) )
+
+        if c == 0:
+            v, p = flake.velocity_operator_e, flake.dipole_operator_e                   
+            pol = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.1) for i in range(2)] for j in range(2)])
+            r =  jnp.einsum('Ii,wij,Jj->IJw', p, sus, p)
+            plt.plot(omegas, r[0,0] - pol[0,0])
+            plt.plot(omegas, r[1,1] - pol[1,1])
+            plt.plot(omegas, r[0,1] - pol[0,1])
         
     jnp.savez("rpa_" + results_file, cond = res, omegas = omegas, cs = cs)
 
@@ -124,8 +132,8 @@ def ip_response(results_file):
         trivial = jnp.abs(flake.energies) > 1e-1
         mask = jnp.logical_and(trivial[:, None], trivial)
 
-        cond[args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.01) for i in range(2)] for j in range(2)])
-        pol[args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.01) for i in range(2)] for j in range(2)])
+        cond[args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.1) for i in range(2)] for j in range(2)])
+        pol[args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.1) for i in range(2)] for j in range(2)])
         
         cond["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.1, mask = mask) for i in range(2)] for j in range(2)])
         pol["topological." + args[-1]] = jnp.array([[flake.get_ip_green_function(p[i], p[j], omegas, relaxation_rate = 0.1, mask = mask) for i in range(2)] for j in range(2)])
@@ -561,7 +569,7 @@ def plot_localization_varying_hopping():
         flake = get_haldane_graphene(*s[1:4]).cut_flake(s[0])
         _, v = localization(flake.positions, flake.eigenvectors, flake.energies, uniform = True)
         
-        axs[i].axhline(v, '--')
+        axs[i].axhline(y=v, l='--')
         axs[i].set_xlabel(r'$t_2$')
         axs[i].set_ylabel(r'$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$')
 
@@ -586,7 +594,7 @@ if __name__ == '__main__':
 
     # compute IP response
     f = "lrt.npz"
-    # ip_response(f)
+    ip_response(f)
     plot_chirality_difference("cond_" + f)
     
     # plot_response_functions(f)
