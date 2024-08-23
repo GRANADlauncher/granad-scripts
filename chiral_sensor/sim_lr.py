@@ -93,7 +93,7 @@ def rpa_response(flake, results_file, cs):
         
         p = flake.positions.T
         
-        res.append( omegas[:, None, None]**2 * jnp.einsum('Ii,wij,Jj->IJw', p, sus, p) )
+        res.append( omegas[None, None, :]**2 * jnp.einsum('Ii,wij,Jj->IJw', p, sus, p) )
         
     jnp.savez("rpa_" + results_file, cond = res, omegas = omegas, cs = cs)
 
@@ -520,6 +520,43 @@ def plot_edge_states_energy_landscape():
 
     plt.tight_layout()
     plt.savefig("grid.pdf")
+
+def plot_edge_states_energy_landscape():
+    setups = [
+        (shape, -2.66, -1j, 0.3, f"haldane_graphene" )
+        for shape in [Triangle(18, armchair = False), Rectangle(10, 10), Hexagon(20, armchair = True)]
+        ]
+
+    fig, axs = plt.subplots(3,2)
+    axs_flat = list(axs.flat)
+    
+    for i, s in enumerate(setups):        
+        flake = get_haldane_graphene(*s[1:4]).cut_flake(s[0])
+        
+        loc = localization(flake.positions, flake.eigenvectors, flake.energies)
+
+        sc1 = show_2d(flake, axs_flat[2*i], display = jnp.abs(flake.eigenvectors[:, loc.argmax()]) )
+        axs_flat[2*i].set_xlabel('X')
+        axs_flat[2*i].set_ylabel('Y')
+
+        cb1 = fig.colorbar(sc1, ax=axs_flat[2*i])
+        cb1.set_label(r'$|\psi|^2$')
+
+
+        sc2 = axs_flat[2*i + 1].scatter(
+            jnp.arange(flake.energies.size),
+            flake.energies,
+            c=loc)
+        axs_flat[2*i+1].set_xlabel('# eigenstate')
+        axs_flat[2*i+1].set_ylabel('E (eV)')
+
+        cb2 = fig.colorbar(sc2, ax=axs_flat[2*i + 1])
+        cb2.set_label(r"$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$")  
+
+
+    plt.tight_layout()
+    plt.savefig("grid.pdf")
+
         
 if __name__ == '__main__':
     plt.style.use('seaborn-v0_8-darkgrid')
