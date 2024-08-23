@@ -78,30 +78,35 @@ def get_haldane_graphene(t1, t2, delta):
     )
 
 ### RESPONSE FUNCTIONS ###
+def rpa_sus(evs, omegas, occupations, energies, coulomb, relaxation_rate = 1e-1):
+    
+    def inner(omega):
+        mat = delta_occ / (omega + delta_e + 1j*relaxation_rate)
+        sus = jnp.einsum('ab, ak, al, bk, bl -> kl', mat, evs, evs.conj(), evs.conj(), evs)
+        return sus @ jnp.linalg.inv(one - coulomb @ sus)
+
+    one = jnp.identity(evs.shape[0])
+    evs = evs.T
+    delta_occ = (occupations[:, None] - occupations) * flake.electrons
+    delta_e = energies[:, None] - energies
+    
+    return jax.lax.map(jax.jit(inner), omegas)
+
 def rpa_response(flake, results_file, cs):
     """computes j-j response from p-p in RPA"""
        
     omegas =  jnp.linspace(0, 15, 150)
     res = []
     
-    for c in cs:        
-        args = flake.get_args(relaxation_rate = 1/10,
-                              coulomb_strength = c,
-                              propagator = None)
+    for c in cs:
         
-        sus = jax.lax.map(rpa_susceptibility_function(args, hungry = 2), omegas)
+        sus = rpa_sus(flake.eigenvectors, omegas, flake.initial_density_matrix_e.diagonal(), flake.energies, c*flake.coulomb)
         
         p = flake.positions.T
         
-        res.append( omegas[None, None, :]**2 * jnp.einsum('Ii,wij,Jj->IJw', p, sus, p) )
-
-        if c == 0:
-            v, p = flake.velocity_operator_e, flake.dipole_operator_e                   
-            pol = jnp.array([[flake.get_ip_green_function(v[i], v[j], omegas, relaxation_rate = 0.1) for i in range(2)] for j in range(2)])
-            r =  jnp.einsum('Ii,wij,Jj->IJw', p, sus, p)
-            plt.plot(omegas, r[0,0] - pol[0,0])
-            plt.plot(omegas, r[1,1] - pol[1,1])
-            plt.plot(omegas, r[0,1] - pol[0,1])
+        ref = jnp.einsum('Ii,wij,Jj->IJw', p, sus, p)
+        
+        res.append(omegas[None, None, :]**2 * ref)
         
     jnp.savez("rpa_" + results_file, cond = res, omegas = omegas, cs = cs)
 
@@ -122,7 +127,7 @@ def ip_response(results_file):
     print("lrt")
 
     cond, pol = {}, {}
-    omegas = jnp.linspace(0, 10, 100)    
+    omegas = jnp.linspace(0, 20, 200)    
     for args in args_list:        
         flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])
         
@@ -561,7 +566,7 @@ def plot_localization_varying_hopping():
         l = localization(flake.positions, flake.eigenvectors, flake.energies)
         return jnp.max(l)
 
-    nns = jnp.linspace(0, 0.2, 10)
+    nns = jnp.linspace(0, 0.5, 10)
     for i, s in enumerate(setups):        
         locs = [loc(s[0], s[1], 1j*nn, s[3]) for nn in nns]
         axs[i].plot(nns, locs)
@@ -569,10 +574,13 @@ def plot_localization_varying_hopping():
         flake = get_haldane_graphene(*s[1:4]).cut_flake(s[0])
         _, v = localization(flake.positions, flake.eigenvectors, flake.energies, uniform = True)
         
-        axs[i].axhline(y=v, l='--')
+        axs[i].axhline(y=v, l='--', label = 'uniform')
+        axs[i].axvline(x=0.03, l='--', label = 'bulk transition')
+
         axs[i].set_xlabel(r'$t_2$')
         axs[i].set_ylabel(r'$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$')
 
+    axs[i].legend()
     plt.tight_layout()
     plt.savefig("localization_varying_hopping.pdf")
     plt.close()
