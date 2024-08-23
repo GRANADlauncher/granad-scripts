@@ -592,8 +592,8 @@ def plot_localization_varying_hopping():
         flake = get_haldane_graphene(*s[1:4]).cut_flake(s[0])
         _, v = localization(flake.positions, flake.eigenvectors, flake.energies, uniform = True)
         
-        axs[i].axhline(y=v, l='--', label = 'uniform')
-        axs[i].axvline(x=0.03, l='--', label = 'bulk transition')
+        axs[i].axhline(y=v, ls='--', label = 'uniform')
+        axs[i].axvline(x=0.03, ls='--', label = 'bulk transition')
 
         axs[i].set_xlabel(r'$t_2$')
         axs[i].set_ylabel(r'$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$')
@@ -607,7 +607,7 @@ if __name__ == '__main__':
     plt.style.use('seaborn-v0_8-darkgrid')
     
     # plot edge states vs localization-annotated energy landscape of a few structures    
-    plot_edge_states_energy_landscape()
+    # plot_edge_states_energy_landscape()
     
     # plot edge state localization-annotated energy landscape for varying t2
     plot_localization_varying_hopping()
