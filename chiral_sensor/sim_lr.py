@@ -117,7 +117,7 @@ def ip_response(results_file):
     
     args_list = [
         (Triangle(30, armchair = True), -2.66, -1j*t2, delta, f"haldane_graphene_{t2}" )
-        for (t2, delta) in [(0.0, 0.0), (-0.5, 0.3), (-0.1, 0.3), (0.1, 0.3), (0.5, 0.3)]
+        for (t2, delta) in [(0.0, 0.0), (0.1, 0.3), (0.5, 0.3)]
         ]
 
     print("plotting edge states")
@@ -356,28 +356,77 @@ def plot_excess_chirality(results_file, keys = None):
 def plot_chirality_difference(results_file, keys = None):
     """plots excess chirality of the total response"""
     omegas, data, keys = load_data(results_file, keys)
-    
+
+    fig, axs = plt.subplots(2,1)    
+    axs_flat = list(axs.flat)
+
     # Loop through each key to plot the data
     for i, key in enumerate(keys):
         mat = to_helicity(data[key])
         mat_real, mat_imag = mat.real, mat.imag
 
+        ls = '-'
         if 'topological' in key:
-            continue
-
-        idx = 10
-        diff = (mat_imag[1, 1] - mat_imag[0, 0]) / (mat_imag[1, 1] + mat_imag[0, 0])
-        plt.plot(omegas[idx:], diff[idx:], label=key.split("_")[-1])
+            ls = '--'        
+        
+        idx = 0
+        left, right = jnp.array([[0, 0], [0, 1]]), jnp.array([[1, 0], [0, 0]])
+        mat_normed = mat / jnp.linalg.norm(mat, axis = (0,1))
+        diff_left = 1 - jnp.linalg.norm(mat_normed - left[:, :, None], axis = (0, 1)) / 2
+        diff_right = 1 - jnp.linalg.norm(mat_normed - right[:, :, None], axis = (0, 1)) / 2
+        # diff = (mat_imag[1, 1] - mat_imag[0, 0]) / mat_imag.sum(axis = 0).sum(axis=0)
+        
+        axs_flat[0].plot(omegas[idx:], diff_left[idx:], label=key.split("_")[-1], ls = ls)
+        axs_flat[1].plot(omegas[idx:], diff_right[idx:], label=key.split("_")[-1], ls = ls)
 
     # Adding titles and labels to make it clear
-    plt.xlabel(r'$\omega$ (eV)$')
-    plt.ylabel(r'$\delta_{+-}$')
+
+    
+    axs_flat[0].set_xlabel(r'$\omega (eV)$')
+    axs_flat[0].set_ylabel(r'$\delta_{-}$')
+    axs_flat[1].set_ylabel(r'$\delta_{+}$')    
     plt.legend(loc="upper left")
 
     # Adjusting layout and saving
     plt.tight_layout()
     plt.savefig("chirality_difference.pdf")
     plt.close()    
+
+def plot_chirality(results_file, keys = None):
+    """plots chirality of the total response"""
+    omegas, data, keys = load_data(results_file, keys)
+
+    # Loop through each key to plot the data
+    for i, key in enumerate(keys):
+        mat = to_helicity(data[key])
+        mat_real, mat_imag = mat.real, mat.imag
+
+        ls = '-'
+        if 'topological' in key:
+            ls = '--'        
+        
+        idx = 0
+        left, right = jnp.array([[0, 0], [0, 1]]), jnp.array([[1, 0], [0, 0]])
+        mat_normed = mat / jnp.linalg.norm(mat, axis = (0,1))
+        diff_left = 1 - jnp.linalg.norm(mat_normed - left[:, :, None], axis = (0, 1)) / 2
+        diff_right = 1 - jnp.linalg.norm(mat_normed - right[:, :, None], axis = (0, 1)) / 2
+        
+        chi = jnp.max( jnp.stack([diff_left, diff_right]), axis = 0)
+        
+        # diff = (mat_imag[1, 1] - mat_imag[0, 0]) / mat_imag.sum(axis = 0).sum(axis=0)
+        
+        plt.plot(omegas[idx:], chi[idx:], label=key.split("_")[-1], ls = ls)
+
+    # Adding titles and labels to make it clear    
+    plt.xlabel(r'$\omega (eV)$')
+    plt.ylabel(r'$\chi$')
+    plt.legend(loc="upper left")
+
+    # Adjusting layout and saving
+    plt.tight_layout()
+    plt.savefig("chirality.pdf")
+    plt.close()    
+
     
 def plot_chirality_components(results_file, keys = None):
     """plots excess chirality of the total response"""
@@ -610,7 +659,7 @@ if __name__ == '__main__':
     # plot_edge_states_energy_landscape()
     
     # plot edge state localization-annotated energy landscape for varying t2
-    plot_localization_varying_hopping()
+    # plot_localization_varying_hopping()
     
     # plot localization depending on Hubbard-U
     # t1, t2, delta, shape = -2.66, -1j, 0.3, Triangle(30)
@@ -622,7 +671,8 @@ if __name__ == '__main__':
     f = "lrt.npz"
     ip_response(f)
     plot_chirality_difference("cond_" + f)
-    plot_response_functions(f)
+    plot_chirality("cond_" + f)
+    # plot_response_functions(f)
     
     # plot_excess_chirality("cond_" + f)
     # plot_chirality_components("cond_" + f)
