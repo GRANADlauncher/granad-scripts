@@ -302,7 +302,11 @@ def plot_response_functions(results_file):
             continue
         for i in range(2):
             for j in range(2):
-                axs[i, j].plot(cond_omegas, cond[k][i, j].imag, label='cond_' + k)
+                if i == j:
+                    offset = cond[k][i,j, 0].imag
+                else:
+                    offset = 0
+                axs[i, j].plot(cond_omegas, cond[k][i, j].imag - offset, label='cond_' + k)
                 axs[i, j].plot(pol_omegas, pol_omegas**2 * pol[k][i, j].imag, '--', label='pol_' + k)
                 axs[i, j].set_title(f'i,j = {i,j}')
                 
@@ -317,7 +321,11 @@ def plot_response_functions(results_file):
             continue
         for i in range(2):
             for j in range(2):
-                axs[i, j].plot(cond_omegas, cond[k][i, j].real, label='cond_' + k)
+                if i == j:
+                    offset = cond[k][i,j, 0].real
+                else:
+                    offset = 0
+                axs[i, j].plot(cond_omegas, cond[k][i, j].real - offset, label='cond_' + k)
                 axs[i, j].plot(pol_omegas, pol_omegas**2 * pol[k][i, j].real, '--', label='pol_' + k)
                 axs[i, j].set_title(f'i,j = {i,j}')
                 
@@ -362,29 +370,30 @@ def plot_chirality_difference(results_file, keys = None):
 
     # Loop through each key to plot the data
     for i, key in enumerate(keys):
-        mat = to_helicity(data[key])
+        mat = data[key]
+        mat -= jnp.diag(mat[:, :, 0].diagonal())[:, :, None]
+        mat = to_helicity(mat)
         mat_real, mat_imag = mat.real, mat.imag
 
         ls = '-'
-        if 'topological' in key:
-            ls = '--'        
+        if 'topological' in key:            
+            ls = '--'
+            continue
         
         idx = 0
         left, right = jnp.array([[0, 0], [0, 1]]), jnp.array([[1, 0], [0, 0]])
-        mat_normed = mat / jnp.linalg.norm(mat, axis = (0,1))
-        diff_left = 1 - jnp.linalg.norm(mat_normed - left[:, :, None], axis = (0, 1)) / 2
-        diff_right = 1 - jnp.linalg.norm(mat_normed - right[:, :, None], axis = (0, 1)) / 2
-        # diff = (mat_imag[1, 1] - mat_imag[0, 0]) / mat_imag.sum(axis = 0).sum(axis=0)
+        norms = jnp.linalg.norm(mat, axis = (0,1))
         
+        diff_left = jnp.linalg.norm(jnp.einsum('ij,jlk->ilk', left, mat), axis = (0,1)) / norms 
+        diff_right = jnp.linalg.norm(jnp.einsum('ij,jlk->ilk', right, mat), axis = (0,1)) / norms
+                
         axs_flat[0].plot(omegas[idx:], diff_left[idx:], label=key.split("_")[-1], ls = ls)
         axs_flat[1].plot(omegas[idx:], diff_right[idx:], label=key.split("_")[-1], ls = ls)
 
     # Adding titles and labels to make it clear
-
-    
-    axs_flat[0].set_xlabel(r'$\omega (eV)$')
-    axs_flat[0].set_ylabel(r'$\delta_{-}$')
-    axs_flat[1].set_ylabel(r'$\delta_{+}$')    
+    axs_flat[0].set_ylabel(r'$\chi_{jj, +}$')
+    axs_flat[1].set_xlabel(r'$\omega (eV)$')
+    axs_flat[1].set_ylabel(r'$\chi_{jj, -}$')    
     plt.legend(loc="upper left")
 
     # Adjusting layout and saving
@@ -398,21 +407,23 @@ def plot_chirality(results_file, keys = None):
 
     # Loop through each key to plot the data
     for i, key in enumerate(keys):
+        mat = data[key]
+        mat -= jnp.diag(mat[:, :, 0].diagonal())[:, :, None]
         mat = to_helicity(data[key])
         mat_real, mat_imag = mat.real, mat.imag
 
         ls = '-'
         if 'topological' in key:
             ls = '--'        
+            continue
         
         idx = 0
-        left, right = jnp.array([[0, 0], [0, 1]]), jnp.array([[1, 0], [0, 0]])
-        mat_normed = mat / jnp.linalg.norm(mat, axis = (0,1))
-        diff_left = 1 - jnp.linalg.norm(mat_normed - left[:, :, None], axis = (0, 1)) / 2
-        diff_right = 1 - jnp.linalg.norm(mat_normed - right[:, :, None], axis = (0, 1)) / 2
-        
-        chi = jnp.max( jnp.stack([diff_left, diff_right]), axis = 0)
-        
+        left = jnp.abs(mat[0, :, :]).sort(axis = 0)[::-1, :]
+        right = jnp.abs(mat[1, :, :]).sort(axis = 0)[::-1, :]
+
+        n = lambda x : jnp.linalg.norm(x, axis = 0) 
+        chi = n(left - right) / jnp.sqrt(n(left)**2 + n(right)**2)
+        # import pdb; pdb.set_trace()
         # diff = (mat_imag[1, 1] - mat_imag[0, 0]) / mat_imag.sum(axis = 0).sum(axis=0)
         
         plt.plot(omegas[idx:], chi[idx:], label=key.split("_")[-1], ls = ls)
@@ -427,7 +438,54 @@ def plot_chirality(results_file, keys = None):
     plt.savefig("chirality.pdf")
     plt.close()    
 
+def plot_power(results_file, keys = None):
+    """plots ratio of scattered to incoming power for different em-field helicities"""
+    omegas, data, keys = load_data(results_file, keys)
     
+    fig, axs = plt.subplots(2, 2)
+    axs_flat = list(axs.flat)
+    
+    # Loop through each key to plot the data
+    for i, key in enumerate(keys):
+        mat = data[key]
+        mat -= jnp.diag(mat[:, :, 0].diagonal())[:, :, None]
+        mat = to_helicity(data[key])
+        mat_real, mat_imag = mat.real, mat.imag
+
+        ls = '-'
+        if 'topological' in key:
+            ls = '--'        
+            continue
+
+        # compute power in x channel due to y illumination
+        p = jnp.abs(mat)**2
+
+        label = key.split("_")[-1]
+        
+        axs_flat[0].plot(omegas, p[0, 0, :] / p.max(), label = key.split("_")[-1])
+        axs_flat[1].plot(omegas, p[0, 1, :] / p.max())        
+        axs_flat[2].plot(omegas, p[1, 0, :] / p.max())
+        axs_flat[3].plot(omegas, p[1, 1, :] / p.max())
+
+    # Adding titles and labels to make it clear
+    axs_flat[0].set_ylabel(r"$P_{++}$")
+    axs_flat[1].set_ylabel(r"$P_{+-}$")
+    axs_flat[2].set_ylabel(r"$P_{-+}$")
+    axs_flat[3].set_ylabel(r"$P_{--}$")
+
+    axs_flat[0].set_xlabel(r'$\omega (eV)$')
+    axs_flat[1].set_xlabel(r'$\omega (eV)$')
+    axs_flat[2].set_xlabel(r'$\omega (eV)$')
+    axs_flat[3].set_xlabel(r'$\omega (eV)$')
+    
+    # plt.title(r'$\dfrac{P_{\text{scat}}}{P_{\text{inc}}}$')
+    axs_flat[0].legend(loc="upper left")
+
+    # Adjusting layout and saving
+    plt.tight_layout()
+    plt.savefig("power.pdf")
+    plt.close()    
+
 def plot_chirality_components(results_file, keys = None):
     """plots excess chirality of the total response"""
     omegas, data, keys = load_data(results_file, keys)
@@ -492,18 +550,24 @@ def plot_rpa_response(results_file):
         cond = data["cond"][:, :2, :2, :]
         cs = data["cs"]
         
-    def to_helicity(mat):
-        """converts mat to helicity basis"""
-        trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
-        trafo_inv = jnp.linalg.inv(trafo)
-        return jnp.einsum('ij,jmk,ml->ilk', trafo_inv, mat, trafo)
+    # def to_helicity(mat):
+    #     """converts mat to helicity basis"""
+    #     trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
+    #     trafo_inv = jnp.linalg.inv(trafo)
+    #     return jnp.einsum('ij,jmk,ml->ilk', trafo_inv, mat, trafo)
         
     for i, coulomb_strength in enumerate(cs):
-        c = to_helicity(cond[i])
-        delta = (c.imag[1, 1] - c.imag[0, 0]) / (c.imag[1, 1] + c.imag[0, 0])
-        plt.plot(omegas, delta, label = fr'$\lambda$ = {coulomb_strength}')
+        mat = to_helicity(cond[i])
 
-    plt.xlabel(r'$\omega$ (eV)$')
+        left = jnp.abs(mat[0, :, :]).sort(axis = 0)[::-1, :]
+        right = jnp.abs(mat[1, :, :]).sort(axis = 0)[::-1, :]
+
+        n = lambda x : jnp.linalg.norm(x, axis = 0) 
+        chi = n(left - right) / jnp.sqrt(n(left)**2 + n(right)**2)
+
+        plt.plot(omegas, chi, label = fr'$\lambda$ = {coulomb_strength}')
+
+    plt.xlabel(r'$\omega (eV)$')
     plt.ylabel(r'$\delta_{+-}$')
     plt.legend(loc = "upper left")
     plt.savefig("rpa.pdf")
@@ -672,15 +736,16 @@ if __name__ == '__main__':
     ip_response(f)
     plot_chirality_difference("cond_" + f)
     plot_chirality("cond_" + f)
-    # plot_response_functions(f)
+    plot_power("cond_" + f)
+    plot_response_functions(f)
     
     # plot_excess_chirality("cond_" + f)
     # plot_chirality_components("cond_" + f)
     # plot_topological_total("cond_" + f)
 
     # check response stability with RPA
-    # flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
-    # rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
-    # plot_rpa_response("rpa_triangle.npz")
+    flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
+    rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
+    plot_rpa_response("rpa_triangle.npz")
 
     # TODO: compute chiral LDOS of magnetic dipole antenna
