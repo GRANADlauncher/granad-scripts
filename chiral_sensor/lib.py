@@ -147,10 +147,6 @@ def ip_response(results_file):
     jnp.savez("cond_" + results_file, **cond)
     jnp.savez("pol_" + results_file, **pol)
 
-# TODO: lookup greens function
-def chiral_ldos(results_file, illu, r):
-    return
-
 ### GROUND STATE ###
 def rho(es, vecs, thresh):
     """constructs the open-shell density matrix"""
