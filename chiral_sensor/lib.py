@@ -305,7 +305,7 @@ def plot_power(results_file, keys = None):
 
 
 ### RPA ###
-def rpa_sus(evs, omegas, occupations, energies, coulomb, relaxation_rate = 1e-1):
+def rpa_sus(evs, omegas, occupations, energies, coulomb, electrons, relaxation_rate = 1e-1):
     """computes pp-response in RPA, following https://pubs.acs.org/doi/10.1021/nn204780e"""
     
     def inner(omega):
@@ -315,7 +315,7 @@ def rpa_sus(evs, omegas, occupations, energies, coulomb, relaxation_rate = 1e-1)
 
     one = jnp.identity(evs.shape[0])
     evs = evs.T
-    delta_occ = (occupations[:, None] - occupations) * flake.electrons
+    delta_occ = (occupations[:, None] - occupations) * electrons
     delta_e = energies[:, None] - energies
     
     return jax.lax.map(jax.jit(inner), omegas)
@@ -327,7 +327,7 @@ def rpa_response(flake, results_file, cs):
     res = []
     
     for c in cs:        
-        sus = rpa_sus(flake.eigenvectors, omegas, flake.initial_density_matrix_e.diagonal(), flake.energies, c*flake.coulomb)        
+        sus = rpa_sus(flake.eigenvectors, omegas, flake.initial_density_matrix_e.diagonal(), flake.energies, c*flake.coulomb, flake.electrons)        
         p = flake.positions.T        
         ref = jnp.einsum('Ii,wij,Jj->IJw', p, sus, p)        
         res.append(omegas[None, None, :]**2 * ref)
