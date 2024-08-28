@@ -437,8 +437,8 @@ def plot_stability(results_file):
         c_up = jnp.diagonal(vecs_up.conj().T @ rho_up @ vecs_up)
         c_down = jnp.diagonal(vecs_down.conj().T @ rho_down @ vecs_down)
         
-        plot_localization(pos, vecs_up, v_up, f"{U}_up.pdf")
-        plot_localization(pos, vecs_down, v_down, f"{U}_down.pdf")
+        # plot_localization(pos, vecs_up, v_up, f"{U}_up.pdf")
+        # plot_localization(pos, vecs_down, v_down, f"{U}_down.pdf")
 
     # current
     l = []
