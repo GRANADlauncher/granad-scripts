@@ -46,7 +46,7 @@ if __name__ == '__main__':
         plot_rpa_response(RPA_FILE)
 
     if MEAN_FIELD:
-        res = [scf_loop(MF_FLAKE, u, MF_MIX, MF_ITER, MF_PREC) for u in MF_VALS]
+        res = [scf_loop(MF_FLAKE, u, MF_MIX, MF_PREC, MF_ITER) for u in MF_VALS]
         jnp.savez(MF_FILE, res = res, Us = MF_VALS, pos = MF_FLAKE.positions)
 
     if PLOT_MEAN_FIELD:
