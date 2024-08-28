@@ -409,7 +409,7 @@ def plot_chirality(results_file, keys = None):
     for i, key in enumerate(keys):
         mat = data[key]
         mat -= jnp.diag(mat[:, :, 0].diagonal())[:, :, None]
-        mat = to_helicity(data[key])
+        mat = to_helicity(mat)
         mat_real, mat_imag = mat.real, mat.imag
 
         ls = '-'
@@ -449,7 +449,7 @@ def plot_power(results_file, keys = None):
     for i, key in enumerate(keys):
         mat = data[key]
         mat -= jnp.diag(mat[:, :, 0].diagonal())[:, :, None]
-        mat = to_helicity(data[key])
+        mat = to_helicity(mat)
         mat_real, mat_imag = mat.real, mat.imag
 
         ls = '-'
@@ -733,7 +733,7 @@ if __name__ == '__main__':
 
     # compute IP response
     f = "lrt.npz"
-    ip_response(f)
+    # ip_response(f)
     plot_chirality_difference("cond_" + f)
     plot_chirality("cond_" + f)
     plot_power("cond_" + f)
@@ -744,8 +744,8 @@ if __name__ == '__main__':
     # plot_topological_total("cond_" + f)
 
     # check response stability with RPA
-    flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
-    rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
-    plot_rpa_response("rpa_triangle.npz")
+    # flake = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
+    # rpa_response(flake, "triangle", [0, 0.01, 0.1, 0.5, 0.7, 1.0])
+    # plot_rpa_response("rpa_triangle.npz")
 
     # TODO: compute chiral LDOS of magnetic dipole antenna
