@@ -31,7 +31,7 @@ GEOMETRIES = [
 
 if __name__ == '__main__':
     if IP_RESPONSE:
-        ip_response(LRT_FILE, IP_ARGS)
+        ip_response(IP_ARGS, LRT_FILE)
         
     if PLOT_IP_RESPONSE:
         plot_chirality_difference("cond_" + LRT_FILE)
