@@ -234,6 +234,5 @@ if __name__ == '__main__':
     if RUN_IP:
         plot_ip_sim(shape, phi)
 
-    if RUN_TD::
+    if RUN_TD:
         td_sim(shape, phi)
-    
