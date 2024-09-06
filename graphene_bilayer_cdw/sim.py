@@ -176,7 +176,7 @@ def ref():
         grid = 100
     )
     result.save(name)        
-    plot_omega_dipole(name, 6*omega_0, 0, omega_0)
+    plot_omega_dipole(name, 6*omega, 0, omega)
     plot_t_dipole(name, end_time, amplitudes, omega, peak, fwhm)
 
 def td_sim(shape, phi):
