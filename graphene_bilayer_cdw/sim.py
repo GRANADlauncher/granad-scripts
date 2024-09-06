@@ -186,7 +186,7 @@ def td_sim(shape, phi):
     name, end_time, amplitudes, omega, peak, fwhm = "phi", 700, [0.03, 0, 0], 0.68, 0.659 * 200, 0.659 * 166
 
     for p in phi:
-        flake = get_bilayer_graphene(shape, phi)
+        flake = get_bilayer_graphene(shape, p)
 
         result = flake.master_equation(
             dt = 1e-4,
@@ -213,7 +213,7 @@ def plot_ip_sim(shape, phi):
     
 def plot_energy_sim(shape, phi):
     for p in phi:
-        flake = get_bilayer_graphene(shape, phi)
+        flake = get_bilayer_graphene(shape, p)
         plt.plot(jnp.arange(len(flake)), flake.energies, 'o', label = f"{p:.2f}")
     plt.savefig('energies.pdf')
     plt.close()
