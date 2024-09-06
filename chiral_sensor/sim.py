@@ -8,7 +8,7 @@ from lib import *
 IP_RESPONSE = True
 PLOT_IP_RESPONSE = True
 LRT_FILE = 'lrt.npz'
-IP_ARGS = [ (Triangle(30, armchair = True), -2.66, -1j*t2, delta, f"haldane_graphene_{t2}" ) for (t2, delta) in [(0.0, 0.0), (0.1, 0.3), (0.5, 0.3)] ]
+IP_ARGS = [ (get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(30, armchair = True)), f"haldane_graphene_{t2}") for (t2, delta) in [(0.0, 0.0), (0.1, 0.3), (0.5, 0.3)] ]
 
 RPA_RESPONSE = True
 PLOT_RPA_RESPONSE = True
@@ -35,9 +35,12 @@ if __name__ == '__main__':
         
     if PLOT_IP_RESPONSE:
         plot_chirality_difference("cond_" + LRT_FILE)
-        plot_chirality("cond_" + LRT_FILE)
         plot_power("cond_" + LRT_FILE)
         plot_response_functions(LRT_FILE)
+
+        flake = IP_ARGS[2][0]
+        loc = localization(flake.positions, flake.eigenvectors, flake.energies)
+        plot_chirality("cond_" + LRT_FILE, flake, display = jnp.abs(flake.eigenvectors[:, loc.argmax()]) )
 
     if RPA_RESPONSE:
         rpa_response(RPA_FLAKE, RPA_FILE, RPA_VALS)
@@ -54,6 +57,4 @@ if __name__ == '__main__':
 
     if PLOT_GEOMETRIES:
         plot_edge_states_energy_landscape(GEOMETRIES)
-        plot_localization_varying_hopping(GEOMETRIES)
-
-
+        plot_localization_varying_hopping(GEOMETRIES)        

@@ -1,6 +1,8 @@
 """common utilities"""
 
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import numpy as np
 import jax.numpy as jnp
 
 from granad import *
@@ -114,18 +116,17 @@ def ip_response(args_list, results_file):
 
     cond, pol = {}, {}
     omegas = jnp.linspace(0, 20, 200)    
-    for args in args_list:        
-        flake = get_haldane_graphene(*args[1:4]).cut_flake(args[0])        
+    for (flake, name) in args_list:        
         v, p = flake.velocity_operator_e, flake.dipole_operator_e
-        cond[args[-1]] = get_correlator(v[:2])
-        pol[args[-1]] = get_correlator(p[:2])
+        cond[name] = get_correlator(v[:2])
+        pol[name] = get_correlator(p[:2])
 
         # compute only topological sector
         trivial = jnp.abs(flake.energies) > 1e-1
         mask = jnp.logical_and(trivial[:, None], trivial)
         
-        cond["topological." + args[-1]] = get_correlator(v[:2], mask)
-        pol["topological." + args[-1]] = get_correlator(p[:2], mask)
+        cond["topological." + name] = get_correlator(v[:2], mask)
+        pol["topological." + name] = get_correlator(p[:2], mask)
         
     cond["omegas"], pol["omegas"] = omegas, omegas
     jnp.savez("cond_" + results_file, **cond)
@@ -220,89 +221,145 @@ def plot_chirality_difference(results_file, keys = None):
     plt.savefig("chirality_difference.pdf")
     plt.close()    
 
-def plot_chirality(results_file, keys = None):
-    """plots chirality of the total response"""
+
+def plot_chirality(results_file, flake, display, keys=None):
+    """
+    Plots the chirality of the total response with an inset plot corresponding to the topological state in `flake`.
+    
+    Parameters:
+    - results_file: str, path to the file containing the results.
+    - keys: list of str, specific keys to plot. If None, all keys are used.
+    """
+    
+    # Load data
     omegas, data, keys = load_data(results_file, keys)
+    
+    # Set up the main plot
+    fig, ax = plt.subplots(figsize=(8, 6))
+    # plt.style.use('seaborn-darkgrid')  # Optional: use a specific style for better aesthetics
+
+    keys = [k for k in keys if not 'topological' in k]
+
+    # Custom color palette and line styles
+    colors = plt.cm.plasma(np.linspace(0, 0.7, len(keys)))
+    line_styles = ['-', '--', '-.', ':']
+
+    # Iterate over each key to plot the corresponding data
+    for i, key in enumerate(keys):
+        mat = data[key]
+        mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
+        mat = to_helicity(mat)
+        
+        # Compute the real and imaginary parts
+        mat_real, mat_imag = mat.real, mat.imag
+        
+        # Select line style based on the presence of 'topological' in the key
+        line_style = line_styles[i % len(line_styles)]        
+                
+        # Calculate chirality
+        left = np.sort(np.abs(mat[0, :, :]), axis=0)[::-1, :]
+        right = np.sort(np.abs(mat[1, :, :]), axis=0)[::-1, :]
+        
+        # Normalize and compute chirality
+        norm = lambda x: np.linalg.norm(x, axis=0)
+        chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
+        
+        # Plot the chirality with a custom color and line style
+        ax.plot(omegas, chi, label=key.split("_")[-1], color=colors[i], linestyle=line_style, linewidth=2)
+
+    # Adding axis labels with larger fonts for readability
+    ax.set_xlabel(r'$\omega$ (eV)', fontsize=18)
+    ax.set_ylabel(r'$\chi$', fontsize=18)
+    
+    # Adding a legend with larger font size
+    ax.legend(loc="upper left", fontsize=14)
+    
+    # Adjusting tick parameters for better readability
+    ax.tick_params(axis='both', which='major', labelsize=14)
+
+    # Create an inset axis
+    ax_inset = inset_axes(ax, width="30%", height="30%", loc="upper right")  # Adjust size and position
+    show_2d(ax_inset, flake, display = display) 
+
+    # Tight layout for better spacing
+    plt.tight_layout()
+    
+    # Save the plot as a PDF with a higher DPI for publication quality
+    plt.savefig("chirality.pdf", dpi=300)
+    plt.close()
+
+def plot_power(results_file, keys=None):
+    """
+    Plots the ratio of scattered to incoming power for different EM-field helicities.
+    
+    Parameters:
+    - results_file: str, path to the file containing the results.
+    - keys: list of str, specific keys to plot. If None, all keys are used.
+    """
+    
+    # Load data
+    omegas, data, keys = load_data(results_file, keys)
+    
+    # Set up the plot with 2x2 subplots
+    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+    axs_flat = axs.flat
+    
+    colors = plt.cm.plasma(np.linspace(0, 0.7, len(keys)))    
+    line_styles = ['-', '--', '-.', ':']
+    
+    # plt.style.use('seaborn-darkgrid')  # Optional: use a specific style for better aesthetics
 
     # Loop through each key to plot the data
     for i, key in enumerate(keys):
         mat = data[key]
-        mat -= jnp.diag(mat[:, :, 0].diagonal())[:, :, None]
+        mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
         mat = to_helicity(mat)
-        mat_real, mat_imag = mat.real, mat.imag
+        
+        # Compute the power in x channel due to y illumination
+        p = np.abs(mat)**2
 
-        ls = '-'
+        # Line style based on the presence of 'topological' in the key
         if 'topological' in key:
-            ls = '--'        
             continue
         
-        idx = 0
-        left = jnp.abs(mat[0, :, :]).sort(axis = 0)[::-1, :]
-        right = jnp.abs(mat[1, :, :]).sort(axis = 0)[::-1, :]
-
-        n = lambda x : jnp.linalg.norm(x, axis = 0) 
-        chi = n(left - right) / jnp.sqrt(n(left)**2 + n(right)**2)
-        # import pdb; pdb.set_trace()
-        # diff = (mat_imag[1, 1] - mat_imag[0, 0]) / mat_imag.sum(axis = 0).sum(axis=0)
+        # Select line style based on the presence of 'topological' in the key
+        line_style = line_styles[i % len(line_styles)]        
+        color = colors[i % len(colors)]        
         
-        plt.plot(omegas[idx:], chi[idx:], label=key.split("_")[-1], ls = ls)
-
-    # Adding titles and labels to make it clear    
-    plt.xlabel(r'$\omega (eV)$')
-    plt.ylabel(r'$\chi$')
-    plt.legend(loc="upper left")
-
-    # Adjusting layout and saving
-    plt.tight_layout()
-    plt.savefig("chirality.pdf")
-    plt.close()    
-
-def plot_power(results_file, keys = None):
-    """plots ratio of scattered to incoming power for different em-field helicities"""
-    omegas, data, keys = load_data(results_file, keys)
-    
-    fig, axs = plt.subplots(2, 2)
-    axs_flat = list(axs.flat)
-    
-    # Loop through each key to plot the data
-    for i, key in enumerate(keys):
-        mat = data[key]
-        mat -= jnp.diag(mat[:, :, 0].diagonal())[:, :, None]
-        mat = to_helicity(mat)
-        mat_real, mat_imag = mat.real, mat.imag
-
-        ls = '-'
-        if 'topological' in key:
-            ls = '--'        
-            continue
-
-        # compute power in x channel due to y illumination
-        p = jnp.abs(mat)**2
-
-        label = key.split("_")[-1]
+        # Normalizing power by the maximum value for plotting
+        normalized_p = p / p.max()
         
-        axs_flat[0].plot(omegas, p[0, 0, :] / p.max(), label = key.split("_")[-1])
-        axs_flat[1].plot(omegas, p[0, 1, :] / p.max())        
-        axs_flat[2].plot(omegas, p[1, 0, :] / p.max())
-        axs_flat[3].plot(omegas, p[1, 1, :] / p.max())
+        # Plot on corresponding subplot
+        axs_flat[0].plot(omegas, normalized_p[0, 0, :], label=key.split("_")[-1], linestyle=line_style, linewidth=2, color = color)
+        axs_flat[1].plot(omegas, normalized_p[0, 1, :], linestyle=line_style, linewidth=2, color = color)
+        axs_flat[2].plot(omegas, normalized_p[1, 0, :], linestyle=line_style, linewidth=2, color = color)
+        axs_flat[3].plot(omegas, normalized_p[1, 1, :], linestyle=line_style, linewidth=2, color = color)
 
-    # Adding titles and labels to make it clear
-    axs_flat[0].set_ylabel(r"$P_{++}$")
-    axs_flat[1].set_ylabel(r"$P_{+-}$")
-    axs_flat[2].set_ylabel(r"$P_{-+}$")
-    axs_flat[3].set_ylabel(r"$P_{--}$")
+    # Adding labels to each subplot
+    axs_flat[0].set_ylabel(r"$\frac{P_{++}}{P_{\text{max}}}$", fontsize=14)
+    axs_flat[1].set_ylabel(r"$\frac{P_{+-}}{P_{\text{max}}}$", fontsize=14)
+    axs_flat[2].set_ylabel(r"$\frac{P_{-+}}{P_{\text{max}}}$", fontsize=14)
+    axs_flat[3].set_ylabel(r"$\frac{P_{--}}{P_{\text{max}}}$", fontsize=14)
 
-    axs_flat[0].set_xlabel(r'$\omega (eV)$')
-    axs_flat[1].set_xlabel(r'$\omega (eV)$')
-    axs_flat[2].set_xlabel(r'$\omega (eV)$')
-    axs_flat[3].set_xlabel(r'$\omega (eV)$')
+    axs_flat[0].set_xlabel(r'$\omega$ (eV)', fontsize=14)
+    axs_flat[1].set_xlabel(r'$\omega$ (eV)', fontsize=14)
+    axs_flat[2].set_xlabel(r'$\omega$ (eV)', fontsize=14)
+    axs_flat[3].set_xlabel(r'$\omega$ (eV)', fontsize=14)
     
-    # plt.title(r'$\dfrac{P_{\text{scat}}}{P_{\text{inc}}}$')
-    axs_flat[0].legend(loc="upper left")
+    # Set titles for each subplot (optional, if needed for clarity)
+    axs_flat[0].set_title(r'Scattered power from + to +', fontsize=12)
+    axs_flat[1].set_title(r'Scattered power from + to -', fontsize=12)
+    axs_flat[2].set_title(r'Scattered power from - to +', fontsize=12)
+    axs_flat[3].set_title(r'Scattered power from - to -', fontsize=12)
 
-    # Adjusting layout and saving
+    # Only add the legend to the first subplot
+    axs_flat[0].legend(loc="upper right", fontsize=12)
+
+    # Adjust layout for better spacing
     plt.tight_layout()
-    plt.savefig("power.pdf")
+    
+    # Save the plot as a PDF with high resolution
+    plt.savefig("power.pdf", dpi=300)
     plt.close()
 
 
@@ -461,7 +518,7 @@ def plot_stability(results_file):
 
 
 ### GEOMETRIES ###
-def show_2d(orbs, ax, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 2*1e2, title = None):
+def show_2d(ax, orbs, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 2*1e2, title = None):
     # decider whether to take abs val and normalize 
     def scale_vals( vals ):
         return jnp.abs(vals) / jnp.abs(vals).max() if scale else vals
@@ -496,7 +553,10 @@ def show_2d(orbs, ax, show_tags=None, show_index=False, display = None, scale = 
     # plt.title('Orbital positions in the xy-plane' if title is None else title)
     ax.grid(True)
     ax.axis('equal')
+    ax.axis('off')
+    ax.text(0.7, 0.9, r'$|\psi_{\text{edge}}|^2, t_2 = -\frac{i}{2}$', fontsize=10, ha='center', transform=ax.transAxes)
     return scatter
+        
 
 def plot_edge_states_energy_landscape(setups):
 
@@ -508,7 +568,7 @@ def plot_edge_states_energy_landscape(setups):
         
         loc = localization(flake.positions, flake.eigenvectors, flake.energies)
 
-        sc1 = show_2d(flake, axs_flat[2*i], display = jnp.abs(flake.eigenvectors[:, loc.argmax()]) )
+        sc1 = show_2d(axs_flat[2*i], flake, display = jnp.abs(flake.eigenvectors[:, loc.argmax()]) )
         axs_flat[2*i].set_xlabel('X')
         axs_flat[2*i].set_ylabel('Y')
 
