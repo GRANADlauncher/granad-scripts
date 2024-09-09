@@ -216,8 +216,8 @@ def plot_ip_sim(shape, phi):
     for i in range(2):
         for j in range(2):
             ax = axs[i, j]
-            ax.plot(omegas, sus[i, j] * omegas, label=f"{phi[i * 2 + j]:.2f}")  # Flattening indices to match phi
-            ax.set_title(f"Plot {i * 2 + j + 1}")
+            ax.plot(omegas, sus[i, j] * omegas, label=f"{phi[i]:.2f}")  # Flattening indices to match phi
+            ax.set_title(f"i, j")
             ax.legend()
 
     # Adjust layout and save the figure
