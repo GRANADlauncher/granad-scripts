@@ -205,13 +205,26 @@ def td_sim(shape, phi):
         plot_t_dipole(name, end_time, amplitudes, omega, peak, fwhm)
     
 def plot_ip_sim(shape, phi):
+    # Assuming these values are provided
     omegas = jnp.linspace(0, 20, 100)
-    sus = ip_response(shape, phi, omegas)["sus"]
-    for i, s in enumerate(sus):
-        plt.plot(omegas, s * omegas, label = f"{phi[i]:.2f}")
+    sus = ip_response(shape, phi, omegas)["sus"]  # sus is assumed to be a 2x2xN matrix
+
+    # Create a 2x2 subplot
+    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+
+    # Plot each subplot in the 2x2 grid
+    for i in range(2):
+        for j in range(2):
+            ax = axs[i, j]
+            ax.plot(omegas, sus[i, j] * omegas, label=f"{phi[i * 2 + j]:.2f}")  # Flattening indices to match phi
+            ax.set_title(f"Plot {i * 2 + j + 1}")
+            ax.legend()
+
+    # Adjust layout and save the figure
+    plt.tight_layout()
     plt.savefig('ip.pdf')
     plt.close()
-    
+
 def plot_energy_sim(shape, phi):
     # Create a grid for the subplots
     n = len(phi)
