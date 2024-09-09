@@ -213,12 +213,13 @@ def plot_ip_sim(shape, phi):
     fig, axs = plt.subplots(2, 2, figsize=(10, 8))
 
     # Plot each subplot in the 2x2 grid
-    for i in range(2):
-        for j in range(2):
-            ax = axs[i, j]
-            ax.plot(omegas, sus[i, j] * omegas, label=f"{phi[i]:.2f}")  # Flattening indices to match phi
-            ax.set_title(f"i, j")
-            ax.legend()
+    for k, s in enumerate(sus):
+        for i in range(2):
+            for j in range(2):
+                ax = axs[i, j]
+                ax.plot(omegas, jnp.abs(s[i, j]) * omegas, label=f"{phi[k]:.2f}")  # Flattening indices to match phi
+                ax.set_title(f"i, j")
+                ax.legend()
 
     # Adjust layout and save the figure
     plt.tight_layout()
