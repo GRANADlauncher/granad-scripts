@@ -208,7 +208,7 @@ def plot_ip_sim(shape, phi):
     omegas = jnp.linspace(0, 20, 100)
     sus = ip_response(shape, phi, omegas)["sus"]
     for i, s in enumerate(sus):
-        plt.plot(omegas, s * omegas, label = f"{p:.2f}")
+        plt.plot(omegas, s * omegas, label = f"{phi[i]:.2f}")
     plt.savefig('ip.pdf')
     plt.close()
     
