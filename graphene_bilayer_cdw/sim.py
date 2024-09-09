@@ -224,7 +224,7 @@ def plot_energy_sim(shape, phi):
     # Iterate over phi and create subplots
     for i, p in enumerate(phi):
         flake = get_bilayer_graphene(shape, p)  # Assuming this function generates flake for each phi
-        axs[i].plot(np.arange(len(flake.energies)), flake.energies, 'o')
+        axs[i].plot(jnp.arange(len(flake.energies)), flake.energies, 'o')
         axs[i].set_title(f"phi = {p:.2f}")
         axs[i].set_xlabel('Index')  # Optional: label for x-axis
         axs[i].set_ylabel('Energy')  # Optional: label for y-axis
