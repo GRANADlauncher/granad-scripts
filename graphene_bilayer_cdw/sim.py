@@ -65,6 +65,7 @@ def ip_response(shape, phi, omegas):
 
     sus = []
     for p in phi:
+        flake = get_bilayer_graphene(shape, p)
         p = flake.dipole_operator_e
         sus.append(get_correlator(p[:2]))
 
@@ -212,13 +213,31 @@ def plot_ip_sim(shape, phi):
     plt.close()
     
 def plot_energy_sim(shape, phi):
-    for p in phi:
-        flake = get_bilayer_graphene(shape, p)
-        plt.plot(jnp.arange(len(flake)), flake.energies, 'o', label = f"{p:.2f}")
+    # Create a grid for the subplots
+    n = len(phi)
+    ncols = 2
+    nrows = (n + ncols - 1) // ncols  # Calculate the number of rows based on the number of phi
+
+    fig, axs = plt.subplots(nrows, ncols, figsize=(10, 5 * nrows))  # Adjust the figure size as needed
+    axs = axs.flatten()  # Flatten to 1D array for easy indexing
+
+    # Iterate over phi and create subplots
+    for i, p in enumerate(phi):
+        flake = get_bilayer_graphene(shape, p)  # Assuming this function generates flake for each phi
+        axs[i].plot(np.arange(len(flake.energies)), flake.energies, 'o')
+        axs[i].set_title(f"phi = {p:.2f}")
+        axs[i].set_xlabel('Index')  # Optional: label for x-axis
+        axs[i].set_ylabel('Energy')  # Optional: label for y-axis
+
+    # Remove unused subplots, if any
+    for j in range(i + 1, len(axs)):
+        fig.delaxes(axs[j])
+
+    plt.tight_layout()  # Adjust layout to prevent overlapping
     plt.savefig('energies.pdf')
     plt.close()
-    
-RUN_REF = True
+
+RUN_REF = False
 RUN_IP = True
 RUN_ENERGY = True
 RUN_TD = True
