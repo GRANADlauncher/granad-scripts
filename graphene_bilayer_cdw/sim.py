@@ -77,9 +77,9 @@ def scf_sweep(shape, phi):
     order_params = []
     
     for p in phi:
-        flake = get_bilayer_graphene(shape, p)
+        flake = get_bilayer_graphene(shape, p)        
         r, _ =  scf_loop(flake, flake.coulomb, 1e-3, 1e-9, 100)
-        print("trace ", jnp.trace(r))
+        print("trace ", jnp.trace(r), "\n electrons: ", len(flake))
         order_params.append(cdw_strength(r))
 
     plt.plot(phi, order_params)
