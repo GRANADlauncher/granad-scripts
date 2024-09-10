@@ -71,7 +71,7 @@ def ip_response(shape, phi, omegas):
 
     return {"sus" : sus, "phi" : phi}
 
-def scf_sim(shape, phi):
+def scf_sweep(shape, phi):
     """performs a sweep over phi, plots the resulting cdw order parameter"""
 
     order_params = []
@@ -83,6 +83,7 @@ def scf_sim(shape, phi):
         order_params.append(cdw_strength(r))
 
     plt.plot(phi, order_params)
+    plt.savefig("scf_sweep.pdf")
     
     return {"param" : order_params, "phi" : phi}
 
@@ -267,7 +268,7 @@ def plot_energy_sim(shape, phi):
     plt.close()
 
 RUN_REF = False
-RUN_SCF = True
+RUN_SCF_SWEEP = True
 RUN_IP = False
 RUN_ENERGY = False
 RUN_TD = False
@@ -279,8 +280,8 @@ if __name__ == '__main__':
     
     shape, phi = Triangle(45, armchair = True), jnp.linspace(0, jnp.pi/2, 10)
 
-    if RUN_SCF:
-        scf_sim(shape, phi)
+    if RUN_SCF_SWEEP:
+        scf_sweep(shape, phi)
     
     if RUN_ENERGY:
         plot_energy_sim(shape, phi)
