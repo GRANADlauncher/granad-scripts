@@ -84,6 +84,7 @@ def scf_sweep(shape, phi):
 
     plt.plot(phi, order_params)
     plt.savefig("scf_sweep.pdf")
+    plt.close()
     
     return {"param" : order_params, "phi" : phi}
 
@@ -100,7 +101,7 @@ def scf_loop(flake, coulomb, mixing, limit, max_steps):
         rho_old, step, error = arg
 
         # H = H_+ + H_-
-        ham_eff =  ham_0 + 2 * jnp.diag(coulomb @ rho.diagonal())
+        ham_eff =  ham_0 + 2 * jnp.diag(coulomb @ rho_old.diagonal())
 
         # diagonalize
         vals, vecs = jnp.linalg.eigh(ham_eff)
