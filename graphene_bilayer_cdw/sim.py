@@ -202,7 +202,7 @@ def td_sim(shape, phi):
 
     for p in phi:
         plot_omega_dipole(name + f"{p:.2f}", 6*omega, 0, omega)
-        plot_t_dipole(name, end_time, amplitudes, omega, peak, fwhm)
+        plot_t_dipole(name + f"{p:.2f}", end_time, amplitudes, omega, peak, fwhm)
     
 def plot_ip_sim(shape, phi):
     # Assuming these values are provided
