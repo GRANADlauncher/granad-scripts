@@ -78,7 +78,7 @@ def scf_sweep(shape, phi):
     
     for p in phi:
         flake = get_bilayer_graphene(shape, p)        
-        r, _ =  scf_loop(flake, flake.coulomb, 1e-3, 1e-9, 100)
+        r, _ =  scf_loop(flake, 0.01 * flake.coulomb, 1e-3, 1e-9, 100)
         print("trace ", jnp.trace(r), "\n electrons: ", len(flake))
         order_params.append(cdw_strength(r))
 
@@ -131,7 +131,7 @@ def scf_loop(flake, coulomb, mixing, limit, max_steps):
     # scf loop
     rho, steps, error = jax.lax.fori_loop(0, max_steps, step, (rho_old, 0, jnp.inf))
     
-    print(f"{steps} / {max_steps}")
+    print(f"{steps} / {max_steps}, {error}")
 
     return (rho,
             ham_0 + 2 * jnp.diag(coulomb @ rho.diagonal()))
