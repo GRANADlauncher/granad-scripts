@@ -71,6 +71,21 @@ def ip_response(shape, phi, omegas):
 
     return {"sus" : sus, "phi" : phi}
 
+def scf_sim(shape, phi):
+    """performs a sweep over phi, plots the resulting cdw order parameter"""
+
+    order_params = []
+    
+    for p in phi:
+        flake = get_bilayer_graphene(shape, p)
+        r, _ =  scf_loop(flake, flake.coulomb, 1e-3, 1e-9, 100)
+        print("trace ", jnp.trace(r))
+        order_params.append(cdw_strength(r))
+
+    plt.plot(phi, order_params)
+    
+    return {"param" : order_params, "phi" : phi}
+
 def scf_loop(flake, coulomb, mixing, limit, max_steps):
     """performs closed-shell scf calculation
 
@@ -252,9 +267,10 @@ def plot_energy_sim(shape, phi):
     plt.close()
 
 RUN_REF = False
-RUN_IP = True
-RUN_ENERGY = True
-RUN_TD = True
+RUN_SCF = True
+RUN_IP = False
+RUN_ENERGY = False
+RUN_TD = False
 
 if __name__ == '__main__':
     
@@ -262,6 +278,9 @@ if __name__ == '__main__':
         ref()
     
     shape, phi = Triangle(45, armchair = True), jnp.linspace(0, jnp.pi/2, 10)
+
+    if RUN_SCF:
+        scf_sim(shape, phi)
     
     if RUN_ENERGY:
         plot_energy_sim(shape, phi)
