@@ -123,7 +123,7 @@ def scf_loop(flake, coulomb, mixing, limit, max_steps):
     ham_0 = flake.hamiltonian
     
     # GRANAD gives a closed-shell hamiltonian => for hubbard model, we split it into 2 NxN matrices, one for each spin component
-    N, _ = ham_0.shape
+    N  = ham_0.shape[0] // 2
 
     # initial guess for the density matrix
     rho_old = jnp.zeros_like(ham_0)
