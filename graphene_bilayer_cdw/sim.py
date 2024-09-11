@@ -8,7 +8,7 @@ def estimate_n(phi):
     """approximate number of particles in the unit cell for moiré angle phi"""
     return 4/phi**2
 
-def get_bilayer_graphene(shape, phi, d0 = 0.335 * 10, doping = 0):
+def get_bilayer_graphene(shape, phi, interlayer_scaling = 1.0, d0 = 0.335 * 10, doping = 0):
     """rotated AA stack of two graphene layers of shapes around the common medoid in the xy-plane.
     
     Parameters:
@@ -24,7 +24,10 @@ def get_bilayer_graphene(shape, phi, d0 = 0.335 * 10, doping = 0):
         d = jnp.linalg.norm(r)
         vpp = vpp0 * jnp.exp(-(d-a0)/delta0)
         vps = vps0 * jnp.exp(-(d-d0)/delta0)
-        rd2 = (r[2]/d)**2
+        
+        # this is the z-dependent term, so we can scale it to modulate the interlayer interaction
+        rd2 = (r[2]/d)**2 * interlayer_scaling
+        
         return vpp * (1 - jnp.nan_to_num(rd2, nan = 1)) + jnp.nan_to_num(vps * rd2, nan = 0) + 0j
 
     def coulomb_coupling(r):
@@ -77,10 +80,18 @@ def scf_sweep(shape, phi):
     order_params = []
     
     for p in phi:
-        flake = get_bilayer_graphene(shape, p)        
+        flake = get_bilayer_graphene(shape, p)
+        
+        # display real space picture of naive solution
+        flake.show_2d(display = flake.initial_density_matrix_x.diagonal(), name = f"{p:.2f}_naive.pdf")
+        
         r, _ =  scf_loop(flake, 0.01 * flake.coulomb, 1e-3, 1e-9, 100)
-        print("trace ", jnp.trace(r), "\n electrons: ", len(flake))
+        print("trace ", jnp.trace(r), "\n electrons: ", len(flake), cdw_strength(r))
         order_params.append(cdw_strength(r))
+
+        # display real space picture of scf solution
+        flake.show_2d(display = r.diagonal(), name = f"{p:.2f}.pdf")
+        
 
     plt.plot(phi, order_params)
     plt.savefig("scf_sweep.pdf")
@@ -139,8 +150,8 @@ def scf_loop(flake, coulomb, mixing, limit, max_steps):
 def cdw_strength(rho):
     return jnp.std(rho.diagonal())
 
-def saveas(name, d):
-    jnp.savez(name, **d)
+def saveas(name, kwargs):
+    jnp.savez(name, **kwargs)
 
 def get_dip(name, omega_max, omega_min, omega_0):
     """returns induced dipole moment, normalized to its value at omega_0
@@ -220,6 +231,33 @@ def td_sim(shape, phi):
     for p in phi:
         plot_omega_dipole(name + f"{p:.2f}", 6*omega, 0, omega)
         plot_t_dipole(name + f"{p:.2f}", end_time, amplitudes, omega, peak, fwhm)
+
+def rpa_sim(shape, phi, omega):
+    def pol(flake):            
+        return flake.get_polarizability_rpa(
+            omega,
+            relaxation_rate = 1/10,
+            polarization = 0, 
+            hungry = 1)
+
+    flake_free = MaterialCatalog.get("graphene").cut_flake(shape)
+    
+    pols = [pol(flake_free)]
+
+    for p in phi:
+        pols.append(get_bilayer_graphene(shape, p))
+    
+    return {"pol" : pols, "omega" : omega, "phi" : phi }
+
+def plot_rpa_sim(omega, pol, phi):
+    labels = ["free"] + [f"{p:.2f}" for p in phi]
+    
+    for i, label in enumerate(labels):
+        plt.plot(omega, pol.imag * omega, label = label)
+        
+    plt.legend()
+    plt.savefig("rpa_sim.pdf")
+    plt.close()
     
 def plot_ip_sim(shape, phi):
     # Assuming these values are provided
@@ -242,6 +280,7 @@ def plot_ip_sim(shape, phi):
     plt.tight_layout()
     plt.savefig('ip.pdf')
     plt.close()
+
 
 def plot_energy_sim(shape, phi):
     # Create a grid for the subplots
@@ -269,10 +308,11 @@ def plot_energy_sim(shape, phi):
     plt.close()
 
 RUN_REF = False
-RUN_SCF_SWEEP = True
 RUN_IP = False
 RUN_ENERGY = False
 RUN_TD = False
+RUN_SCF_SWEEP = True
+RUN_RPA = True
 
 if __name__ == '__main__':
     
@@ -280,6 +320,10 @@ if __name__ == '__main__':
         ref()
     
     shape, phi = Triangle(45, armchair = True), jnp.linspace(0, jnp.pi/2, 10)
+
+    if RUN_RPA:
+        res = rpa_sim(shape, phi, jnp.linspace(0, 20, 100))
+        plot_rpa_sim(**res)
 
     if RUN_SCF_SWEEP:
         scf_sweep(shape, phi)
