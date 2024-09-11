@@ -253,7 +253,7 @@ def plot_rpa_sim(omega, pol, phi):
     labels = ["free"] + [f"{p:.2f}" for p in phi]
     
     for i, label in enumerate(labels):
-        plt.plot(omega, pol.imag * omega, label = label)
+        plt.plot(omega, pol[i].imag * omega, label = label)
         
     plt.legend()
     plt.savefig("rpa_sim.pdf")
