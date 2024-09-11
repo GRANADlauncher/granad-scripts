@@ -245,7 +245,8 @@ def rpa_sim(shape, phi, omega):
     pols = [pol(flake_free)]
 
     for p in phi:
-        pols.append(get_bilayer_graphene(shape, p))
+        print(f"rpa for {p}")
+        pols.append(pol(get_bilayer_graphene(shape, p)))
     
     return {"pol" : pols, "omega" : omega, "phi" : phi }
 
