@@ -118,7 +118,7 @@ def scf_loop(flake, coulomb, mixing, limit, max_steps):
         vals, vecs = jnp.linalg.eigh(ham_eff)
 
         # new density
-        rho = 2*vecs[:, :N] @ vecs[:, :N].T + mixing * rho_old
+        rho = (1-mixing) * 2*vecs[:, :N] @ vecs[:, :N].T + mixing * rho_old
         
         # update breaks
         error = jnp.linalg.norm(rho - rho_old) 
@@ -300,9 +300,6 @@ def plot_energy_sim(shape, phi, scf = True):
             r, ham = scf_loop(flake, flake.coulomb, 0., 1e-5, 100)            
             vals, vecs = jnp.linalg.eigh(ham)
             axs[i].plot(jnp.arange(len(flake.energies)), vals, 'o')
-            axs[i].set_title(f"phi = {p:.2f}")
-            axs[i].set_xlabel('Index')  # Optional: label for x-axis
-            axs[i].set_ylabel('Energy')  # Optional: label for y-axis
                         
         axs[i].plot(jnp.arange(len(flake.energies)), flake.energies, 'o')
         axs[i].set_title(f"phi = {p:.2f}")
