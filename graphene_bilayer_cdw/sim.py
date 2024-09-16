@@ -283,7 +283,7 @@ def plot_ip_sim(shape, phi):
     plt.close()
 
 
-def plot_energy_sim(shape, phi):
+def plot_energy_sim(shape, phi, scf = True):
     # Create a grid for the subplots
     n = len(phi)
     ncols = 2
@@ -295,6 +295,15 @@ def plot_energy_sim(shape, phi):
     # Iterate over phi and create subplots
     for i, p in enumerate(phi):
         flake = get_bilayer_graphene(shape, p)  # Assuming this function generates flake for each phi
+
+        if scf:            
+            r, ham = scf_loop(flake, flake.coulomb, 0., 1e-5, 100)            
+            vals, vecs = jnp.linalg.eigh(ham)
+            axs[i].plot(jnp.arange(len(flake.energies)), vals, 'o')
+            axs[i].set_title(f"phi = {p:.2f}")
+            axs[i].set_xlabel('Index')  # Optional: label for x-axis
+            axs[i].set_ylabel('Energy')  # Optional: label for y-axis
+                        
         axs[i].plot(jnp.arange(len(flake.energies)), flake.energies, 'o')
         axs[i].set_title(f"phi = {p:.2f}")
         axs[i].set_xlabel('Index')  # Optional: label for x-axis
@@ -310,10 +319,10 @@ def plot_energy_sim(shape, phi):
 
 RUN_REF = False
 RUN_IP = False
-RUN_ENERGY = True
 RUN_TD = False
 RUN_SCF_SWEEP = False
 RUN_RPA = False
+RUN_ENERGY = True
 
 if __name__ == '__main__':
     
