@@ -297,7 +297,7 @@ def plot_energy_sim(shape, phi, scf = True):
         flake = get_bilayer_graphene(shape, p)  # Assuming this function generates flake for each phi
 
         if scf:            
-            r, ham = scf_loop(flake, flake.coulomb, 0., 1e-5, 100)            
+            r, ham = scf_loop(flake, 1/6 * flake.coulomb, 0.01, 1e-5, 400)            
             vals, vecs = jnp.linalg.eigh(ham)
             axs[i].plot(jnp.arange(len(flake.energies)), vals, 'o')
                         
