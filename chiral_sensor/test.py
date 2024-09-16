@@ -105,7 +105,7 @@ def to_helicity(mat):
     return jnp.einsum('ij,jmk,ml->ilk', trafo, mat, trafo_inv)
 
 
-flake = get_haldane_graphene(1, -0, 0).cut_flake(Rectangle(10,20))
+flake = get_haldane_graphene(-2.66, 10j, 1).cut_flake(Triangle(50))
 
 omegas = jnp.linspace(0, 50, 100)
 delta_e = flake.energies[:, None] - flake.energies
