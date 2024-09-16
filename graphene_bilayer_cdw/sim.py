@@ -310,17 +310,17 @@ def plot_energy_sim(shape, phi):
 
 RUN_REF = False
 RUN_IP = False
-RUN_ENERGY = False
+RUN_ENERGY = True
 RUN_TD = False
-RUN_SCF_SWEEP = True
-RUN_RPA = True
+RUN_SCF_SWEEP = False
+RUN_RPA = False
 
 if __name__ == '__main__':
     
     if RUN_REF:
         ref()
     
-    shape, phi = Triangle(45, armchair = True), jnp.linspace(0, jnp.pi/2, 10)
+    shape, phi = Triangle(60, armchair = True), jnp.linspace(0, jnp.pi/2, 10)
 
     if RUN_RPA:
         res = rpa_sim(shape, phi, jnp.linspace(0, 20, 100))
