@@ -261,10 +261,27 @@ def rpa_sim(shape, phi, omega):
 def plot_rpa_sim(omega, pol, phi):
     labels = ["free"] + [f"{p:.2f}" for p in phi]
     
-    for i, label in enumerate(labels):
-        plt.plot(omega, pol[i].imag * omega, label = label)
-        
-    plt.legend()
+    # Prepare the data array Z with shape (len(omega), len(phis))
+    Z = jnp.abs(jnp.array([pol_i.imag * omega for pol_i in pol]).T)**(0.25)  # Transpose to match dimensions
+
+    # Create the plot
+    plt.figure()
+    cax = plt.matshow(Z, aspect='auto', origin='lower')
+
+    # Set x-axis ticks to correspond to phi values
+    plt.xticks(ticks=jnp.arange(len(phis)), labels=[f"{p:.2f}" for p in phis], rotation=90)
+    
+    # Set y-axis ticks to correspond to omega values (sparsely to avoid clutter)
+    num_yticks = 10  # Adjust this number based on how many ticks you want
+    yticks_positions = jnp.linspace(0, len(omega) - 1, num=num_yticks, dtype=int)
+    plt.yticks(ticks=yticks_positions, labels=[f"{omega[i]:.2f}" for i in yticks_positions])
+
+    # Add colorbar and labels
+    plt.colorbar(cax, label='Im(pol) * omega')
+    plt.xlabel('Phi')
+    plt.ylabel('Omega')
+
+    # Save and close the figure
     plt.savefig("rpa_sim.pdf")
     plt.close()
     
@@ -336,7 +353,7 @@ if __name__ == '__main__':
     if RUN_REF:
         ref()
     
-    shape, phi = Hexagon(20, armchair = True), jnp.linspace(0, jnp.pi/2, 20)
+    shape, phi = Hexagon(20, armchair = True), jnp.linspace(jnp.pi/4, jnp.pi/2, 10)
 
     if RUN_RPA:
         res = rpa_sim(shape, phi, jnp.linspace(0, 1, 100))
