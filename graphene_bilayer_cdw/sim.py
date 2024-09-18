@@ -255,8 +255,13 @@ def rpa_sim(shape, phi, omega):
         flake.set_electrons(flake.electrons + 4)
         
         pols.append(pol(flake))
+        
+    ret =  {"pol" : pols, "omega" : omega, "phi" : phi }
+
+    # save to disk
+    jnp.savez("rpa.npz", **ret)
     
-    return {"pol" : pols, "omega" : omega, "phi" : phi }
+    return ret
 
 def plot_rpa_sim(omega, pol, phi):
     labels = ["free"] + [f"{p:.2f}" for p in phi]
@@ -269,7 +274,7 @@ def plot_rpa_sim(omega, pol, phi):
     cax = plt.matshow(Z, aspect='auto', origin='lower')
 
     # Set x-axis ticks to correspond to phi values
-    plt.xticks(ticks=jnp.arange(len(phis)), labels=[f"{p:.2f}" for p in phis], rotation=90)
+    plt.xticks(ticks=jnp.arange(len(phi)), labels=[f"{p:.2f}" for p in phi], rotation=90)
     
     # Set y-axis ticks to correspond to omega values (sparsely to avoid clutter)
     num_yticks = 10  # Adjust this number based on how many ticks you want
