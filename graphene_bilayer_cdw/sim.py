@@ -236,17 +236,25 @@ def rpa_sim(shape, phi, omega):
     def pol(flake):            
         return flake.get_polarizability_rpa(
             omega,
-            relaxation_rate = 1/10,
+            relaxation_rate = 1/100,
             polarization = 0, 
             hungry = 1)
 
     flake_free = MaterialCatalog.get("graphene").cut_flake(shape)
+
+    # doping
+    flake_free.set_electrons(flake_free.electrons + 2)
     
     pols = [pol(flake_free)]
 
     for p in phi:
-        print(f"rpa for {p}")
-        pols.append(pol(get_bilayer_graphene(shape, p)))
+        flake = get_bilayer_graphene(shape, p)
+        print(f"rpa for {p}, {len(flake)}")
+        
+        # doping
+        flake.set_electrons(flake.electrons + 4)
+        
+        pols.append(pol(flake))
     
     return {"pol" : pols, "omega" : omega, "phi" : phi }
 
@@ -296,12 +304,14 @@ def plot_energy_sim(shape, phi, scf = True):
     for i, p in enumerate(phi):
         flake = get_bilayer_graphene(shape, p)  # Assuming this function generates flake for each phi
 
-        if scf:            
-            r, ham = scf_loop(flake, 1/6 * flake.coulomb, 0.01, 1e-5, 400)            
-            vals, vecs = jnp.linalg.eigh(ham)
-            axs[i].plot(jnp.arange(len(flake.energies)), vals, 'o')
+        # if scf:            
+        #     r, ham = scf_loop(flake, 1/6 * flake.coulomb, 0.01, 1e-5, 400)            
+        #     vals, vecs = jnp.linalg.eigh(ham)
+        #     axs[i].plot(jnp.arange(len(flake.energies)), vals, 'o')
+
+        flake.show_2d(name = f"geometry_{p:.2f}.pdf", show_index = True)
                         
-        axs[i].plot(jnp.arange(len(flake.energies)), flake.energies, 'o')
+        axs[i].scatter(jnp.arange(len(flake.energies)), flake.energies, c = flake.initial_density_matrix_e.diagonal() * len(flake) )
         axs[i].set_title(f"phi = {p:.2f}")
         axs[i].set_xlabel('Index')  # Optional: label for x-axis
         axs[i].set_ylabel('Energy')  # Optional: label for y-axis
@@ -318,18 +328,18 @@ RUN_REF = False
 RUN_IP = False
 RUN_TD = False
 RUN_SCF_SWEEP = False
-RUN_RPA = False
-RUN_ENERGY = True
+RUN_RPA = True
+RUN_ENERGY = False
 
 if __name__ == '__main__':
     
     if RUN_REF:
         ref()
     
-    shape, phi = Triangle(60, armchair = True), jnp.linspace(0, jnp.pi/2, 10)
+    shape, phi = Hexagon(20, armchair = True), jnp.linspace(0, jnp.pi/2, 20)
 
     if RUN_RPA:
-        res = rpa_sim(shape, phi, jnp.linspace(0, 20, 100))
+        res = rpa_sim(shape, phi, jnp.linspace(0, 1, 100))
         plot_rpa_sim(**res)
 
     if RUN_SCF_SWEEP:
