@@ -4,9 +4,26 @@ import jax.numpy as jnp
 
 from granad import *
 
-def estimate_n(phi):
-    """approximate number of particles in the unit cell for moiré angle phi"""
-    return 4/phi**2
+# commensurate twist angles $\cos(\theta_i) = \frac{3i^2 +3i + 1/2}{3i^2 + 3i + 1}$
+# $L_i = a \sqrt{3i^2 + 3i + 1}$
+# $L_i \leq 2R$
+
+def get_size(shape):
+    """spatial extent of a structure defined as maximum distance from center to edge"""
+    flake = MaterialCatalog.get("graphene").cut_flake(shape)
+    pos = flake.positions
+    center = pos[flake.center_index]
+    return jnp.max(jnp.linalg.norm(pos - center, axis = 1))
+
+def twist_angles(shape):
+    """array of twist angles fullfilling $L(\\theta_i) \\leq 2R$"""
+    size = get_size(shape)
+    indices = jnp.arange(100)    
+    angles = jnp.arccos(
+        (3*indices**2 + 3*indices + 1/2) / (3*indices**2 + 3*indices + 1)
+    ) 
+    lengths = 2.46 * jnp.sqrt(3*indices**2 + 3*indices + 1)    
+    return angles[lengths <= 2*size]
 
 def get_bilayer_graphene(shape, phi, interlayer_scaling = 1.0, d0 = 0.335 * 10, doping = 0):
     """rotated AA stack of two graphene layers of shapes around the common medoid in the xy-plane.
@@ -358,10 +375,11 @@ if __name__ == '__main__':
     if RUN_REF:
         ref()
     
-    shape, phi = Hexagon(20, armchair = True), jnp.linspace(jnp.pi/4, jnp.pi/2, 10)
-
+    shape = Hexagon(20, armchair = True)
+    angles = twist_angles(shape)
+    
     if RUN_RPA:
-        res = rpa_sim(shape, phi, jnp.linspace(0, 1, 100))
+        res = rpa_sim(shape, angles, jnp.linspace(0, 3, 100))
         plot_rpa_sim(**res)
 
     if RUN_SCF_SWEEP:
