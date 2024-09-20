@@ -249,65 +249,77 @@ def td_sim(shape, phi):
         plot_omega_dipole(name + f"{p:.2f}", 6*omega, 0, omega)
         plot_t_dipole(name + f"{p:.2f}", end_time, amplitudes, omega, peak, fwhm)
 
-def rpa_sim(shape, phi, omega):
+def rpa_sim(shape, phi, doping, omega):
     def pol(flake):            
         return flake.get_polarizability_rpa(
             omega,
-            relaxation_rate = 1/100,
+            relaxation_rate = 1/10,
             polarization = 0, 
             hungry = 1)
 
     flake_free = MaterialCatalog.get("graphene").cut_flake(shape)
 
     # doping
-    flake_free.set_electrons(flake_free.electrons + 2)
-    
-    pols = [pol(flake_free)]
+    # flake_free.set_electrons(flake_free.electrons + 2)    
+    # pols = [pol(flake_free)]
 
+    names = []
+    
     for p in phi:
-        flake = get_bilayer_graphene(shape, p)
-        flake.show_2d(name = f'{p}.pdf')
-        print(f"rpa for {p}, {len(flake)}")
+        pols = []
+        for d in doping:        
+            flake = get_bilayer_graphene(shape, p)
+            flake.show_2d(name = f'{p}.pdf')
+            print(f"rpa for {p}, {len(flake)}")
+
+            # doping
+            flake.set_electrons(flake.electrons + d)
+
+            pols.append(pol(flake))
         
-        # doping
-        flake.set_electrons(flake.electrons + 4)
+        ret =  {"pol" : pols, "omega" : omega, "doping" : doping}
+
+        # save to disk
+        name  = f"rpa_{len(flake)}_{p}.npz"
+        jnp.savez(name, **ret)
+        names.append(name)
+    
+    return names
+
+def plot_rpa_sim(names):
+    
+    def plot_matrix(name, omega, doping, pol):
+        labels = [f"{d}" for d in doping]
+
+        # Prepare the data array Z with shape (len(omega), len(phis))
+        Z = jnp.abs(jnp.array([pol_i.imag * omega for pol_i in pol]).T)**(0.25)  # Transpose to match dimensions
+
+        # Create the plot
+        plt.figure()
+        cax = plt.matshow(Z, aspect='auto', origin='lower')
+
+        # Set x-axis ticks to correspond to phi values
+        plt.xticks(ticks=jnp.arange(len(doping)), labels=[f"{d}" for d in doping], rotation=90)
+
+        # Set y-axis ticks to correspond to omega values (sparsely to avoid clutter)
+        num_yticks = 10  # Adjust this number based on how many ticks you want
+        yticks_positions = jnp.linspace(0, len(omega) - 1, num=num_yticks, dtype=int)
+        plt.yticks(ticks=yticks_positions, labels=[f"{omega[i]:.2f}" for i in yticks_positions])
+
+        # Add colorbar and labels
+        plt.colorbar(cax, label='Im(pol) * omega')
+        plt.xlabel('# dopants')
+        plt.ylabel(r'$\omega$')
+
+        # Save and close the figure
+        plt.savefig(name.replace("npz", "pdf"))
+        plt.close()
+    
+    for name in names:
+        res = jnp.load(name)
+        plot_matrix(name, res["omega"], res["doping"], res["pol"])
+
         
-        pols.append(pol(flake))
-        
-    ret =  {"pol" : pols, "omega" : omega, "phi" : phi }
-
-    # save to disk
-    jnp.savez("rpa.npz", **ret)
-    
-    return ret
-
-def plot_rpa_sim(omega, pol, phi):
-    labels = ["free"] + [f"{p:.2f}" for p in phi]
-    
-    # Prepare the data array Z with shape (len(omega), len(phis))
-    Z = jnp.abs(jnp.array([pol_i.imag * omega for pol_i in pol]).T)**(0.25)  # Transpose to match dimensions
-
-    # Create the plot
-    plt.figure()
-    cax = plt.matshow(Z, aspect='auto', origin='lower')
-
-    # Set x-axis ticks to correspond to phi values
-    plt.xticks(ticks=jnp.arange(len(phi)), labels=[f"{p:.2f}" for p in phi], rotation=90)
-    
-    # Set y-axis ticks to correspond to omega values (sparsely to avoid clutter)
-    num_yticks = 10  # Adjust this number based on how many ticks you want
-    yticks_positions = jnp.linspace(0, len(omega) - 1, num=num_yticks, dtype=int)
-    plt.yticks(ticks=yticks_positions, labels=[f"{omega[i]:.2f}" for i in yticks_positions])
-
-    # Add colorbar and labels
-    plt.colorbar(cax, label='Im(pol) * omega')
-    plt.xlabel('Phi')
-    plt.ylabel('Omega')
-
-    # Save and close the figure
-    plt.savefig("rpa_sim.pdf")
-    plt.close()
-    
 def plot_ip_sim(shape, phi):
     # Assuming these values are provided
     omegas = jnp.linspace(0, 20, 100)
@@ -378,10 +390,11 @@ if __name__ == '__main__':
     
     shape = Hexagon(20, armchair = True)
     angles = twist_angles(shape)
+    doping = jnp.linspace(1, 20, 20)
     
     if RUN_RPA:
-        res = rpa_sim(shape, angles, jnp.linspace(0, 3, 100))
-        plot_rpa_sim(**res)
+        names = rpa_sim(shape, angles, doping, jnp.linspace(0, 1, 100))
+        plot_rpa_sim(names)
 
     if RUN_SCF_SWEEP:
         scf_sweep(shape, phi)
