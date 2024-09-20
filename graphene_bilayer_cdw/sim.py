@@ -266,6 +266,7 @@ def rpa_sim(shape, phi, omega):
 
     for p in phi:
         flake = get_bilayer_graphene(shape, p)
+        flake.show_2d(name = f'{p}.pdf')
         print(f"rpa for {p}, {len(flake)}")
         
         # doping
