@@ -390,10 +390,10 @@ if __name__ == '__main__':
     
     shape = Hexagon(20, armchair = True)
     angles = twist_angles(shape)
-    doping = jnp.linspace(1, 20, 20)
+    doping = jnp.arange(21)
     
     if RUN_RPA:
-        names = rpa_sim(shape, angles, doping, jnp.linspace(0, 1, 100))
+        names = rpa_sim(shape, angles, doping, jnp.linspace(0, 10, 300))
         plot_rpa_sim(names)
 
     if RUN_SCF_SWEEP:
