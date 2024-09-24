@@ -354,7 +354,6 @@ def purcell(shape, angles, doping, dipole, pos, omegas, name, relaxation_rate = 
 def plot_purcell(names, omega):
     
     for name in names:
-        f = field_enhancement(flake, dipole, position, omegas)
         res = jnp.load(name)
         fields, dipole = res["fields"], res["dipole"]    
         enhancement = jnp.array([dipole @ f for f in fields]).imag
