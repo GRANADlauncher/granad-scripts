@@ -336,6 +336,7 @@ def purcell(shape, angles, doping, dipole, pos, omegas, name, relaxation_rate = 
     for angle in angles:         
         flake = get_bilayer_graphene(shape, angle)
         flake.set_electrons(flake.electrons + doping)
+        flake.show_3d(name = f"geometry_{angle}.pdf", show_index = True)
 
         pos += flake.positions[flake.center_index]
 
