@@ -418,7 +418,7 @@ RUN_REF = False
 RUN_IP = False
 RUN_TD = False
 RUN_SCF_SWEEP = False
-RUN_RPA = True
+RUN_RPA = False
 RUN_ENERGY = False
 RUN_PURCELL = True
 
@@ -436,7 +436,7 @@ if __name__ == '__main__':
         pos = jnp.array([0, 0, 4.])
         omegas = jnp.linspace(0.8, 2.3, 100)
         name = "purcell"
-        field_enhancement(angles, d, pos, omegas, name)
+        field_enhancement(shape, angles, d, pos, omegas, name)
         
         names = [f"{name}_{angle}.npz" for angle in angles]        
         plot_purcell(names, omegas)
