@@ -339,9 +339,9 @@ def purcell(shape, angles, doping, dipole, pos, omegas, name, relaxation_rate = 
 
         print("placing dipole at ", flake.center_index, pos)
         
-        propagator = pos - flake.positions[:, None]
-        propagator /= jnp.linalg.norm(propagator, axis = 1)**3
-        potential = dipole @ propagator
+        propagator = pos - flake.positions
+        propagator /= jnp.linalg.norm(propagator, axis = 0)**3
+        potential = propagator @ dipole
 
         fields = jax.lax.map(lambda w : induced_field(flake, w), omegas)
 
