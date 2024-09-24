@@ -348,8 +348,8 @@ def purcell(shape, angles, doping, dipole, pos, omegas, name, relaxation_rate = 
 
         fields = jnp.array([induced_field(flake, omega) for omega in omegas])
 
-        name = f"{name}_{angle}.npz"
-        jnp.savez(name, fields = fields, dipole = dipole)
+        save_name = f"{name}_{angle}.npz"
+        jnp.savez(save_name, fields = fields, dipole = dipole)
         
 def plot_purcell(names, omega):
     
