@@ -22,8 +22,8 @@ def twist_angles(shape):
     angles = jnp.arccos(
         (3*indices**2 + 3*indices + 1/2) / (3*indices**2 + 3*indices + 1)
     ) 
-    lengths = 2.46 * jnp.sqrt(3*indices**2 + 3*indices + 1)    
-    return angles[lengths <= 2*size]
+    lengths = 2.46 * jnp.sqrt(3*indices**2 + 3*indices + 1)
+    return jnp.r_[0, angles[lengths <= 2*size]]
 
 def get_bilayer_graphene(shape, phi, interlayer_scaling = 1.0, d0 = 0.335 * 10, doping = 0):
     """rotated AA stack of two graphene layers of shapes around the common medoid in the xy-plane.
@@ -326,14 +326,15 @@ def rpa_susceptibility_matrix(flake, relaxation_rate, coulomb_strength, omega):
     x = sus(omega)
     return x @ jnp.linalg.inv(one - args.coulomb_scaled @ x)
 
-def field_enhancement(shape, angles, d, pos, omegas, name, relaxation_rate = 0.1, coulomb_strength = 1.0):
+def purcell(shape, angles, doping, dipole, pos, omegas, name, relaxation_rate = 0.1, coulomb_strength = 1.0):
     
     def induced_field(flake, omega):
         # 3 x N * N x N * N
         return propagator @ rpa_susceptibility_matrix(flake, relaxation_rate, coulomb_strength, omega) @ potential
 
-    for angle in angles:
+    for angle in         
         flake = get_bilayer_graphene(shape, angle)
+        flake.set_electrons(flake.electrons + doping)
         pos += flake.positions[flake.center_index]
 
         print("placing dipole at ", flake.center_index, pos)
@@ -427,16 +428,18 @@ if __name__ == '__main__':
     if RUN_REF:
         ref()
     
-    shape = Hexagon(10, armchair = True)
+    shape = Hexagon(20, armchair = True)
     angles = twist_angles(shape)
+    print("angles ", 180 / jnp.pi * angles)
     doping = jnp.arange(21)
 
     if RUN_PURCELL:
-        d = jnp.ones((3))
+        dipole = jnp.ones((3))
+        doping = 10
         pos = jnp.array([0, 0, 4.])
-        omegas = jnp.linspace(0.8, 2.3, 100)
+        omegas = jnp.linspace(0.8, 2.2, 100)
         name = "purcell"
-        field_enhancement(shape, angles, d, pos, omegas, name)
+        purcell(shape, angles, doping, dipole, pos, omegas, name)
         
         names = [f"{name}_{angle}.npz" for angle in angles]        
         plot_purcell(names, omegas)
