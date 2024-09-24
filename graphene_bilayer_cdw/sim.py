@@ -332,7 +332,7 @@ def purcell(shape, angles, doping, dipole, pos, omegas, name, relaxation_rate = 
         # 3 x N * N x N * N
         return propagator @ rpa_susceptibility_matrix(flake, relaxation_rate, coulomb_strength, omega) @ potential
 
-    for angle in         
+    for angle in angles:         
         flake = get_bilayer_graphene(shape, angle)
         flake.set_electrons(flake.electrons + doping)
         pos += flake.positions[flake.center_index]
