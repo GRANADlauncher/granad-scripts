@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import jax.numpy as jnp
 
 from granad import *
+from granad._numerics import bare_susceptibility_function
 
 # commensurate twist angles $\cos(\theta_i) = \frac{3i^2 +3i + 1/2}{3i^2 + 3i + 1}$
 # $L_i = a \sqrt{3i^2 + 3i + 1}$
@@ -319,7 +320,7 @@ def plot_rpa_sim(names):
         res = jnp.load(name)
         plot_matrix(name, res["omega"], res["doping"], res["pol"])
 
-def rpa_susceptibility_matrix(flake, relaxation_rate, coulomb_strength, omega):
+def rpa_susceptibility_matrix(flake, relaxation_rate, coulomb_strength, omega):    
     args = flake.get_args(relaxation_rate = relaxation_rate, coulomb_strength = coulomb_strength, propagator = None)
     sus = bare_susceptibility_function(args, 1)        
     one = jnp.identity(args.hamiltonian.shape[0])
@@ -330,11 +331,12 @@ def purcell(shape, angles, doping, dipole, pos, omegas, name, relaxation_rate = 
     
     def induced_field(flake, omega):
         # 3 x N * N x N * N
-        return propagator @ rpa_susceptibility_matrix(flake, relaxation_rate, coulomb_strength, omega) @ potential
-
+        return propagator.T @ rpa_susceptibility_matrix(flake, relaxation_rate, coulomb_strength, omega) @ potential
+    
     for angle in angles:         
         flake = get_bilayer_graphene(shape, angle)
         flake.set_electrons(flake.electrons + doping)
+
         pos += flake.positions[flake.center_index]
 
         print("placing dipole at ", flake.center_index, pos)
@@ -343,7 +345,7 @@ def purcell(shape, angles, doping, dipole, pos, omegas, name, relaxation_rate = 
         propagator /= jnp.linalg.norm(propagator, axis = 0)**3
         potential = propagator @ dipole
 
-        fields = jax.lax.map(lambda w : induced_field(flake, w), omegas)
+        fields = jnp.array([induced_field(flake, omega) for omega in omegas])
 
         name = f"{name}_{angle}.npz"
         jnp.savez(name, fields = fields, dipole = dipole)
