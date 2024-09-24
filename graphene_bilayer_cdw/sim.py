@@ -319,6 +319,44 @@ def plot_rpa_sim(names):
         res = jnp.load(name)
         plot_matrix(name, res["omega"], res["doping"], res["pol"])
 
+def rpa_susceptibility_matrix(flake, relaxation_rate, coulomb_strength, omega):
+    args = flake.get_args(relaxation_rate = relaxation_rate, coulomb_strength = coulomb_strength, propagator = None)
+    sus = bare_susceptibility_function(args, 1)        
+    one = jnp.identity(args.hamiltonian.shape[0])
+    x = sus(omega)
+    return x @ jnp.linalg.inv(one - args.coulomb_scaled @ x)
+
+def field_enhancement(shape, angles, d, pos, omegas, name, relaxation_rate = 0.1, coulomb_strength = 1.0):
+    
+    def induced_field(flake, omega):
+        # 3 x N * N x N * N
+        return propagator @ rpa_susceptibility_matrix(flake, relaxation_rate, coulomb_strength, omega) @ potential
+
+    for angle in angles:
+        flake = get_bilayer_graphene(shape, angle)
+        pos += flake.positions[flake.center_index]
+
+        print("placing dipole at ", flake.center_index, pos)
+        
+        propagator = pos - flake.positions[:, None]
+        propagator /= jnp.linalg.norm(propagator, axis = 1)**3
+        potential = dipole @ propagator
+
+        fields = jax.lax.map(lambda w : induced_field(flake, w), omegas)
+
+        name = f"{name}_{angle}.npz"
+        jnp.savez(name, fields = fields, dipole = dipole)
+        
+def plot_purcell(names, omega):
+    
+    for name in names:
+        f = field_enhancement(flake, dipole, position, omegas)
+        res = jnp.load(name)
+        fields, dipole = res["fields"], res["dipole"]    
+        enhancement = jnp.array([dipole @ f for f in fields]).imag
+        plt.plot(omegas, enhancement)
+        
+    plt.savefig('purcell.pdf')
         
 def plot_ip_sim(shape, phi):
     # Assuming these values are provided
@@ -382,16 +420,27 @@ RUN_TD = False
 RUN_SCF_SWEEP = False
 RUN_RPA = True
 RUN_ENERGY = False
+RUN_PURCELL = True
 
 if __name__ == '__main__':
     
     if RUN_REF:
         ref()
     
-    shape = Hexagon(20, armchair = True)
+    shape = Hexagon(10, armchair = True)
     angles = twist_angles(shape)
     doping = jnp.arange(21)
-    
+
+    if RUN_PURCELL:
+        d = jnp.ones((3))
+        pos = jnp.array([0, 0, 4.])
+        omegas = jnp.linspace(0.8, 2.3, 100)
+        name = "purcell"
+        field_enhancement(angles, d, pos, omegas, name)
+        
+        names = [f"{name}_{angle}.npz" for angle in angles]        
+        plot_purcell(names, omegas)
+
     if RUN_RPA:
         names = rpa_sim(shape, angles, doping, jnp.linspace(0, 10, 300))
         plot_rpa_sim(names)
