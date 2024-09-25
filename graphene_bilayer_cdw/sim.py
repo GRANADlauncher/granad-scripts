@@ -440,16 +440,16 @@ if __name__ == '__main__':
         plot_rpa_sim(names)
 
     if RUN_SCF_SWEEP:
-        scf_sweep(shape, phi)
+        scf_sweep(shape, angles)
     
     if RUN_ENERGY:
-        plot_energy_sim(shape, phi)
+        plot_energy_sim(shape, angles)
     
     if RUN_IP:
-        plot_ip_sim(shape, phi)
+        plot_ip_sim(shape, angles)
 
     if RUN_TD:
-        td_sim(shape, phi)
+        td_sim(shape, angles)
     
     if RUN_PURCELL:
         dipole = jnp.ones((3))
