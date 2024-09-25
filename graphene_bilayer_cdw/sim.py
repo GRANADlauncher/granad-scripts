@@ -422,7 +422,7 @@ RUN_IP = False
 RUN_TD = False
 RUN_SCF_SWEEP = False
 RUN_RPA = False
-RUN_ENERGY = False
+RUN_ENERGY = True
 RUN_PURCELL = True
 
 if __name__ == '__main__':
@@ -430,21 +430,10 @@ if __name__ == '__main__':
     if RUN_REF:
         ref()
     
-    shape = Hexagon(20, armchair = True)
+    shape = Triangle(20, armchair = True)
     angles = twist_angles(shape)
     print("angles ", 180 / jnp.pi * angles)
     doping = jnp.arange(21)
-
-    if RUN_PURCELL:
-        dipole = jnp.ones((3))
-        doping = 10
-        pos = jnp.array([0, 0, 4.])
-        omegas = jnp.linspace(0.8, 2.2, 100)
-        name = "purcell"
-        purcell(shape, angles, doping, dipole, pos, omegas, name)
-        
-        names = [f"{name}_{angle}.npz" for angle in angles]        
-        plot_purcell(names, omegas)
 
     if RUN_RPA:
         names = rpa_sim(shape, angles, doping, jnp.linspace(0, 10, 300))
@@ -461,3 +450,14 @@ if __name__ == '__main__':
 
     if RUN_TD:
         td_sim(shape, phi)
+    
+    if RUN_PURCELL:
+        dipole = jnp.ones((3))
+        doping = 10
+        pos = jnp.array([0, 0, 4.])
+        omegas = jnp.linspace(0.8, 2.2, 100)
+        name = "purcell"
+        purcell(shape, angles, doping, dipole, pos, omegas, name)
+        
+        names = [f"{name}_{angle}.npz" for angle in angles]        
+        plot_purcell(names, omegas)
