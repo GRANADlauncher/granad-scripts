@@ -228,12 +228,13 @@ def ref():
     plot_omega_dipole(name, 6*omega, 0, omega)
     plot_t_dipole(name, end_time, amplitudes, omega, peak, fwhm)
 
-def td_sim(shape, phi):
+def td_sim(shape, phi, omega, doping):
      # params: Q = 2, N = 330 armchair, light : frequency = 0.68 eV, fwhm = 166fs, pol perp to triangle side, duration: 700, peak at 200
-    name, end_time, amplitudes, omega, peak, fwhm = "phi", 700, [0.03, 0, 0], 0.68, 0.659 * 200, 0.659 * 166
+    name, end_time, amplitudes, peak, fwhm = "td_", 700, [0.03, 0, 0], 0.659 * 200, 0.659 * 166
 
     for p in phi:
         flake = get_bilayer_graphene(shape, p)
+        flake.set_electrons(flake.electrons + doping)
 
         result = flake.master_equation(
             dt = 1e-4,
@@ -419,11 +420,11 @@ def plot_energy_sim(shape, phi, scf = True):
 
 RUN_REF = False
 RUN_IP = False
-RUN_TD = False
+RUN_TD = True
 RUN_SCF_SWEEP = False
 RUN_RPA = False
-RUN_ENERGY = True
-RUN_PURCELL = True
+RUN_ENERGY = False
+RUN_PURCELL = False
 
 if __name__ == '__main__':
     
@@ -449,7 +450,8 @@ if __name__ == '__main__':
         plot_ip_sim(shape, angles)
 
     if RUN_TD:
-        td_sim(shape, angles)
+        omega, doping = 2.1, 10
+        td_sim(shape, angles, omega, doping)
     
     if RUN_PURCELL:
         dipole = jnp.ones((3))
