@@ -26,7 +26,7 @@ def twist_angles(shape):
     lengths = 2.46 * jnp.sqrt(3*indices**2 + 3*indices + 1)
     return jnp.r_[0, angles[lengths <= 2*size]]
 
-def get_bilayer_graphene(shape, phi, interlayer_scaling = 1.0, d0 = 0.335 * 10, doping = 0):
+def get_bilayer_graphene(shape, phi, interlayer_scaling = 1.0, d0 = 0.335 * 10, doping = 0, eps_upper = 1.0, eps_lower = 1.0):
     """rotated AA stack of two graphene layers of shapes around the common medoid in the xy-plane.
     
     Parameters:
@@ -75,9 +75,9 @@ def get_bilayer_graphene(shape, phi, interlayer_scaling = 1.0, d0 = 0.335 * 10, 
     flake.set_hamiltonian_groups(upper, lower, tb_coupling)
     flake.set_hamiltonian_groups(lower, lower, tb_coupling)
 
-    flake.set_coulomb_groups(upper, upper, coulomb_coupling(1))
-    flake.set_coulomb_groups(upper, lower, coulomb_coupling(1))
-    flake.set_coulomb_groups(lower, lower, coulomb_coupling(4))
+    flake.set_coulomb_groups(upper, upper, coulomb_coupling(eps_upper))
+    flake.set_coulomb_groups(upper, lower, coulomb_coupling(eps_upper))
+    flake.set_coulomb_groups(lower, lower, coulomb_coupling(eps_lower))
             
     return flake
 
@@ -253,7 +253,7 @@ def td_sim(shape, phi, omega, doping):
         plot_omega_dipole(name + f"{p:.2f}", 6*omega, 0, omega)
         plot_t_dipole(name + f"{p:.2f}", end_time, amplitudes, omega, peak, fwhm)
 
-def rpa_sim(shape, phi, doping, omega):
+def rpa_sim(shape, phi, doping, omega, suffix = '', eps_upper = 1.0, eps_lower = 1.0):
     def pol(flake):            
         return flake.get_polarizability_rpa(
             omega,
@@ -271,7 +271,7 @@ def rpa_sim(shape, phi, doping, omega):
     
     for p in phi:
         pols = []
-        flake = get_bilayer_graphene(shape, p)
+        flake = get_bilayer_graphene(shape, p, eps_upper = eps_upper, eps_lower = eps_lower)
         flake.show_2d(name = f'{p}.pdf')
         for d in doping:        
             print(f"rpa for {p * 180/jnp.pi}, {d}, {len(flake)}")
@@ -284,7 +284,7 @@ def rpa_sim(shape, phi, doping, omega):
         ret =  {"pol" : pols, "omega" : omega, "doping" : doping}
 
         # save to disk
-        name  = f"rpa_{len(flake)}_{p}.npz"
+        name  = f"rpa_{suffix}_{len(flake)}_{p}.npz"
         jnp.savez(name, **ret)
         names.append(name)
     
@@ -433,14 +433,15 @@ if __name__ == '__main__':
     if RUN_REF:
         ref()
     
-    shape = Triangle(20, armchair = True)
+    shape = Triangle(30, armchair = True)
     angles = twist_angles(shape)
     print("angles ", 180 / jnp.pi * angles)
     doping = jnp.arange(21)
 
     if RUN_RPA:
-        names = rpa_sim(shape, angles, doping, jnp.linspace(0, 10, 300))
-        plot_rpa_sim(names)
+        names = rpa_sim(shape, angles, doping, jnp.linspace(0, 10, 300), "sym")
+        names = rpa_sim(shape, angles, doping, jnp.linspace(0, 10, 300), "no_sym", eps_upper = 1.0, eps_lower = 4.0)
+        # plot_rpa_sim(names)
 
     if RUN_SCF_SWEEP:
         scf_sweep(shape, angles)
