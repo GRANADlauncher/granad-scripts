@@ -234,9 +234,10 @@ def td_sim(shape, phi, omega, doping):
      # params: Q = 2, N = 330 armchair, light : frequency = 0.68 eV, fwhm = 166fs, pol perp to triangle side, duration: 700, peak at 200
     name, end_time, amplitudes, peak, fwhm = "td_", 700, [0.03, 0, 0], 0.659 * 200, 0.659 * 166
 
+    el = flake.electrons
     for p in phi:
         flake = get_bilayer_graphene(shape, p)
-        flake.set_electrons(flake.electrons + doping)
+        flake.set_electrons(el + doping)
 
         result = flake.master_equation(
             dt = 1e-4,
