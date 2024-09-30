@@ -48,8 +48,10 @@ def get_bilayer_graphene(shape, phi, interlayer_scaling = 1.0, d0 = 0.335 * 10, 
         
         return vpp * (1 - jnp.nan_to_num(rd2, nan = 1)) + jnp.nan_to_num(vps * rd2, nan = 0) + 0j
 
-    def coulomb_coupling(r):
-        return u0/(eps_b * (jnp.linalg.norm(r) + 1)) + 0j
+    def coulomb_coupling(eps_b):
+        def inner(r):
+            return u0/(eps_b * (jnp.linalg.norm(r) + 1)) + 0j
+        return inner
 
     vpp0, vps0, a0 = -2.7, 0.48, 1.42
     delta0 = 0.184 * a0 * jnp.sqrt(3)
@@ -73,9 +75,9 @@ def get_bilayer_graphene(shape, phi, interlayer_scaling = 1.0, d0 = 0.335 * 10, 
     flake.set_hamiltonian_groups(upper, lower, tb_coupling)
     flake.set_hamiltonian_groups(lower, lower, tb_coupling)
 
-    flake.set_coulomb_groups(upper, upper, coulomb_coupling)
-    flake.set_coulomb_groups(upper, lower, coulomb_coupling)
-    flake.set_coulomb_groups(lower, lower, coulomb_coupling)
+    flake.set_coulomb_groups(upper, upper, coulomb_coupling(1))
+    flake.set_coulomb_groups(upper, lower, coulomb_coupling(1))
+    flake.set_coulomb_groups(lower, lower, coulomb_coupling(4))
             
     return flake
 
@@ -420,9 +422,9 @@ def plot_energy_sim(shape, phi, scf = True):
 
 RUN_REF = False
 RUN_IP = False
-RUN_TD = True
+RUN_TD = False
 RUN_SCF_SWEEP = False
-RUN_RPA = False
+RUN_RPA = True
 RUN_ENERGY = False
 RUN_PURCELL = False
 
