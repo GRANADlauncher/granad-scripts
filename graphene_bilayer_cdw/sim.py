@@ -470,18 +470,19 @@ if __name__ == '__main__':
     
     shape = Triangle(30, armchair = True)
     angles = twist_angles(shape)
+    omega = jnp.linspace(0, 10, 300)
     print("angles ", 180 / jnp.pi * angles)
     doping = jnp.arange(21)
 
     if RUN_RPA:
-        names = rpa_sim(shape, angles, doping, jnp.linspace(0, 10, 300), "sym")
+        names = rpa_sim(shape, angles, doping, omega, "sym")
         plot_rpa_sim(names)
-        names = rpa_sim(shape, angles, doping, jnp.linspace(0, 10, 300), "no_sym", eps_upper = 1.0, eps_lower = 4.0)        
+        names = rpa_sim(shape, angles, doping, omega, "no_sym", eps_upper = 1.0, eps_lower = 4.0)        
         plot_rpa_sim(names)
 
     if RUN_RPA_EPS:
         eps = jnp.linspace(1, 10, 20)
-        names = rpa_sim_eps(shape, doping, "eps")
+        names = rpa_sim_eps(shape, doping, omega, "eps")
         plot_rpa_sim(names)
 
     if RUN_SCF_SWEEP:
