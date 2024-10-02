@@ -76,7 +76,7 @@ def get_bilayer_graphene(shape, phi, interlayer_scaling = 1.0, d0 = 0.335 * 10, 
     flake.set_hamiltonian_groups(lower, lower, tb_coupling)
 
     flake.set_coulomb_groups(upper, upper, coulomb_coupling(eps_upper))
-    flake.set_coulomb_groups(upper, lower, coulomb_coupling(eps_upper))
+    flake.set_coulomb_groups(upper, lower, coulomb_coupling(eps_lower/2 + eps_upper/2))
     flake.set_coulomb_groups(lower, lower, coulomb_coupling(eps_lower))
             
     return flake
@@ -254,6 +254,38 @@ def td_sim(shape, phi, omega, doping):
         plot_omega_dipole(name + f"{p:.2f}", 6*omega, 0, omega)
         plot_t_dipole(name + f"{p:.2f}", end_time, amplitudes, omega, peak, fwhm)
 
+def rpa_sim_eps(shape, eps, doping, omega, suffix = ''):
+    def pol(flake):            
+        return flake.get_polarizability_rpa(
+            omega,
+            relaxation_rate = 1/10,
+            polarization = 0, 
+            hungry = 1)
+
+    names = []
+    
+    for e in eps:
+        pols = []
+        flake = get_bilayer_graphene(shape, 0.0, eps_upper = e, eps_lower = 1.0)
+        el = flake.electrons
+        flake.show_2d(name = f'{p}.pdf')
+        for d in doping:        
+            print(f"rpa for {e}, {d}, {len(flake)}")
+
+            # doping
+            flake.set_electrons(el + d)
+
+            pols.append(pol(flake))
+        
+        ret =  {"pol" : pols, "omega" : omega, "doping" : doping}
+
+        # save to disk
+        name  = f"rpa_{suffix}_{len(flake)}_{e}.npz"
+        jnp.savez(name, **ret)
+        names.append(name)
+    
+    return names
+        
 def rpa_sim(shape, phi, doping, omega, suffix = '', eps_upper = 1.0, eps_lower = 1.0):
     def pol(flake):            
         return flake.get_polarizability_rpa(
@@ -426,7 +458,8 @@ RUN_REF = False
 RUN_IP = False
 RUN_TD = False
 RUN_SCF_SWEEP = False
-RUN_RPA = True
+RUN_RPA = False
+RUN_RPA_EPS = True
 RUN_ENERGY = False
 RUN_PURCELL = False
 
@@ -442,8 +475,14 @@ if __name__ == '__main__':
 
     if RUN_RPA:
         names = rpa_sim(shape, angles, doping, jnp.linspace(0, 10, 300), "sym")
-        names = rpa_sim(shape, angles, doping, jnp.linspace(0, 10, 300), "no_sym", eps_upper = 1.0, eps_lower = 4.0)
-        # plot_rpa_sim(names)
+        plot_rpa_sim(names)
+        names = rpa_sim(shape, angles, doping, jnp.linspace(0, 10, 300), "no_sym", eps_upper = 1.0, eps_lower = 4.0)        
+        plot_rpa_sim(names)
+
+    if RUN_RPA_EPS:
+        eps = jnp.linspace(1, 10, 20)
+        names = rpa_sim_eps(shape, doping, "eps")
+        plot_rpa_sim(names)
 
     if RUN_SCF_SWEEP:
         scf_sweep(shape, angles)
