@@ -268,7 +268,6 @@ def rpa_sim_eps(shape, eps, doping, omega, suffix = ''):
         pols = []
         flake = get_bilayer_graphene(shape, 0.0, eps_upper = e, eps_lower = 1.0)
         el = flake.electrons
-        # flake.show_2d(name = f'{p}.pdf')
         for d in doping:        
             print(f"rpa for {e}, {d}, {len(flake)}")
 
@@ -482,7 +481,7 @@ if __name__ == '__main__':
 
     if RUN_RPA_EPS:
         eps = jnp.linspace(1, 10, 20)
-        names = rpa_sim_eps(shape, doping, omega, "eps")
+        names = rpa_sim_eps(shape, eps, doping, omega, "eps")
         plot_rpa_sim(names)
 
     if RUN_SCF_SWEEP:
