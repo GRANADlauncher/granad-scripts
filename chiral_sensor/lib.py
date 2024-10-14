@@ -221,7 +221,7 @@ def plot_chirality_difference(results_file, keys = None):
     plt.close()    
 
 
-def plot_chirality(results_file, flake, display, keys=None, topo = True):
+def plot_chirality(results_file, flake, display, keys=None, topo = True, name = "chirality.pdf"):
     """
     Plots the chirality of the total response with an inset plot corresponding to the topological state in `flake`.
     
@@ -289,7 +289,7 @@ def plot_chirality(results_file, flake, display, keys=None, topo = True):
     plt.tight_layout()
     
     # Save the plot as a PDF with a higher DPI for publication quality
-    plt.savefig("chirality.pdf", dpi=300)
+    plt.savefig(name, dpi=300)
     plt.close()
 
 def plot_power(results_file, keys=None):
