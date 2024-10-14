@@ -242,7 +242,6 @@ def plot_chirality(results_file, flake, display, keys=None, topo = True, name = 
 
     # Custom color palette and line styles
     colors = plt.cm.plasma(np.linspace(0, 0.7, len(keys)))
-    line_styles = ['-', '--', '-.', ':']
 
     # Iterate over each key to plot the corresponding data
     for i, key in enumerate(keys):
@@ -258,7 +257,9 @@ def plot_chirality(results_file, flake, display, keys=None, topo = True, name = 
         mat_real, mat_imag = mat.real, mat.imag
         
         # Select line style based on the presence of 'topological' in the key
-        line_style = line_styles[i % len(line_styles)]        
+        line_style = '-'
+        if not topo:
+            line_style = ['-', '--', '-.', ':'][i % len(line_styles)]
                 
         # Calculate chirality
         left = np.sort(np.abs(mat[0, :, :]), axis=0)[::-1, :]
