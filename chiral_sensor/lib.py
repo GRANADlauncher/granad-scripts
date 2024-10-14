@@ -221,7 +221,7 @@ def plot_chirality_difference(results_file, keys = None):
     plt.close()    
 
 
-def plot_chirality(results_file, flake, display, keys=None):
+def plot_chirality(results_file, flake, display, keys=None, topo = True):
     """
     Plots the chirality of the total response with an inset plot corresponding to the topological state in `flake`.
     
@@ -237,10 +237,12 @@ def plot_chirality(results_file, flake, display, keys=None):
     fig, ax = plt.subplots(figsize=(8, 6))
     # plt.style.use('seaborn-darkgrid')  # Optional: use a specific style for better aesthetics
 
-    # keys = [k for k in keys if not 'topological' in k]
-    ls = '-'
-    if 'topological' in key:            
-        ls = '--'
+    if topo:
+        ls = '-'
+        if 'topological' in key:            
+            ls = '--'
+    else:
+        keys = [k for k in keys if not 'topological' in k]
 
     # Custom color palette and line styles
     colors = plt.cm.plasma(np.linspace(0, 0.7, len(keys)))
