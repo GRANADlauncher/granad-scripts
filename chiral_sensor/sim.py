@@ -16,14 +16,14 @@ RPA_FILE = 'rpa_triangle.npz'
 RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
 RPA_VALS = [0, 0.01, 0.1, 0.5, 0.7, 1.0]
 
-MEAN_FIELD = True
-PLOT_MEAN_FIELD = True
+MEAN_FIELD = False
+PLOT_MEAN_FIELD = False
 MF_FLAKE = get_haldane_graphene(-2.66, -1j, 0.3).cut_flake(Triangle(30))
 MF_VALS = [0, 0.1, 0.2, 1., 1.5, 2., 2.5, 3.]
 MF_MIX, MF_ITER, MF_PREC = 0.0, 100, 1e-10
 MF_FILE = 'mf.npz'
 
-PLOT_GEOMETRIES = True
+PLOT_GEOMETRIES = False
 GEOMETRIES = [
     (shape, -2.66, -1j, 0.3, f"haldane_graphene" )
     for shape in [Triangle(18, armchair = False), Rectangle(10, 10), Hexagon(20, armchair = True)]

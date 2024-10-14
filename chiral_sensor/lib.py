@@ -121,8 +121,8 @@ def ip_response(args_list, results_file):
         cond[name] = get_correlator(v[:2])
         pol[name] = get_correlator(p[:2])
 
-        # compute only topological sector
-        trivial = jnp.abs(flake.energies) > 1e-1
+        # compute only topological sector => max localization
+        trivial = jnp.abs(localization(flake.positions, flake.eigenvectors, flake.energies)) < 0.4
         mask = jnp.logical_and(trivial[:, None], trivial)
         
         cond["topological." + name] = get_correlator(v[:2], mask)
@@ -198,7 +198,6 @@ def plot_chirality_difference(results_file, keys = None):
         ls = '-'
         if 'topological' in key:            
             ls = '--'
-            continue
         
         idx = 0
         left, right = jnp.array([[0, 0], [0, 1]]), jnp.array([[1, 0], [0, 0]])

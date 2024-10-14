@@ -140,4 +140,4 @@ plt.show()
 # plt.plot(jnp.arange(len(flake)), jnp.abs(jm[m,:]) * occupations)
 # plt.show()
 
-plot_chirality("cond_" + LRT_FILE, flake, display = jnp.abs(flake.eigenvectors[:, m]) )
+# plot_chirality("cond_" + LRT_FILE, flake, display = jnp.abs(flake.eigenvectors[:, m]) )
