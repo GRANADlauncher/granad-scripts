@@ -245,9 +245,6 @@ def plot_chirality(results_file, flake, display, keys=None, topo = True, name = 
 
     # Iterate over each key to plot the corresponding data
     for i, key in enumerate(keys):
-        app = ''
-        if 'topological' in key:            
-            app = '_topo'
         
         mat = data[key]
         mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
@@ -260,7 +257,12 @@ def plot_chirality(results_file, flake, display, keys=None, topo = True, name = 
         line_style = '-'
         if not topo:
             line_style = ['-', '--', '-.', ':'][i % len(line_styles)]
-                
+            
+        app = ''
+        if 'topological' in key:
+            line_style = '--'
+            app = '_topo'
+
         # Calculate chirality
         left = np.sort(np.abs(mat[0, :, :]), axis=0)[::-1, :]
         right = np.sort(np.abs(mat[1, :, :]), axis=0)[::-1, :]
