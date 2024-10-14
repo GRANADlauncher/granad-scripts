@@ -253,7 +253,7 @@ def plot_chirality(results_file, flake, display, keys=None, name = "chirality.pd
         mat_real, mat_imag = mat.real, mat.imag
         
         # Select line style based on the presence of 'topological' in the key
-        line_style = ['-', '--', '-.', ':'][i % len(line_styles)]
+        line_style = ['-', '--', '-.', ':'][i % 4]
             
         # Calculate chirality
         left = np.sort(np.abs(mat[0, :, :]), axis=0)[::-1, :]
