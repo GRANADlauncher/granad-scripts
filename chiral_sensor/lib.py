@@ -122,7 +122,9 @@ def ip_response(args_list, results_file):
         pol[name] = get_correlator(p[:2])
 
         # compute only topological sector => max localization
-        trivial = jnp.abs(localization(flake.positions, flake.eigenvectors, flake.energies)) < 0.4
+        loc = localization(flake.positions, flake.eigenvectors, flake.energies)
+        print(loc.max(), loc.min())
+        trivial = jnp.abs(loc) < 0.3
         mask = jnp.logical_and(trivial[:, None], trivial)
         
         cond["topological." + name] = get_correlator(v[:2], mask)
