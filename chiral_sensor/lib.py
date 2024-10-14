@@ -237,11 +237,7 @@ def plot_chirality(results_file, flake, display, keys=None, topo = True):
     fig, ax = plt.subplots(figsize=(8, 6))
     # plt.style.use('seaborn-darkgrid')  # Optional: use a specific style for better aesthetics
 
-    if topo:
-        ls = '-'
-        if 'topological' in key:            
-            ls = '--'
-    else:
+    if not topo:
         keys = [k for k in keys if not 'topological' in k]
 
     # Custom color palette and line styles
@@ -250,6 +246,10 @@ def plot_chirality(results_file, flake, display, keys=None, topo = True):
 
     # Iterate over each key to plot the corresponding data
     for i, key in enumerate(keys):
+        ls = '-'
+        if 'topological' in key:            
+            ls = '--'
+        
         mat = data[key]
         mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
         mat = to_helicity(mat)
