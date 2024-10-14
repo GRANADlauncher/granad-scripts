@@ -246,9 +246,9 @@ def plot_chirality(results_file, flake, display, keys=None, topo = True, name = 
 
     # Iterate over each key to plot the corresponding data
     for i, key in enumerate(keys):
-        ls = '-'
+        app = ''
         if 'topological' in key:            
-            ls = '--'
+            app = '_topo'
         
         mat = data[key]
         mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
@@ -269,7 +269,7 @@ def plot_chirality(results_file, flake, display, keys=None, topo = True, name = 
         chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
         
         # Plot the chirality with a custom color and line style
-        ax.plot(omegas, chi, label=key.split("_")[-1], color=colors[i], linestyle=line_style, linewidth=2)
+        ax.plot(omegas, chi, label=key.split("_")[-1] + app, color=colors[i], linestyle=line_style, linewidth=2)
 
     # Adding axis labels with larger fonts for readability
     ax.set_xlabel(r'$\omega$ (eV)', fontsize=18)
