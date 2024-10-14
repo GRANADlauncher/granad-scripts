@@ -323,6 +323,21 @@ def rpa_sim(shape, phi, doping, omega, suffix = '', eps_upper = 1.0, eps_lower =
     
     return names
 
+def plot_rpa_sim_freq(names, doping_idx = 0):
+    """plots cross section vs frequency"""
+    for name in names:
+        res = jnp.load(name)
+        
+        omega, pol = res["omega"],  res["pol"]
+        
+        Z = jnp.abs(jnp.array([pol_i.imag * omega for pol_i in pol]).T)**(0.25)
+
+        plt.plot(omega, Z[:, doping_idx], label = name)
+
+    plt.legend()
+    plt.savefig("plasmon_peaks.pdf")
+    
+
 def plot_rpa_sim(names):
     
     def plot_matrix(name, omega, doping, pol):
@@ -483,6 +498,7 @@ if __name__ == '__main__':
         eps = jnp.linspace(1, 10, 20)
         names = rpa_sim_eps(shape, eps, doping, omega, "eps")
         plot_rpa_sim(names)
+        plot_rpa_sim_freq(names, 10)
 
     if RUN_SCF_SWEEP:
         scf_sweep(shape, angles)
