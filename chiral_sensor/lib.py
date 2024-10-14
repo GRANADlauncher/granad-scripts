@@ -314,7 +314,7 @@ def plot_chirality_topo(results_file, flake, display, keys=None, name = "chirali
         # Compute the real and imaginary parts
         mat_real, mat_imag = mat.real, mat.imag
         
-        line_style = '--' if 'topo' in key else '--'
+        line_style = '--' if 'topo' in key else '-'
         app = '_topo' if 'topo' in key else ''
             
         # Calculate chirality
