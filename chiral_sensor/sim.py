@@ -41,7 +41,7 @@ if __name__ == '__main__':
         flake = IP_ARGS[2][0]
         loc = localization(flake.positions, flake.eigenvectors, flake.energies)
         plot_chirality("cond_" + LRT_FILE, flake, display = jnp.abs(flake.eigenvectors[:, loc.argmax()]) )
-        plot_chirality("cond_" + LRT_FILE, flake, display = jnp.abs(flake.eigenvectors[:, loc.argmax()]), topo = True, name = "chirality_topo.pdf")
+        plot_chirality_topo("cond_" + LRT_FILE, flake, display = jnp.abs(flake.eigenvectors[:, loc.argmax()]))
 
     if RPA_RESPONSE:
         rpa_response(RPA_FLAKE, RPA_FILE, RPA_VALS)
