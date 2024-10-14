@@ -237,7 +237,10 @@ def plot_chirality(results_file, flake, display, keys=None):
     fig, ax = plt.subplots(figsize=(8, 6))
     # plt.style.use('seaborn-darkgrid')  # Optional: use a specific style for better aesthetics
 
-    keys = [k for k in keys if not 'topological' in k]
+    # keys = [k for k in keys if not 'topological' in k]
+    ls = '-'
+    if 'topological' in key:            
+        ls = '--'
 
     # Custom color palette and line styles
     colors = plt.cm.plasma(np.linspace(0, 0.7, len(keys)))
