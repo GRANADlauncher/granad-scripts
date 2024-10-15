@@ -332,7 +332,7 @@ def plot_rpa_sim_freq(names, doping_idx = 0):
         
         Z = jnp.abs(jnp.array([pol_i.imag * omega for pol_i in pol]).T)**(0.25)
 
-        plt.plot(omega, Z[:, doping_idx], label = name)
+        plt.plot(omega, Z[doping_idx, :], label = name)
 
     plt.legend()
     plt.savefig("plasmon_peaks.pdf")
@@ -496,7 +496,8 @@ if __name__ == '__main__':
 
     if RUN_RPA_EPS:
         eps = jnp.linspace(1, 10, 20)
-        names = rpa_sim_eps(shape, eps, doping, omega, "eps")
+        # names = rpa_sim_eps(shape, eps, doping, omega, "eps")
+        names = [f"rpa_300_{e}.npz" for e in eps]
         plot_rpa_sim(names)
         plot_rpa_sim_freq(names, 10)
 
