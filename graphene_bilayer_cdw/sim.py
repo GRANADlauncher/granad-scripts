@@ -323,7 +323,7 @@ def rpa_sim(shape, phi, doping, omega, suffix = '', eps_upper = 1.0, eps_lower =
     
     return names
 
-def plot_rpa_sim_freq(names, doping_idx = 0):
+def plot_rpa_sim_eps(names, doping_idx = 0):
     """plots cross section vs frequency"""
     for name in names:
         res = jnp.load(name)
@@ -497,9 +497,9 @@ if __name__ == '__main__':
     if RUN_RPA_EPS:
         eps = jnp.linspace(1, 10, 20)
         # names = rpa_sim_eps(shape, eps, doping, omega, "eps")
-        names = [f"rpa_300_{e}.npz" for e in eps]
+        names = ["rpa_hexagon_small_eps_202_10.0.npz", "rpa_hexagon_small_eps_202_3.25.npz", "rpa_hexagon_small_eps_202_7.75.npz", "rpa_hexagon_small_eps_202_5.5.npz"]
         plot_rpa_sim(names)
-        plot_rpa_sim_freq(names, 10)
+        plot_rpa_sim_eps(names, 10)
 
     if RUN_SCF_SWEEP:
         scf_sweep(shape, angles)
