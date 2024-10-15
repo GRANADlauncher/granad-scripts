@@ -332,7 +332,7 @@ def plot_rpa_sim_eps(names, doping_idx = 0):
         
         Z = jnp.abs(jnp.array([pol_i.imag * omega for pol_i in pol]).T)**(0.25)
 
-        plt.plot(omega, Z[doping_idx, :], label = name)
+        plt.plot(omega, Z[:, doping_idx], label = name)
 
     plt.legend()
     plt.savefig("plasmon_peaks.pdf")
@@ -482,7 +482,7 @@ if __name__ == '__main__':
     if RUN_REF:
         ref()
     
-    shape = Triangle(30, armchair = True)
+    shape = Hexagon(20, armchair = True)
     angles = twist_angles(shape)
     omega = jnp.linspace(0, 10, 300)
     print("angles ", 180 / jnp.pi * angles)
@@ -495,9 +495,9 @@ if __name__ == '__main__':
         plot_rpa_sim(names)
 
     if RUN_RPA_EPS:
-        eps = jnp.linspace(1, 10, 20)
-        # names = rpa_sim_eps(shape, eps, doping, omega, "eps")
-        names = ["rpa_hexagon_small_eps_202_10.0.npz", "rpa_hexagon_small_eps_202_3.25.npz", "rpa_hexagon_small_eps_202_7.75.npz", "rpa_hexagon_small_eps_202_5.5.npz"]
+        eps = jnp.linspace(1, 4, 8)
+        names = rpa_sim_eps(shape, eps, doping, omega, "eps")
+        # names = ["rpa_hexagon_small_eps_202_1.0", "rpa_hexagon_small_eps_202_10.0.npz", "rpa_hexagon_small_eps_202_3.25.npz", "rpa_hexagon_small_eps_202_7.75.npz", "rpa_hexagon_small_eps_202_5.5.npz"]
         plot_rpa_sim(names)
         plot_rpa_sim_eps(names, 10)
 
