@@ -5,10 +5,13 @@ from granad import *
 
 from lib import *
 
+# pt at t_2 = delta / (3 * np.sqrt(3))
+
 IP_RESPONSE = True
 PLOT_IP_RESPONSE = True
 LRT_FILE = 'lrt.npz'
-IP_ARGS = [ (get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(30, armchair = True)), f"haldane_graphene_{t2}") for (t2, delta) in [(0.0, 0.0), (0.1, 0.3), (0.5, 0.3)] ]
+IP_ARGS = [ (get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(30, armchair = True)), f"haldane_graphene_{t2}") for (t2, delta) in [(0.0, 0.0), (0.1, 1), (0.5, 1)] ]
+
 
 RPA_RESPONSE = False
 PLOT_RPA_RESPONSE = False
