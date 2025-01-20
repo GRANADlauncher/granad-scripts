@@ -17,7 +17,7 @@ def localization(positions, states, energies, uniform = False):
     mask = (distances == nnn).sum(axis=0) < 6
 
     # localization => how much eingenstate 
-    l = (jnp.abs(states[mask, :]).sum(axis = 0) / jnp.abs(states).sum(axis = 0))**2
+    l = (jnp.abs(states[mask, :])**2).sum(axis = 0) / ( jnp.abs(states)**2).sum(axis = 0)
 
     if uniform:
         return l, mask.nonzero()[0].size / mask.size

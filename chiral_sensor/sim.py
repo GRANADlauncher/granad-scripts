@@ -10,8 +10,8 @@ PLOT_IP_RESPONSE = True
 LRT_FILE = 'lrt.npz'
 IP_ARGS = [ (get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(30, armchair = True)), f"haldane_graphene_{t2}") for (t2, delta) in [(0.0, 0.0), (0.1, 0.3), (0.5, 0.3)] ]
 
-RPA_RESPONSE = True
-PLOT_RPA_RESPONSE = True
+RPA_RESPONSE = False
+PLOT_RPA_RESPONSE = False
 RPA_FILE = 'rpa_triangle.npz'
 RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
 RPA_VALS = [0, 0.01, 0.1, 0.5, 0.7, 1.0]
