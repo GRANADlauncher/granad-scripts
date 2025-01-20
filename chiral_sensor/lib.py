@@ -258,8 +258,12 @@ def plot_chirality(results_file, flake, display, keys=None, name = "chirality.pd
         line_style = ['-', '--', '-.', ':'][i % 4]
             
         # Calculate chirality
-        left = np.sort(np.abs(mat[0, :, :]), axis=0)[::-1, :]
-        right = np.sort(np.abs(mat[1, :, :]), axis=0)[::-1, :]
+        # left = np.sort(np.abs(mat[0, :, :]), axis=0)[::-1, :]
+        # right = np.sort(np.abs(mat[1, :, :]), axis=0)[::-1, :]
+        
+        left = np.abs(mat[0, :, :])
+        right = np.abs(mat[1, ::-1, :])
+
         
         # Normalize and compute chirality
         norm = lambda x: np.linalg.norm(x, axis=0)
