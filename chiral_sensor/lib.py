@@ -17,7 +17,7 @@ def localization(positions, states, energies, uniform = False):
     mask = (distances == nnn).sum(axis=0) < 6
 
     # localization => how much eingenstate 
-    l = (jnp.abs(states[mask, :])**2).sum(axis = 0) / ( jnp.abs(states)**2).sum(axis = 0)
+    l = (jnp.abs(states[mask, :])**2).sum(axis = 0) # vectors are normed 
 
     if uniform:
         return l, mask.nonzero()[0].size / mask.size
@@ -124,7 +124,7 @@ def ip_response(args_list, results_file):
         # compute only topological sector => max localization
         loc = localization(flake.positions, flake.eigenvectors, flake.energies)
         print(loc.max(), loc.min())
-        trivial = jnp.abs(loc) < 0.3
+        trivial = jnp.abs(flake.energies) > 0.1
         mask = jnp.logical_and(trivial[:, None], trivial)
         
         cond["topological." + name] = get_correlator(v[:2], mask)
