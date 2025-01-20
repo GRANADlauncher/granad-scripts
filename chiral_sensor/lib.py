@@ -257,10 +257,7 @@ def plot_chirality(results_file, flake, display, keys=None, name = "chirality.pd
         # Select line style based on the presence of 'topological' in the key
         line_style = ['-', '--', '-.', ':'][i % 4]
             
-        # Calculate chirality
-        # left = np.sort(np.abs(mat[0, :, :]), axis=0)[::-1, :]
-        # right = np.sort(np.abs(mat[1, :, :]), axis=0)[::-1, :]
-        
+        # Calculate chirality        
         left = np.abs(mat[0, :, :])
         right = np.abs(mat[1, ::-1, :])
 
@@ -324,8 +321,8 @@ def plot_chirality_topo(results_file, flake, display, keys=None, name = "chirali
         app = '_topo' if 'topo' in key else ''
             
         # Calculate chirality
-        left = np.sort(np.abs(mat[0, :, :]), axis=0)[::-1, :]
-        right = np.sort(np.abs(mat[1, :, :]), axis=0)[::-1, :]
+        left = np.abs(mat[0, :, :])
+        right = np.abs(mat[1, ::-1, :])
         
         # Normalize and compute chirality
         norm = lambda x: np.linalg.norm(x, axis=0)
@@ -471,8 +468,8 @@ def plot_rpa_response(results_file):
     for i, coulomb_strength in enumerate(cs):
         mat = to_helicity(cond[i])
 
-        left = jnp.abs(mat[0, :, :]).sort(axis = 0)[::-1, :]
-        right = jnp.abs(mat[1, :, :]).sort(axis = 0)[::-1, :]
+        left = np.abs(mat[0, :, :])
+        right = np.abs(mat[1, ::-1, :])
 
         n = lambda x : jnp.linalg.norm(x, axis = 0) 
         chi = n(left - right) / jnp.sqrt(n(left)**2 + n(right)**2)
