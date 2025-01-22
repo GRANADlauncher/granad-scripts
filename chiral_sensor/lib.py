@@ -9,21 +9,6 @@ from granad import *
 
 
 ### UTILITIES ###
-def localization(positions, states, energies, uniform = False):
-    """Compute eigenstates edge localization"""
-    # edges => neighboring unit cells are incomplete => all points that are not inside a "big hexagon" made up of nearest neighbors 
-    distances = jnp.round(jnp.linalg.norm(positions - positions[:, None], axis = -1), 4)
-    nnn = jnp.unique(distances)[2]
-    mask = (distances == nnn).sum(axis=0) < 6
-
-    # localization => how much eingenstate 
-    l = (jnp.abs(states[mask, :])**2).sum(axis = 0) # vectors are normed 
-
-    if uniform:
-        return l, mask.nonzero()[0].size / mask.size
-
-    return l    
-
 def load_data(results_file, keys):
     with jnp.load(results_file) as data:
         data = dict(data)
@@ -121,9 +106,6 @@ def ip_response(args_list, results_file):
         cond[name] = get_correlator(v[:2])
         pol[name] = get_correlator(p[:2])
 
-        # compute only topological sector => max localization
-        loc = localization(flake.positions, flake.eigenvectors, flake.energies)
-        print(loc.max(), loc.min())
         trivial = jnp.abs(flake.energies) > 0.1
 
         mask = jnp.logical_and(trivial[:, None], trivial)
@@ -536,40 +518,3 @@ def scf_loop(flake, U, mixing, limit, max_steps):
             rho_down,
             ham_0 + U * jnp.diag(jnp.diag(rho_down)),
             ham_0 + U * jnp.diag(jnp.diag(rho_up)))
-
-def plot_stability(results_file):
-    """loads scf results, plots energy landscape, current directionality"""
-    
-    with jnp.load(results_file) as data:
-        data = dict(data)
-        res = data["res"]
-        Us = data["Us"]
-        pos = data["pos"]
-
-    # energy landscapes
-    for i, U in enumerate(Us):
-        rho_up, rho_down, h_up, h_down = res[i]        
-        v_up, vecs_up = jnp.linalg.eigh(h_up)
-        v_down, vecs_down = jnp.linalg.eigh(h_down)        
-        c_up = jnp.diagonal(vecs_up.conj().T @ rho_up @ vecs_up)
-        c_down = jnp.diagonal(vecs_down.conj().T @ rho_down @ vecs_down)
-        
-        # plot_localization(pos, vecs_up, v_up, f"{U}_up.pdf")
-        # plot_localization(pos, vecs_down, v_down, f"{U}_down.pdf")
-
-    # current
-    l = []
-    for i, U in enumerate(Us):
-        rho_up, rho_down, h_up, h_down = res[i]        
-        v_up, vecs_up = jnp.linalg.eigh(h_up)
-        
-        l_up = localization(pos, vecs_up, v_up).max()
-        l_down = localization(pos, vecs_down, v_down).max()
-
-        l.append( (l_up + l_down) / 2)
-            
-    plt.plot(Us, l, '.')
-    plt.xlabel('U (eV)')
-    plt.ylabel(r"$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$")
-    plt.savefig("scf_localization.pdf")
-    plt.close()      
