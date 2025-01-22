@@ -125,45 +125,31 @@ def plot_response_functions(results_file):
     with jnp.load("pol_" + results_file) as data:
         pol = dict(data)
         pol_omegas = pol.pop("omegas")
-        
-    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
-    
-    keys = cond.keys()
-    for k in keys:
-        if 'topo' in k:
-            continue
-        for i in range(2):
-            for j in range(2):
-                if i == j:
-                    offset = cond[k][i,j, 0].imag
-                else:
-                    offset = 0
-                axs[i, j].plot(cond_omegas, cond[k][i, j].imag - offset, label='cond_' + k)
-                axs[i, j].plot(pol_omegas, pol_omegas**2 * pol[k][i, j].imag, '--', label='pol_' + k)
-                axs[i, j].set_title(f'i,j = {i,j}')
-                
-    axs[0, 0].legend(loc="upper left")
-    plt.savefig("cond_pol_comparison_imag.pdf")
-    plt.close()
 
-    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
-    keys = cond.keys()
-    for k in keys:
-        if 'topo' in k:
-            continue
-        for i in range(2):
-            for j in range(2):
-                if i == j:
-                    offset = cond[k][i,j, 0].real
-                else:
-                    offset = 0
-                axs[i, j].plot(cond_omegas, cond[k][i, j].real - offset, label='cond_' + k)
-                axs[i, j].plot(pol_omegas, pol_omegas**2 * pol[k][i, j].real, '--', label='pol_' + k)
-                axs[i, j].set_title(f'i,j = {i,j}')
-                
-    axs[0, 0].legend(loc="upper left")
-    plt.savefig("cond_pol_comparison_real.pdf")
-    plt.close()
+    def loop_plot(func, name):
+        fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+
+        keys = cond.keys()
+        for k in keys:
+            if 'topo' in k:
+                continue
+            for i in range(2):
+                for j in range(2):
+                    if i == j:
+                        offset = cond[k][i,j, 0]
+                    else:
+                        offset = 0
+                    axs[i, j].plot(cond_omegas, func(cond[k][i, j] - offset), label='cond_' + k)
+                    axs[i, j].plot(pol_omegas, pol_omegas**2 * func(pol[k][i, j]), '--', label='pol_' + k)
+                    axs[i, j].set_title(f'i,j = {i,j}')
+
+        axs[0, 0].legend(loc="upper left")
+        plt.savefig(name)
+        plt.close()
+
+    loop_plot(lambda x : x.imag, "imag_cond_pol_comparison.pdf")
+    loop_plot(lambda x : x.real, "real_cond_pol_comparison.pdf")
+    loop_plot(lambda x : jnp.abs(x), "abs_cond_pol_comparison.pdf")
     
 def plot_chirality_difference(results_file, keys = None):
     """plots excess chirality of the total response"""
