@@ -525,15 +525,14 @@ RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
 RPA_VALS = [0, 0.01, 0.1, 0.5, 0.7, 1.0]
 
 if __name__ == '__main__':
-    
     ip_response(IP_ARGS, LRT_FILE)
 
     # figure chirality
     plot_chirality("cond_" + LRT_FILE)
 
     # figure example geometry
-    flake = IP_ARGS[-2][0]
-    idx = jnp.argwhere(jnp.abs(flake.energies) < 1e-1)[0].item()
+    flake = IP_ARGS[-1][0]
+    idx = jnp.abs(flake.energies).argmin().item()
     flake.show_2d(display = flake.eigenvectors[:, idx], scale = True, name = 'geometry.pdf')
 
     # figure contribution of topological state
