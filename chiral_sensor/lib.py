@@ -27,7 +27,7 @@ def localization(positions, states, energies, uniform = False):
 def load_data(results_file, keys):
     with jnp.load(results_file) as data:
         data = dict(data)
-        omegas = data.pop("omegas")        
+        omegas = data.pop("omegas")
     return omegas, data, data.keys() if keys is None else keys    
 
 def to_helicity(mat):
@@ -125,6 +125,7 @@ def ip_response(args_list, results_file):
         loc = localization(flake.positions, flake.eigenvectors, flake.energies)
         print(loc.max(), loc.min())
         trivial = jnp.abs(flake.energies) > 0.1
+
         mask = jnp.logical_and(trivial[:, None], trivial)
         
         cond["topological." + name] = get_correlator(v[:2], mask)
@@ -225,7 +226,7 @@ def plot_chirality_difference(results_file, keys = None):
 
 def plot_chirality(results_file, flake, display, keys=None, name = "chirality.pdf"):
     """
-    Plots the chirality of the total response with an inset plot corresponding to the topological state in `flake`.
+    Plots the chirality of the total response.
     
     Parameters:
     - results_file: str, path to the file containing the results.
@@ -267,7 +268,7 @@ def plot_chirality(results_file, flake, display, keys=None, name = "chirality.pd
         chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
         
         # Plot the chirality with a custom color and line style
-        ax.plot(omegas, chi, label=key.split("_")[-1], color=colors[i], linestyle=line_style, linewidth=2)
+        ax.plot(omegas, chi, label = r'$t_2 =$ ' + key.split("_")[-1] + ' eV', color=colors[i], linestyle=line_style, linewidth=2)
 
     # Adding axis labels with larger fonts for readability
     ax.set_xlabel(r'$\omega$ (eV)', fontsize=18)
@@ -279,10 +280,6 @@ def plot_chirality(results_file, flake, display, keys=None, name = "chirality.pd
     # Adjusting tick parameters for better readability
     ax.tick_params(axis='both', which='major', labelsize=14)
 
-    # Create an inset axis
-    ax_inset = inset_axes(ax, width="30%", height="30%", loc="upper right")  # Adjust size and position
-    show_2d(ax_inset, flake, display = display) 
-
     # Tight layout for better spacing
     plt.tight_layout()
     
@@ -293,7 +290,7 @@ def plot_chirality(results_file, flake, display, keys=None, name = "chirality.pd
 
 def plot_chirality_topo(results_file, flake, display, keys=None, name = "chirality_topo.pdf"):
     """
-    Plots the chirality of the total response with an inset plot corresponding to the topological state in `flake`.
+    Plots the chirality of the total and topological response.
     
     Parameters:
     - results_file: str, path to the file containing the results.
@@ -329,7 +326,7 @@ def plot_chirality_topo(results_file, flake, display, keys=None, name = "chirali
         chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
         
         # Plot the chirality with a custom color and line style
-        ax.plot(omegas, chi, label=key.split("_")[-1] + app, linestyle=line_style, linewidth=2)
+        ax.plot(omegas, chi, label = r'$t_2 =$ ' + key.split("_")[-1] + ' eV', linestyle=line_style, linewidth=2)
 
     # Adding axis labels with larger fonts for readability
     ax.set_xlabel(r'$\omega$ (eV)', fontsize=18)
@@ -340,10 +337,6 @@ def plot_chirality_topo(results_file, flake, display, keys=None, name = "chirali
     
     # Adjusting tick parameters for better readability
     ax.tick_params(axis='both', which='major', labelsize=14)
-
-    # Create an inset axis
-    ax_inset = inset_axes(ax, width="30%", height="30%", loc="upper right")  # Adjust size and position
-    show_2d(ax_inset, flake, display = display) 
 
     # Tight layout for better spacing
     plt.tight_layout()
@@ -580,107 +573,3 @@ def plot_stability(results_file):
     plt.ylabel(r"$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$")
     plt.savefig("scf_localization.pdf")
     plt.close()      
-
-
-### GEOMETRIES ###
-def show_2d(ax, orbs, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 2*1e2, title = None):
-    # decider whether to take abs val and normalize 
-    def scale_vals( vals ):
-        return jnp.abs(vals) / jnp.abs(vals).max() if scale else vals
-    
-    # Determine which tags to display
-    if show_tags is None:
-        show_tags = {orb.tag for orb in orbs}
-    else:
-        show_tags = set(show_tags)
-
-    # Prepare data structures for plotting
-    tags_to_pos, tags_to_idxs = defaultdict(list), defaultdict(list)
-    for orb in orbs:
-        if orb.tag in show_tags:
-            tags_to_pos[orb.tag].append(orb.position)
-            tags_to_idxs[orb.tag].append(orbs.index(orb))
-
-    cmap = plt.cm.bwr if cmap is None else cmap
-    colors = scale_vals(display)
-    scatter = ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], c=colors, edgecolor='black', cmap=cmap, s = circle_scale*jnp.abs(display) )
-    # ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], color='black', s=1, marker='o')
-    # cbar = fig.colorbar(scatter, ax=ax)
-
-    # Optionally annotate points with their indexes
-    if show_index:
-        for orb in [orb for orb in orbs if orb.tag in show_tags]:
-            pos = orb.position
-            idx = orbs.index(orb)
-            ax.annotate(str(idx), (pos[0], pos[1]), textcoords="offset points", xytext=(0,10), ha='center')
-
-    # Finalize plot settings
-    # plt.title('Orbital positions in the xy-plane' if title is None else title)
-    ax.grid(True)
-    ax.axis('equal')
-    ax.axis('off')
-    ax.text(0.7, 0.9, r'$|\psi_{\text{edge}}|^2, t_2 = -\frac{i}{2}$', fontsize=10, ha='center', transform=ax.transAxes)
-    return scatter
-        
-
-def plot_edge_states_energy_landscape(setups):
-
-    fig, axs = plt.subplots(3,2)
-    axs_flat = list(axs.flat)
-    
-    for i, s in enumerate(setups):        
-        flake = get_haldane_graphene(*s[1:4]).cut_flake(s[0])
-        
-        loc = localization(flake.positions, flake.eigenvectors, flake.energies)
-
-        sc1 = show_2d(axs_flat[2*i], flake, display = jnp.abs(flake.eigenvectors[:, loc.argmax()]) )
-        axs_flat[2*i].set_xlabel('X')
-        axs_flat[2*i].set_ylabel('Y')
-
-        cb1 = fig.colorbar(sc1, ax=axs_flat[2*i])
-        cb1.set_label(r'$|\psi|^2$')
-
-
-        sc2 = axs_flat[2*i + 1].scatter(
-            jnp.arange(flake.energies.size),
-            flake.energies,
-            c=loc)
-        axs_flat[2*i+1].set_xlabel('# eigenstate')
-        axs_flat[2*i+1].set_ylabel('E (eV)')
-
-        cb2 = fig.colorbar(sc2, ax=axs_flat[2*i + 1])
-        cb2.set_label(r"$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$")  
-
-
-    plt.tight_layout()
-    plt.savefig("edge_states_energy_landscape.pdf")
-    plt.close()
-
-def plot_localization_varying_hopping(setups):
-    
-    fig, axs = plt.subplots(3,1)
-    axs_flat = list(axs.flat)
-
-    def loc(shape, n, nn, delta):
-        flake = get_haldane_graphene(n, nn, delta).cut_flake(shape)
-        l = localization(flake.positions, flake.eigenvectors, flake.energies)
-        return jnp.max(l)
-
-    nns = jnp.linspace(0, 0.5, 10)
-    for i, s in enumerate(setups):        
-        locs = [loc(s[0], s[1], 1j*nn, s[3]) for nn in nns]
-        axs[i].plot(nns, locs)
-
-        flake = get_haldane_graphene(*s[1:4]).cut_flake(s[0])
-        _, v = localization(flake.positions, flake.eigenvectors, flake.energies, uniform = True)
-        
-        axs[i].axhline(y=v, ls='--', label = 'uniform')
-        axs[i].axvline(x=0.03, c = 'r', label = 'bulk transition')
-
-        axs[i].set_xlabel(r'$t_2$')
-        axs[i].set_ylabel(r'$\dfrac{|\psi_{\text{edge}}|^2}{|\psi|^2}$')
-
-    axs[i].legend()
-    plt.tight_layout()
-    plt.savefig("localization_varying_hopping.pdf")
-    plt.close()
