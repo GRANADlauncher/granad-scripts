@@ -499,16 +499,12 @@ def scf_loop(flake, U, mixing, limit, max_steps):
             ham_0 + U * jnp.diag(jnp.diag(rho_up)))
 
 
-IP_RESPONSE = True
-PLOT_IP_RESPONSE = True
 LRT_FILE = 'lrt.npz'
-IP_ARGS = [ (get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(30, armchair = True)), f"haldane_graphene_{t2}") for (t2, delta) in [(0.0, 0.0), (0.05, 1), (0.1, 1), (0.2, 1), (0.5, 1)] ]
+IP_ARGS = [ (get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(42, armchair = True)), f"haldane_graphene_{t2}") for (t2, delta) in [(0.0, 0.0), (0.05, 1), (0.1, 1), (0.2, 1)] ]
 
-RPA_RESPONSE = True
-PLOT_RPA_RESPONSE = True
 RPA_FILE = 'rpa_triangle_2.npz'
-RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(30))
-RPA_VALS = [0, 0.01, 0.1, 0.5, 0.7, 1.0]
+RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(42))
+RPA_VALS = [0, 0.1, 0.5, 1.0]
 
 if __name__ == '__main__':
     ip_response(IP_ARGS, LRT_FILE)
@@ -525,6 +521,7 @@ if __name__ == '__main__':
     plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.1', 'haldane_graphene_0.1'] )
 
     # fig RPA
+    rpa_response(RPA_FLAKE, RPA_FILE, RPA_VALS)
     plot_rpa_response(RPA_FILE)
 
     # fig sensor
@@ -532,4 +529,3 @@ if __name__ == '__main__':
 
     # fig appendix gauge invariance
     plot_response_functions(LRT_FILE)
-
