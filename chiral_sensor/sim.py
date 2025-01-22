@@ -10,8 +10,7 @@ from lib import *
 IP_RESPONSE = True
 PLOT_IP_RESPONSE = True
 LRT_FILE = 'lrt.npz'
-IP_ARGS = [ (get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(30, armchair = True)), f"haldane_graphene_{t2}") for (t2, delta) in [(0.0, 0.0), (0.1, 1), (0.5, 1)] ]
-
+IP_ARGS = [ (get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(30, armchair = True)), f"haldane_graphene_{t2}") for (t2, delta) in [(0.0, 0.0), (0.05, 1), (0.1, 1), (0.2, 1), (0.5, 1)] ]
 
 RPA_RESPONSE = True
 PLOT_RPA_RESPONSE = True
@@ -41,10 +40,10 @@ if __name__ == '__main__':
         plot_power("cond_" + LRT_FILE)
         plot_response_functions(LRT_FILE)
 
-        flake = IP_ARGS[2][0]
+        flake = IP_ARGS[0][0]
         loc = localization(flake.positions, flake.eigenvectors, flake.energies)
         plot_chirality("cond_" + LRT_FILE, flake, display = jnp.abs(flake.eigenvectors[:, loc.argmax()])**2)
-        plot_chirality_topo("cond_" + LRT_FILE, flake, display = jnp.abs(flake.eigenvectors[:, loc.argmax()])**2)
+        plot_chirality_topo("cond_" + LRT_FILE, flake, display = jnp.abs(flake.eigenvectors[:, loc.argmax()])**2, keys = ['topological.haldane_graphene_0.1', 'haldane_graphene_0.1'] )
 
     if RPA_RESPONSE:
         rpa_response(RPA_FLAKE, RPA_FILE, RPA_VALS)
