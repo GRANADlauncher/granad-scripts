@@ -532,7 +532,7 @@ if __name__ == '__main__':
     plot_chirality("cond_" + LRT_FILE)
 
     # figure example geometry
-    flake = IP_ARGS[-2]
+    flake = IP_ARGS[-2][0]
     idx = jnp.argwhere(jnp.abs(flake.energies) < 1e-1)[0].item()
     flake.show_2d(display = flake.eigenvectors[:, idx], scale = True, name = 'geometry.pdf')
 
