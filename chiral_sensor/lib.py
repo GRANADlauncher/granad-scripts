@@ -7,7 +7,6 @@ import jax.numpy as jnp
 
 from granad import *
 
-
 ### UTILITIES ###
 def load_data(results_file, keys):
     with jnp.load(results_file) as data:
@@ -237,9 +236,6 @@ def plot_chirality(results_file, flake, display, keys=None, name = "chirality.pd
         # Compute the real and imaginary parts
         mat_real, mat_imag = mat.real, mat.imag
         
-        # Select line style based on the presence of 'topological' in the key
-        line_style = ['-', '--', '-.', ':'][i % 4]
-            
         # Calculate chirality        
         left = np.abs(mat[0, :, :])
         right = np.abs(mat[1, ::-1, :])
@@ -250,7 +246,7 @@ def plot_chirality(results_file, flake, display, keys=None, name = "chirality.pd
         chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
         
         # Plot the chirality with a custom color and line style
-        ax.plot(omegas, chi, label = r'$t_2 =$ ' + key.split("_")[-1] + ' eV', color=colors[i], linestyle=line_style, linewidth=2)
+        ax.plot(omegas, chi, label = r'$t_2 =$ ' + key.split("_")[-1] + ' eV', color=colors[i], linewidth=2)
 
     # Adding axis labels with larger fonts for readability
     ax.set_xlabel(r'$\omega$ (eV)', fontsize=18)
@@ -295,10 +291,7 @@ def plot_chirality_topo(results_file, flake, display, keys=None, name = "chirali
         
         # Compute the real and imaginary parts
         mat_real, mat_imag = mat.real, mat.imag
-        
-        line_style = '--' if 'topo' in key else '-'
-        app = '_topo' if 'topo' in key else ''
-            
+                    
         # Calculate chirality
         left = np.abs(mat[0, :, :])
         right = np.abs(mat[1, ::-1, :])
@@ -308,7 +301,7 @@ def plot_chirality_topo(results_file, flake, display, keys=None, name = "chirali
         chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
         
         # Plot the chirality with a custom color and line style
-        ax.plot(omegas, chi, label = r'$t_2 =$ ' + key.split("_")[-1] + ' eV', linestyle=line_style, linewidth=2)
+        ax.plot(omegas, chi, label = r'$t_2 =$ ' + key.split("_")[-1] + ' eV', linewidth=2)
 
     # Adding axis labels with larger fonts for readability
     ax.set_xlabel(r'$\omega$ (eV)', fontsize=18)
@@ -452,7 +445,7 @@ def plot_rpa_response(results_file):
         plt.plot(omegas, chi, label = fr'$\lambda$ = {coulomb_strength}')
 
     plt.xlabel(r'$\omega (eV)$')
-    plt.ylabel(r'$\delta_{+-}$')
+    plt.ylabel(r'$\chi$')
     plt.legend(loc = "upper left")
     plt.savefig("rpa.pdf")
     plt.close()
