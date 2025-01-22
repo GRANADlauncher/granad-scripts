@@ -99,7 +99,7 @@ def ip_response(args_list, results_file):
         return jnp.array([[flake.get_ip_green_function(o1, o2, omegas, relaxation_rate = 0.1, mask = mask) for o1 in operators] for o2 in operators])
 
     cond, pol = {}, {}
-    omegas = jnp.linspace(0, 20, 200)    
+    omegas = jnp.linspace(0, 6, 200)    
     for (flake, name) in args_list:        
         v, p = flake.velocity_operator_e, flake.dipole_operator_e
         cond[name] = get_correlator(v[:2])
