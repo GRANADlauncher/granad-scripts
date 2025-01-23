@@ -116,9 +116,8 @@ def ip_response(args_list, results_file):
     jnp.savez("cond_" + results_file, **cond)
     jnp.savez("pol_" + results_file, **pol)
 
-
 def plot_response_functions(results_file):
-    """plots j-j response directly and as obtained from p-p response"""    
+    """Plots j-j response directly and as obtained from p-p response with enhanced visuals."""
     with jnp.load("cond_" + results_file) as data:
         cond = dict(data)
         cond_omegas = cond.pop("omegas")        
@@ -126,8 +125,9 @@ def plot_response_functions(results_file):
         pol = dict(data)
         pol_omegas = pol.pop("omegas")
 
-    def loop_plot(func, name):
-        fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+    def loop_plot(func, name, title):
+        fig, axs = plt.subplots(2, 2, figsize=(12, 10))
+        fig.suptitle(title, fontsize=16, weight='bold')
 
         keys = cond.keys()
         for k in keys:
@@ -135,21 +135,34 @@ def plot_response_functions(results_file):
                 continue
             for i in range(2):
                 for j in range(2):
+                    ax = axs[i, j]
                     if i == j:
-                        offset = cond[k][i,j, 0]
+                        offset = cond[k][i, j, 0]
                     else:
                         offset = 0
-                    axs[i, j].plot(cond_omegas, func(cond[k][i, j] - offset), label='cond_' + k)
-                    axs[i, j].plot(pol_omegas, pol_omegas**2 * func(pol[k][i, j]), '--', label='pol_' + k)
-                    axs[i, j].set_title(f'i,j = {i,j}')
+                    ax.plot(
+                        cond_omegas, func(cond[k][i, j] - offset),
+                        label=f'cond_{k}', alpha=0.8, linewidth=2
+                    )
+                    ax.plot(
+                        pol_omegas, pol_omegas**2 * func(pol[k][i, j]),
+                        '--', label=f'pol_{k}', alpha=0.8, linewidth=2
+                    )
+                    ax.set_title(f'i, j = {i, j}', fontsize=12)
+                    ax.grid(alpha=0.3)
+                    if i == 1:
+                        ax.set_xlabel("Frequency (ω)", fontsize=10)
+                    if j == 0:
+                        ax.set_ylabel("Response", fontsize=10)
 
-        axs[0, 0].legend(loc="upper left")
-        plt.savefig(name)
+        axs[0, 0].legend(loc="best", fontsize=8, frameon=False)
+        plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to make room for the main title
+        plt.savefig(name, dpi=300)  # Save with higher resolution
         plt.close()
 
-    loop_plot(lambda x : x.imag, "imag_cond_pol_comparison.pdf")
-    loop_plot(lambda x : x.real, "real_cond_pol_comparison.pdf")
-    loop_plot(lambda x : jnp.abs(x), "abs_cond_pol_comparison.pdf")
+    loop_plot(lambda x: x.imag, "imag_cond_pol_comparison.pdf", "Imaginary Part Comparison")
+    loop_plot(lambda x: x.real, "real_cond_pol_comparison.pdf", "Real Part Comparison")
+    loop_plot(lambda x: jnp.abs(x), "abs_cond_pol_comparison.pdf", "Absolute Value Comparison")
     
 def plot_chirality_difference(results_file, keys = None):
     """plots excess chirality of the total response"""
@@ -191,9 +204,9 @@ def plot_chirality_difference(results_file, keys = None):
     plt.close()    
 
 
-def plot_chirality(results_file, keys=None, name = "chirality.pdf"):
+def plot_chirality(results_file, keys=None, name="chirality.pdf"):
     """
-    Plots the chirality of the total response.
+    Plots the chirality of the total response with enhanced visuals.
     
     Parameters:
     - results_file: str, path to the file containing the results.
@@ -203,18 +216,17 @@ def plot_chirality(results_file, keys=None, name = "chirality.pdf"):
     # Load data
     omegas, data, keys = load_data(results_file, keys)
     
-    # Set up the main plot
-    fig, ax = plt.subplots(figsize=(8, 6))
-    # plt.style.use('seaborn-darkgrid')  # Optional: use a specific style for better aesthetics
+    # Set up the main plot with a larger figure size
+    fig, ax = plt.subplots(figsize=(10, 7))
+    
+    # Filter out 'topological' keys
+    keys = [k for k in keys if 'topological' not in k]
 
-    keys = [k for k in keys if not 'topological' in k]
-
-    # Custom color palette and line styles
-    colors = plt.cm.plasma(np.linspace(0, 0.7, len(keys)))
+    # Define a custom color palette
+    colors = plt.cm.viridis(np.linspace(0, 0.8, len(keys)))
 
     # Iterate over each key to plot the corresponding data
     for i, key in enumerate(keys):
-        
         mat = data[key]
         mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
         mat = to_helicity(mat)
@@ -226,28 +238,39 @@ def plot_chirality(results_file, keys=None, name = "chirality.pdf"):
         left = np.abs(mat[0, :, :])
         right = np.abs(mat[1, ::-1, :])
 
-        
         # Normalize and compute chirality
         norm = lambda x: np.linalg.norm(x, axis=0)
         chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
         
-        # Plot the chirality with a custom color and line style
-        ax.plot(omegas, chi, label = r'$t_2 =$ ' + key.split("_")[-1] + ' eV', color=colors[i], linewidth=2)
+        # Plot the chirality with custom color and line style
+        ax.plot(
+            omegas, chi,
+            label=r'$t_2 =$ ' + key.split("_")[-1] + ' eV',
+            color=colors[i],
+            linewidth=2,
+            alpha=0.85
+        )
 
-    # Adding axis labels with larger fonts for readability
-    ax.set_xlabel(r'$\omega$ (eV)', fontsize=18)
-    ax.set_ylabel(r'$\chi$', fontsize=18)
-    
-    # Adding a legend with larger font size
-    ax.legend(loc="upper left", fontsize=14)
-    
-    # Adjusting tick parameters for better readability
-    ax.tick_params(axis='both', which='major', labelsize=14)
+    # Add axis labels with larger fonts
+    ax.set_xlabel(r'$\omega$ (eV)', fontsize=16, weight='bold')
+    ax.set_ylabel(r'$\chi$', fontsize=16, weight='bold')
 
-    # Tight layout for better spacing
+    # Add a legend with larger font size and frame turned off
+    ax.legend(loc="best", fontsize=12, frameon=False)
+
+    # Add a grid for better readability
+    ax.grid(alpha=0.4)
+
+    # Adjust tick parameters for consistency
+    ax.tick_params(axis='both', which='major', labelsize=12)
+
+    # Add a title to the plot
+    ax.set_title("Chirality of the Total Response", fontsize=18, weight='bold', pad=20)
+
+    # Optimize layout for better spacing
     plt.tight_layout()
-    
-    # Save the plot as a PDF with a higher DPI for publication quality
+
+    # Save the plot as a high-resolution PDF
     plt.savefig(name, dpi=300)
     plt.close()
 
@@ -277,7 +300,13 @@ def plot_chirality_topo(results_file, keys=None, name = "chirality_topo.pdf"):
         
         # Compute the real and imaginary parts
         mat_real, mat_imag = mat.real, mat.imag
-                    
+
+        label = r'total'
+        linestyle = '-'
+        if 'topo' in key:
+            linestyle = '--'
+            label = 'topological'
+            
         # Calculate chirality
         left = np.abs(mat[0, :, :])
         right = np.abs(mat[1, ::-1, :])
@@ -287,7 +316,7 @@ def plot_chirality_topo(results_file, keys=None, name = "chirality_topo.pdf"):
         chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
         
         # Plot the chirality with a custom color and line style
-        ax.plot(omegas, chi, label = r'$t_2 =$ ' + key.split("_")[-1] + ' eV', linewidth=2)
+        ax.plot(omegas, chi, label = label, linestyle = linestyle, linewidth=2)
 
     # Adding axis labels with larger fonts for readability
     ax.set_xlabel(r'$\omega$ (eV)', fontsize=18)
