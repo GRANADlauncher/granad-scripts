@@ -275,9 +275,9 @@ def plot_chirality(results_file, keys=None, name="chirality.pdf"):
     plt.close()
 
 
-def plot_chirality_topo(results_file, keys=None, name = "chirality_topo.pdf"):
+def plot_chirality_topo(results_file, keys=None, name="chirality_topo.pdf"):
     """
-    Plots the chirality of the total and topological response.
+    Plots the chirality of the total and topological response with enhanced visuals.
     
     Parameters:
     - results_file: str, path to the file containing the results.
@@ -287,13 +287,14 @@ def plot_chirality_topo(results_file, keys=None, name = "chirality_topo.pdf"):
     # Load data
     omegas, data, keys = load_data(results_file, keys)
     
-    # Set up the main plot
-    fig, ax = plt.subplots(figsize=(8, 6))
-    # plt.style.use('seaborn-darkgrid')  # Optional: use a specific style for better aesthetics
+    # Set up the main plot with a larger figure size
+    fig, ax = plt.subplots(figsize=(10, 7))
+
+    # Define color palette
+    colors = {"total": "blue", "topological": "red"}
 
     # Iterate over each key to plot the corresponding data
     for i, key in enumerate(keys):
-        
         mat = data[key]
         mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
         mat = to_helicity(mat)
@@ -301,12 +302,15 @@ def plot_chirality_topo(results_file, keys=None, name = "chirality_topo.pdf"):
         # Compute the real and imaginary parts
         mat_real, mat_imag = mat.real, mat.imag
 
-        label = r'total'
+        # Set line style and label
         linestyle = '-'
-        if 'topo' in key:
+        label = "Total"
+        color = colors["total"]
+        if "topo" in key:
             linestyle = '--'
-            label = 'topological'
-            
+            label = "Topological"
+            color = colors["topological"]
+        
         # Calculate chirality
         left = np.abs(mat[0, :, :])
         right = np.abs(mat[1, ::-1, :])
@@ -315,30 +319,43 @@ def plot_chirality_topo(results_file, keys=None, name = "chirality_topo.pdf"):
         norm = lambda x: np.linalg.norm(x, axis=0)
         chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
         
-        # Plot the chirality with a custom color and line style
-        ax.plot(omegas, chi, label = label, linestyle = linestyle, linewidth=2)
+        # Plot the chirality with custom color and line style
+        ax.plot(
+            omegas, chi,
+            label=label,
+            linestyle=linestyle,
+            linewidth=2,
+            color=color,
+            alpha=0.8
+        )
 
-    # Adding axis labels with larger fonts for readability
-    ax.set_xlabel(r'$\omega$ (eV)', fontsize=18)
-    ax.set_ylabel(r'$\chi$', fontsize=18)
-    
-    # Adding a legend with larger font size
-    ax.legend(loc="upper left", fontsize=14)
-    
-    # Adjusting tick parameters for better readability
-    ax.tick_params(axis='both', which='major', labelsize=14)
+    # Add axis labels with larger fonts
+    ax.set_xlabel(r'$\omega$ (eV)', fontsize=16, weight='bold')
+    ax.set_ylabel(r'$\chi$', fontsize=16, weight='bold')
 
-    # Tight layout for better spacing
+    # Add a title to the plot
+    ax.set_title("Chirality of Total and Topological Response", fontsize=18, weight='bold', pad=20)
+
+    # Add a legend with larger font size and a clean design
+    ax.legend(loc="best", fontsize=14, frameon=False)
+
+    # Add gridlines for better readability
+    ax.grid(alpha=0.4)
+
+    # Adjust tick parameters for consistency
+    ax.tick_params(axis='both', which='major', labelsize=12)
+
+    # Optimize layout for better spacing
     plt.tight_layout()
-    
-    # Save the plot as a PDF with a higher DPI for publication quality
+
+    # Save the plot as a high-resolution PDF
     plt.savefig(name, dpi=300)
     plt.close()
 
 
 def plot_power(results_file, keys=None):
     """
-    Plots the ratio of scattered to incoming power for different EM-field helicities.
+    Plots the ratio of scattered to incoming power for different EM-field helicities with enhanced visuals.
     
     Parameters:
     - results_file: str, path to the file containing the results.
@@ -349,13 +366,12 @@ def plot_power(results_file, keys=None):
     omegas, data, keys = load_data(results_file, keys)
     
     # Set up the plot with 2x2 subplots
-    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+    fig, axs = plt.subplots(2, 2, figsize=(12, 10))
     axs_flat = axs.flat
-    
+
+    # Define custom color palette and line styles
     colors = plt.cm.plasma(np.linspace(0, 0.7, len(keys)))    
     line_styles = ['-', '--', '-.', ':']
-    
-    # plt.style.use('seaborn-darkgrid')  # Optional: use a specific style for better aesthetics
 
     # Loop through each key to plot the data
     for i, key in enumerate(keys):
@@ -366,46 +382,59 @@ def plot_power(results_file, keys=None):
         # Compute the power in x channel due to y illumination
         p = np.abs(mat)**2
 
-        # Line style based on the presence of 'topological' in the key
+        # Skip 'topological' entries
         if 'topological' in key:
             continue
-        
-        # Select line style based on the presence of 'topological' in the key
+
+        # Select line style and color
         line_style = line_styles[i % len(line_styles)]        
         color = colors[i % len(colors)]        
         
-        # Normalizing power by the maximum value for plotting
+        # Normalize power by the maximum value for consistent scaling
         normalized_p = p / p.max()
         
-        # Plot on corresponding subplot
-        axs_flat[0].plot(omegas, normalized_p[0, 0, :], label=key.split("_")[-1], linestyle=line_style, linewidth=2, color = color)
-        axs_flat[1].plot(omegas, normalized_p[0, 1, :], linestyle=line_style, linewidth=2, color = color)
-        axs_flat[2].plot(omegas, normalized_p[1, 0, :], linestyle=line_style, linewidth=2, color = color)
-        axs_flat[3].plot(omegas, normalized_p[1, 1, :], linestyle=line_style, linewidth=2, color = color)
+        # Plot on corresponding subplots
+        axs_flat[0].plot(
+            omegas, normalized_p[0, 0, :], label=key.split("_")[-1],
+            linestyle=line_style, linewidth=2, color=color, alpha=0.85
+        )
+        axs_flat[1].plot(
+            omegas, normalized_p[0, 1, :],
+            linestyle=line_style, linewidth=2, color=color, alpha=0.85
+        )
+        axs_flat[2].plot(
+            omegas, normalized_p[1, 0, :],
+            linestyle=line_style, linewidth=2, color=color, alpha=0.85
+        )
+        axs_flat[3].plot(
+            omegas, normalized_p[1, 1, :],
+            linestyle=line_style, linewidth=2, color=color, alpha=0.85
+        )
 
-    # Adding labels to each subplot
-    axs_flat[0].set_ylabel(r"$\frac{P_{++}}{P_{\text{max}}}$", fontsize=14)
-    axs_flat[1].set_ylabel(r"$\frac{P_{+-}}{P_{\text{max}}}$", fontsize=14)
-    axs_flat[2].set_ylabel(r"$\frac{P_{-+}}{P_{\text{max}}}$", fontsize=14)
-    axs_flat[3].set_ylabel(r"$\frac{P_{--}}{P_{\text{max}}}$", fontsize=14)
+    # Adding labels and titles to subplots
+    ylabel = r"$\frac{P_{%s%s}}{P_{\text{max}}}$"
+    titles = [
+        r"Scattered power from + to +",
+        r"Scattered power from + to -",
+        r"Scattered power from - to +",
+        r"Scattered power from - to -"
+    ]
+    for idx, ax in enumerate(axs_flat):
+        ax.set_ylabel(ylabel % ("+" if idx < 2 else "-", "+" if idx % 2 == 0 else "-"), fontsize=14)
+        ax.set_xlabel(r'$\omega$ (eV)', fontsize=14)
+        ax.set_title(titles[idx], fontsize=14, pad=10)
+        ax.grid(alpha=0.4)
+        ax.tick_params(axis='both', which='major', labelsize=12)
 
-    axs_flat[0].set_xlabel(r'$\omega$ (eV)', fontsize=14)
-    axs_flat[1].set_xlabel(r'$\omega$ (eV)', fontsize=14)
-    axs_flat[2].set_xlabel(r'$\omega$ (eV)', fontsize=14)
-    axs_flat[3].set_xlabel(r'$\omega$ (eV)', fontsize=14)
-    
-    # Set titles for each subplot (optional, if needed for clarity)
-    axs_flat[0].set_title(r'Scattered power from + to +', fontsize=12)
-    axs_flat[1].set_title(r'Scattered power from + to -', fontsize=12)
-    axs_flat[2].set_title(r'Scattered power from - to +', fontsize=12)
-    axs_flat[3].set_title(r'Scattered power from - to -', fontsize=12)
-
-    # Only add the legend to the first subplot
-    axs_flat[0].legend(loc="upper right", fontsize=12)
+    # Add legend to the first subplot
+    axs_flat[0].legend(loc="best", fontsize=12, frameon=False)
 
     # Adjust layout for better spacing
-    plt.tight_layout()
-    
+    plt.tight_layout(rect=[0, 0, 1, 0.97])
+
+    # Add a main title to the entire figure
+    fig.suptitle("Normalized Scattered Power Ratios", fontsize=16, weight="bold")
+
     # Save the plot as a PDF with high resolution
     plt.savefig("power.pdf", dpi=300)
     plt.close()
@@ -442,27 +471,58 @@ def rpa_response(flake, results_file, cs):
     jnp.savez(results_file, cond = res, omegas = omegas, cs = cs)
 
 def plot_rpa_response(results_file):
+    """
+    Plots the RPA response with enhanced aesthetics and visual clarity.
+    
+    Parameters:
+    - results_file: str, path to the file containing the RPA response data.
+    """
     with jnp.load(results_file) as data:
         data = dict(data)
         omegas = data["omegas"]
         cond = data["cond"][:, :2, :2, :]
         cs = data["cs"]
         
+    # Set up the figure
+    plt.figure(figsize=(10, 7))
+
+    # Define a custom color palette
+    colors = plt.cm.viridis(np.linspace(0, 1, len(cs)))
+
+    # Loop through each Coulomb strength and plot the response
     for i, coulomb_strength in enumerate(cs):
         mat = to_helicity(cond[i])
 
+        # Calculate left and right-handed responses
         left = np.abs(mat[0, :, :])
         right = np.abs(mat[1, ::-1, :])
 
-        n = lambda x : jnp.linalg.norm(x, axis = 0) 
+        # Compute chirality
+        n = lambda x: jnp.linalg.norm(x, axis=0)
         chi = n(left - right) / jnp.sqrt(n(left)**2 + n(right)**2)
 
-        plt.plot(omegas, chi, label = fr'$\lambda$ = {coulomb_strength}')
+        # Plot the response
+        plt.plot(
+            omegas, chi, label=fr'$\lambda = {coulomb_strength}$',
+            color=colors[i], linewidth=2, alpha=0.85
+        )
 
-    plt.xlabel(r'$\omega (eV)$')
-    plt.ylabel(r'$\chi$')
-    plt.legend(loc = "upper left")
-    plt.savefig("rpa.pdf")
+    # Add axis labels
+    plt.xlabel(r'$\omega$ (eV)', fontsize=16, weight='bold')
+    plt.ylabel(r'$\chi$', fontsize=16, weight='bold')
+
+    # Add a legend
+    plt.legend(loc="best", fontsize=12, frameon=False)
+
+    # Add gridlines for clarity
+    plt.grid(alpha=0.4)
+
+    # Add a title to the plot
+    plt.title("RPA Response vs. Frequency", fontsize=18, weight='bold', pad=15)
+
+    # Optimize layout and save the plot as a high-resolution PDF
+    plt.tight_layout()
+    plt.savefig("rpa.pdf", dpi=300)
     plt.close()
 
 
