@@ -366,7 +366,7 @@ def plot_power(results_file, keys=None):
     omegas, data, keys = load_data(results_file, keys)
     
     # Set up the plot with 2x2 subplots
-    fig, axs = plt.subplots(2, 2, figsize=(12, 10))
+    fig, axs = plt.subplots(2, 1, figsize=(12, 10))
     axs_flat = axs.flat
 
     # Define custom color palette and line styles
@@ -399,14 +399,6 @@ def plot_power(results_file, keys=None):
             linestyle=line_style, linewidth=2, color=color, alpha=0.85
         )
         axs_flat[1].plot(
-            omegas, normalized_p[0, 1, :],
-            linestyle=line_style, linewidth=2, color=color, alpha=0.85
-        )
-        axs_flat[2].plot(
-            omegas, normalized_p[1, 0, :],
-            linestyle=line_style, linewidth=2, color=color, alpha=0.85
-        )
-        axs_flat[3].plot(
             omegas, normalized_p[1, 1, :],
             linestyle=line_style, linewidth=2, color=color, alpha=0.85
         )
@@ -415,8 +407,6 @@ def plot_power(results_file, keys=None):
     ylabel = r"$\frac{P_{%s%s}}{P_{\text{max}}}$"
     titles = [
         r"Scattered power from + to +",
-        r"Scattered power from + to -",
-        r"Scattered power from - to +",
         r"Scattered power from - to -"
     ]
     for idx, ax in enumerate(axs_flat):
@@ -595,7 +585,7 @@ RPA_FILE = 'rpa_triangle_2.npz'
 RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(42))
 RPA_VALS = [0, 0.1, 0.5, 1.0]
 
-if __name__ == '__main__':
+if __name__ == '__main__':    
     ip_response(IP_ARGS, LRT_FILE)
 
     # figure chirality
