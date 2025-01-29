@@ -17,14 +17,17 @@
 # $\sum_{<<i,j>>, s} I_{ij}c^{\dagger}_{i,s} c_{j, s}$
 # $(s \times d^{ij}) = d^{ij}_x \sigma_y - d^{ij}_y \sigma_x$
 
-import matplotlib.pyplot as plt
-import jax.numpy as jnp
-from granad import *
-
 # main take away:
 # two edge state types: one decays over much space, the other over short space
 # both combine to make the system trivial
 # idea: let long range states hybridize, forming bonding-antibonding pairs, removing them from the spectrum, leaving only short-range edge states
+
+import matplotlib.pyplot as plt
+import jax.numpy as jnp
+from granad import *
+
+# all atrocities
+from sim import *
 
 # nn hopping
 t = 1.0
@@ -217,11 +220,18 @@ def plot_spin_polarization(flake, eps):
 # diffs = [ x[i].position - y[i].position for i in range(len(y))]
 # print(jnp.abs(jnp.array(diffs)).max())
 
+# lookie lookie
 flake = material.cut_flake(Rectangle(20, 100, armchair = False), plot = False)
 flake.set_electrons(len(flake) // 2)
 flake.set_open_shell()
 flake.show_energies(name = f"{savedir}energies.pdf")
-plot_spin_polarization(flake, 0.1)
-
 
 # plot occupations for spin up / spin down
+plot_spin_polarization(flake, 0.1)
+
+# lrt
+args_list = [(flake, "soc")]
+ip_response(args_list, "soc.npz")
+
+# figure chirality
+plot_chirality("cond_soc.npz")
