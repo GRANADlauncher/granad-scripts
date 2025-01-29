@@ -31,8 +31,8 @@ def get_haldane_graphene(t1, t2, delta):
             [1, 0, 0],
             [-0.5, jnp.sqrt(3)/2, 0]
         ])
-        .add_orbital_species("pz1", l=1, atom='C')
-        .add_orbital_species("pz2", l=1, atom='C')
+        .add_orbital_species("pz1", atom='C')
+        .add_orbital_species("pz2", atom='C')
         .add_orbital(position=(0, 0), tag="sublattice_1", species="pz1")
         .add_orbital(position=(-1/3, -2/3), tag="sublattice_2", species="pz2")
         .add_interaction(
