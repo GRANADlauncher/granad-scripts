@@ -195,7 +195,7 @@ material = (
 #     print(key, f)
 
 # full model
-savedir = "/tmp/figs/"
+savedir = ""
 def plot_spin_polarization(flake, eps):
     """plots spin polarization of all states captured in energy window +- eps around 0"""
 
