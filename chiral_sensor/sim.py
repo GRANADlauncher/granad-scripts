@@ -578,14 +578,15 @@ def scf_loop(flake, U, mixing, limit, max_steps):
             ham_0 + U * jnp.diag(jnp.diag(rho_up)))
 
 
-LRT_FILE = 'lrt.npz'
-IP_ARGS = [ (get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(42, armchair = True)), f"haldane_graphene_{t2}") for (t2, delta) in [(0.0, 0.0), (0.05, 1), (0.1, 1), (0.2, 1)] ]
+if __name__ == '__main__':
+    
+    LRT_FILE = 'lrt.npz'
+    IP_ARGS = [ (get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(42, armchair = True)), f"haldane_graphene_{t2}") for (t2, delta) in [(0.0, 0.0), (0.05, 1), (0.1, 1), (0.2, 1)] ]
 
-RPA_FILE = 'rpa_triangle_2.npz'
-RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(42))
-RPA_VALS = [0, 0.1, 0.5, 1.0]
+    RPA_FILE = 'rpa_triangle_2.npz'
+    RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(42))
+    RPA_VALS = [0, 0.1, 0.5, 1.0]
 
-if __name__ == '__main__':    
     ip_response(IP_ARGS, LRT_FILE)
 
     # figure chirality
