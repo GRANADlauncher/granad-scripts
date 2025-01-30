@@ -212,7 +212,7 @@ def plot_spin_polarization(flake, eps):
 
     for i in state_idxs:
         diff = flake.eigenvectors[up_idxs, i] - flake.eigenvectors[down_idxs, i]
-        plotting_list.show_2d(display = diff, name = f'{savedir}{i}.pdf', indicate_atoms = False, mode = "two-signed")
+        plotting_list.show_2d(display = diff, name = f'{savedir}{i}.pdf', indicate_atoms = False, mode = "two-signed", circle_scale = 250)
     
 # # check whether different spins are at same position if on same sublattice in index order in orbital list
 # x = flake.filter_orbs("A_-", Orbital)
