@@ -197,12 +197,12 @@ material = (
 def get_edge_idxs(flake):
     delta = flake.positions - flake.positions[:, None, :]
     distances = jnp.round(jnp.linalg.norm(delta, axis = -1), 8)
-    
-    # nn distance is 2nd smallest distance, unique sorts and makes unique
-    min_d = jnp.unique(distances)[0][1]
 
-    # who gets less than 3
-    return jnp.argwhere(jnp.sum(distances == min_d, axis = 1) < 3)[0]
+    # nn distance is 2nd smallest distance, unique sorts and makes unique
+    min_d = jnp.unique(distances)[1]
+
+    # double orbitals => double neighbors, cuttoff is at 3 => 2 * 3
+    return jnp.argwhere(jnp.sum(distances == min_d, axis = 1) < 6)[0]
     
 
 # full model
