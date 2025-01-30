@@ -202,7 +202,7 @@ def get_edge_idxs(flake):
     min_d = jnp.unique(distances)[1]
 
     # double orbitals => double neighbors, cuttoff is at 3 => 2 * 3
-    return jnp.argwhere(jnp.sum(distances == min_d, axis = 1) < 6)[0]
+    return jnp.argwhere(jnp.sum(distances == min_d, axis = 1) < 6)
     
 
 # full model
@@ -241,14 +241,14 @@ def plot_spin_polarization(flake, eps):
 # print(jnp.abs(jnp.array(diffs)).max())
 
 # lookie lookie
-flake = material.cut_flake(Rectangle(20, 100, armchair = False), plot = False)
+flake = material.cut_flake(Rectangle(20, 20, armchair = False), plot = False)
 flake.set_electrons(len(flake) // 2)
 flake.set_open_shell()
 flake.show_energies(name = f"{savedir}energies.pdf")
 
 # plot occupations for spin up / spin down
 plot_spin_polarization(flake, 0.1)
-
+xx
 # lrt
 args_list = [(flake, "soc")]
 ip_response(args_list, "soc.npz")
