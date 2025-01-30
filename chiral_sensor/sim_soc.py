@@ -194,15 +194,14 @@ material = (
 # for key, f in flake.couplings.hamiltonian.group_id_items():
 #     print(key, f)
 
-def get_edge_idxs(flake):
-    delta = flake.positions - flake.positions[:, None, :]
+def get_edge_idxs(positions):
+    delta = positions - positions[:, None, :]
     distances = jnp.round(jnp.linalg.norm(delta, axis = -1), 8)
 
     # nn distance is 2nd smallest distance, unique sorts and makes unique
     min_d = jnp.unique(distances)[1]
 
-    # double orbitals => double neighbors, cuttoff is at 3 => 2 * 3
-    return jnp.argwhere(jnp.sum(distances == min_d, axis = 1) < 6)
+    return jnp.argwhere(jnp.sum(distances == min_d, axis = 1) < 3)
     
 
 # full model
@@ -222,17 +221,12 @@ def plot_spin_polarization(flake, eps):
     plotting_list = OrbitalList(flake.filter_orbs("A_-", Orbital) + flake.filter_orbs("B_-", Orbital))
 
     # edges only
-    edge_idxs = get_edge_idxs(flake)
+    edge_idxs = get_edge_idxs(plotting_list.positions)
     for i in state_idxs:
         diff = flake.eigenvectors[up_idxs, i] - flake.eigenvectors[down_idxs, i]
         display = jnp.zeros_like(diff)
         display = display.at[edge_idxs].set(diff[edge_idxs])
-        # display =  jnp.piecewise(        
-        #     display,
-        #     [jnp.abs(display) < eps, jnp.logical_and(display < 0, jnp.abs(display) >= eps), jnp.logical_and(display > 0, jnp.abs(display) >= eps)],
-        #     [lambda x : jnp.int8(0), lambda x : -jnp.int8(1), lambda x : jnp.int8(1) ]
-        # )
-        plotting_list.show_2d(display = display, name = f'{savedir}{i}.pdf', indicate_atoms = False, mode = "two-signed", circle_scale = 250)
+        plotting_list.show_2d(display = display, name = f'{savedir}{i}.pdf', indicate_atoms = False, mode = "two-signed", circle_scale = 250, show_index = False)
     
 # # check whether different spins are at same position if on same sublattice in index order in orbital list
 # x = flake.filter_orbs("A_-", Orbital)
