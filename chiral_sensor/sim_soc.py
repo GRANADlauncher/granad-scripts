@@ -226,8 +226,8 @@ def plot_spin_polarization(flake, eps):
     for i in state_idxs:
         diff = flake.eigenvectors[up_idxs, i] - flake.eigenvectors[down_idxs, i]
         display = jnp.zeros_like(diff)
-        display.at[edge_idxs].set(diff[edge_idxs])
-        # display =  jnp.piecewise(
+        display = display.at[edge_idxs].set(diff[edge_idxs])
+        # display =  jnp.piecewise(        
         #     display,
         #     [jnp.abs(display) < eps, jnp.logical_and(display < 0, jnp.abs(display) >= eps), jnp.logical_and(display > 0, jnp.abs(display) >= eps)],
         #     [lambda x : jnp.int8(0), lambda x : -jnp.int8(1), lambda x : jnp.int8(1) ]
@@ -241,7 +241,7 @@ def plot_spin_polarization(flake, eps):
 # print(jnp.abs(jnp.array(diffs)).max())
 
 # lookie lookie
-flake = material.cut_flake(Rectangle(20, 20, armchair = False), plot = False)
+flake = material.cut_flake(Rectangle(20, 100, armchair = False), plot = False)
 flake.set_electrons(len(flake) // 2)
 flake.set_open_shell()
 flake.show_energies(name = f"{savedir}energies.pdf")
