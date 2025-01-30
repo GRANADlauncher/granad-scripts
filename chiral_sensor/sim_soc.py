@@ -210,8 +210,14 @@ def plot_spin_polarization(flake, eps):
     # only one orbital species for plotting the atoms
     plotting_list = OrbitalList(flake.filter_orbs("A_-", Orbital) + flake.filter_orbs("B_-", Orbital))
 
+    eps = 1e-1
     for i in state_idxs:
         diff = flake.eigenvectors[up_idxs, i] - flake.eigenvectors[down_idxs, i]
+        diff =  jnp.piecewise(
+            diff,
+            [jnp.abs(diff) < eps, jnp.logical_and(diff < 0, jnp.abs(diff) >= eps), jnp.logical_and(diff > 0, jnp.abs(diff) >= eps)],
+            [lambda x : jnp.int8(0), lambda x : -jnp.int8(1), lambda x : jnp.int8(1) ]
+        )
         plotting_list.show_2d(display = diff, name = f'{savedir}{i}.pdf', indicate_atoms = False, mode = "two-signed", circle_scale = 250)
     
 # # check whether different spins are at same position if on same sublattice in index order in orbital list
