@@ -194,6 +194,17 @@ material = (
 # for key, f in flake.couplings.hamiltonian.group_id_items():
 #     print(key, f)
 
+def get_edge_idxs(flake):
+    delta = flake.positions - flake.positions[:, None, :]
+    distances = jnp.round(jnp.linalg.norm(delta, axis = -1), 8)
+    
+    # nn distance is 2nd smallest distance, unique sorts and makes unique
+    min_d = jnp.unique(distances)[0][1]
+
+    # who gets less than 3
+    return jnp.argwhere(jnp.sum(distances == min_d, axis = 1) < 3)[0]
+    
+
 # full model
 savedir = ""
 def plot_spin_polarization(flake, eps):
@@ -210,15 +221,18 @@ def plot_spin_polarization(flake, eps):
     # only one orbital species for plotting the atoms
     plotting_list = OrbitalList(flake.filter_orbs("A_-", Orbital) + flake.filter_orbs("B_-", Orbital))
 
-    eps = 1e-1
+    # edges only
+    edge_idxs = get_edge_idxs(flake)
     for i in state_idxs:
         diff = flake.eigenvectors[up_idxs, i] - flake.eigenvectors[down_idxs, i]
-        diff =  jnp.piecewise(
-            diff,
-            [jnp.abs(diff) < eps, jnp.logical_and(diff < 0, jnp.abs(diff) >= eps), jnp.logical_and(diff > 0, jnp.abs(diff) >= eps)],
-            [lambda x : jnp.int8(0), lambda x : -jnp.int8(1), lambda x : jnp.int8(1) ]
-        )
-        plotting_list.show_2d(display = diff, name = f'{savedir}{i}.pdf', indicate_atoms = False, mode = "two-signed", circle_scale = 250)
+        display = jnp.zeros_like(diff)
+        display.at[edge_idxs].set(diff[edge_idxs])
+        # display =  jnp.piecewise(
+        #     display,
+        #     [jnp.abs(display) < eps, jnp.logical_and(display < 0, jnp.abs(display) >= eps), jnp.logical_and(display > 0, jnp.abs(display) >= eps)],
+        #     [lambda x : jnp.int8(0), lambda x : -jnp.int8(1), lambda x : jnp.int8(1) ]
+        # )
+        plotting_list.show_2d(display = display, name = f'{savedir}{i}.pdf', indicate_atoms = False, mode = "two-signed", circle_scale = 250)
     
 # # check whether different spins are at same position if on same sublattice in index order in orbital list
 # x = flake.filter_orbs("A_-", Orbital)
