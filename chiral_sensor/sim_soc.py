@@ -237,7 +237,7 @@ def plot_spin_polarization(flake, eps):
 sizes = [20, 40, 80, 100, 120]
 
 for size in sizes:
-    name = f"cond_soc_{size}"
+    name = f"soc_{size}"
 
     # lookie lookie
     flake = material.cut_flake(Rectangle(20, size, armchair = False), plot = False)
