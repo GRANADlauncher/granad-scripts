@@ -235,22 +235,19 @@ def plot_spin_polarization(flake, eps):
 # print(jnp.abs(jnp.array(diffs)).max())
 
 sizes = [20, 40, 80, 100, 120]
-
-for size in sizes:
-    name = f"soc_{size}"
-
-    # lookie lookie
+def get_flake(size):    
     flake = material.cut_flake(Rectangle(20, size, armchair = False), plot = False)
     flake.set_electrons(len(flake) // 2)
     flake.set_open_shell()
     flake.show_energies(name = f"{savedir}energies_{size}.pdf")
+    return flake
 
-    # plot occupations for spin up / spin down
-    plot_spin_polarization(flake, 0.1)
+args_list = [(get_flake(size), f"soc_{size}") for size in sizes]
 
-    # lrt
-    args_list = [(flake, "soc")]
-    ip_response(args_list, name + ".npz")
+name = "soc"
 
-    # figure chirality
-    plot_chirality(f"cond_{name}" + ".npz")
+# lrt
+ip_response(args_list, name + ".npz")
+
+# figure chirality
+plot_chirality(f"cond_{name}" + ".npz")
