@@ -253,4 +253,4 @@ for size in sizes:
     ip_response(args_list, name + ".npz")
 
     # figure chirality
-    plot_chirality(name + ".npz")
+    plot_chirality(f"cond_{name}" + ".npz")
