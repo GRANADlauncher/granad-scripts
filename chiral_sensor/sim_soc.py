@@ -234,18 +234,23 @@ def plot_spin_polarization(flake, eps):
 # diffs = [ x[i].position - y[i].position for i in range(len(y))]
 # print(jnp.abs(jnp.array(diffs)).max())
 
-# lookie lookie
-flake = material.cut_flake(Rectangle(20, 100, armchair = False), plot = False)
-flake.set_electrons(len(flake) // 2)
-flake.set_open_shell()
-flake.show_energies(name = f"{savedir}energies.pdf")
+sizes = [20, 40, 80, 100, 120]
 
-# plot occupations for spin up / spin down
-plot_spin_polarization(flake, 0.1)
-xx
-# lrt
-args_list = [(flake, "soc")]
-ip_response(args_list, "soc.npz")
+for size in sizes:
+    name = f"cond_soc_{size}"
 
-# figure chirality
-plot_chirality("cond_soc.npz")
+    # lookie lookie
+    flake = material.cut_flake(Rectangle(20, size, armchair = False), plot = False)
+    flake.set_electrons(len(flake) // 2)
+    flake.set_open_shell()
+    flake.show_energies(name = f"{savedir}energies_{size}.pdf")
+
+    # plot occupations for spin up / spin down
+    plot_spin_polarization(flake, 0.1)
+
+    # lrt
+    args_list = [(flake, "soc")]
+    ip_response(args_list, name + ".npz")
+
+    # figure chirality
+    plot_chirality(name + ".npz")
