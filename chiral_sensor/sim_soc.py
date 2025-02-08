@@ -29,137 +29,139 @@ from granad import *
 # all atrocities
 from sim import *
 
-# nn hopping
-t = 1.0
-# onsite diff
-onsite = 0.1 * t
+def get_material(scale = 1, scale_2 = 1):
+    # nn hopping
+    t = 1.0
+    # onsite diff
+    onsite = 0.1 * t
 
-# intrinsic soc, couples same spins, is >0/<0 for (+,+) / (-,-)
-# uniform, i.e. no difference between sublattices => same spin
-# staggered: lambda_a = - lambda_b => opposite spin
-scale = 1
-lambda_a = scale * 1j * 0.06 * t
-lambda_b = -scale * 1j * 0.06 * t
+    # intrinsic soc, couples same spins, is >0/<0 for (+,+) / (-,-)
+    # uniform, i.e. no difference between sublattices => same spin
+    # staggered: lambda_a = - lambda_b => opposite spin
+    lambda_a = scale * 1j * 0.06 * t
+    lambda_b = -scale * 1j * 0.06 * t
 
-# rashba soc, couples opposite spins,
-scale_2 = 1
-lambda_r = scale_2 * 1j * 0.05 * t
+    # rashba soc, couples opposite spins,
+    lambda_r = scale_2 * 1j * 0.05 * t
 
-# needed for rashba coupling
-nn_distance_vecs_normed = jnp.array([[-0.8660254,  0.5      ,  0.       ],
-                                     [ 0.8660254,  0.5      ,  0.       ],
-                                     [ 0.       , -1.       ,  0.       ]], dtype=float)
+    # needed for rashba coupling
+    nn_distance_vecs_normed = jnp.array([[-0.8660254,  0.5      ,  0.       ],
+                                         [ 0.8660254,  0.5      ,  0.       ],
+                                         [ 0.       , -1.       ,  0.       ]], dtype=float)
 
-nn_distance_vecs =  jnp.array([[-1.23,     0.71014083,  0.        ],
-                               [ 1.23,       0.71014083,  0.        ],
-                               [ 0.,         -1.42028166,  0.        ]])
+    nn_distance_vecs =  jnp.array([[-1.23,     0.71014083,  0.        ],
+                                   [ 1.23,       0.71014083,  0.        ],
+                                   [ 0.,         -1.42028166,  0.        ]])
 
 
-material = (
-    Material("soc_graphene")
-    .lattice_constant(2.46)
-    .lattice_basis([
-        [1, 0, 0],
-        [-0.5, jnp.sqrt(3)/2, 0]
-    ])
-    .add_orbital_species("A_up", atom='C')
-    .add_orbital_species("B_up", atom='C')
-    .add_orbital_species("A_down", atom='C')
-    .add_orbital_species("B_down", atom='C')
-    .add_orbital(position=(0, 0), tag="A_+", species="A_up")
-    .add_orbital(position=(0, 0), tag="A_-", species="A_down")
-    .add_orbital(position=(-1/3, -2/3), tag="B_+", species="B_up")
-    .add_orbital(position=(-1/3, -2/3), tag="B_-", species="B_down")    
-    .add_interaction(
-        "hamiltonian",
-        participants=("A_up", "B_up"),
-        parameters= [t],
+    material = (
+        Material("soc_graphene")
+        .lattice_constant(2.46)
+        .lattice_basis([
+            [1, 0, 0],
+            [-0.5, jnp.sqrt(3)/2, 0]
+        ])
+        .add_orbital_species("A_up", atom='C')
+        .add_orbital_species("B_up", atom='C')
+        .add_orbital_species("A_down", atom='C')
+        .add_orbital_species("B_down", atom='C')
+        .add_orbital(position=(0, 0), tag="A_+", species="A_up")
+        .add_orbital(position=(0, 0), tag="A_-", species="A_down")
+        .add_orbital(position=(-1/3, -2/3), tag="B_+", species="B_up")
+        .add_orbital(position=(-1/3, -2/3), tag="B_-", species="B_down")    
+        .add_interaction(
+            "hamiltonian",
+            participants=("A_up", "B_up"),
+            parameters= [t],
+        )
+        .add_interaction(
+            "hamiltonian",
+            participants=("A_down", "B_down"),
+            parameters= [t],
+        )
+        .add_interaction(
+            "hamiltonian",
+            participants=("A_up", "B_down"),
+            # rashba soc, couples opposite spins like \lambda_R c^{\dagger} \begin{pmatrix} 0 & d^{ij}_x - i d^{ij}_y \\ d^{ij}_x + i d^{ij}_y \end{pmatrix} c => +- couples with d^{ij}_x + i d^{ij}_y, -+ couples with d^{ij}_x - i d^{ij}_y
+            parameters= [
+                nn_distance_vecs[0].tolist() + [lambda_r * (nn_distance_vecs_normed[0, 0].item() - 1j*nn_distance_vecs_normed[0, 1].item())],
+                nn_distance_vecs[1].tolist() + [lambda_r * (nn_distance_vecs_normed[1, 0].item() - 1j*nn_distance_vecs_normed[1, 1].item())],
+                nn_distance_vecs[2].tolist() + [lambda_r * (nn_distance_vecs_normed[2, 0].item() - 1j*nn_distance_vecs_normed[2, 1].item())],
+            ],
+        )
+        .add_interaction(
+            "hamiltonian",
+            participants=("A_down", "B_up"),
+            # rashba soc, couples opposite spins like \lambda_R c^{\dagger} \begin{pmatrix} 0 & d^{ij}_x - i d^{ij}_y \\ d^{ij}_x + i d^{ij}_y \end{pmatrix} c => +- couples with d^{ij}_x + i d^{ij}_y, -+ couples with d^{ij}_x - i d^{ij}_y
+            parameters= [
+                nn_distance_vecs[0].tolist() + [lambda_r * (nn_distance_vecs_normed[0, 0].item() + 1j*nn_distance_vecs_normed[0, 1].item())],
+                nn_distance_vecs[1].tolist() + [lambda_r * (nn_distance_vecs_normed[1, 0].item() + 1j*nn_distance_vecs_normed[1, 1].item())],
+                nn_distance_vecs[2].tolist() + [lambda_r * (nn_distance_vecs_normed[2, 0].item() + 1j*nn_distance_vecs_normed[2, 1].item())],
+            ],
+        )
+        .add_interaction(
+            "hamiltonian",
+            participants=("A_down", "A_down"),
+            # this is like [vec, hopping]
+            parameters=[                
+                [0, 0, 0, onsite], # onsite, A gets positive
+                # hoppings positive if clockwise, spin-diagonal, different spins get different signs, down gets minus
+                [-2.46, 0, 0, -jnp.conj(lambda_a)], 
+                [2.46, 0, 0, -lambda_a],
+                [2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, -jnp.conj(lambda_a)],
+                [-2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, -lambda_a],
+                [2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, -jnp.conj(lambda_a)],
+                [-2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, -lambda_a]
+            ],
+        )
+        .add_interaction(
+            "hamiltonian",
+            participants=("A_up", "A_up"),
+            # this is like [vec, hopping]
+            parameters=[                
+                [0, 0, 0, onsite], # onsite, A gets positive
+                # hoppings positive if clockwise, spin-diagonal, different spins get different signs, down gets minus
+                [-2.46, 0, 0, jnp.conj(lambda_a)], 
+                [2.46, 0, 0, lambda_a],
+                [2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, jnp.conj(lambda_a)],
+                [-2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, lambda_a],
+                [2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, jnp.conj(lambda_a)],
+                [-2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, lambda_a]
+            ],
+        )
+        .add_interaction(
+            "hamiltonian",
+            participants=("B_down", "B_down"),
+            # this is like [vec, hopping]
+            parameters=[                
+                [0, 0, 0, -onsite], # onsite, A gets positive
+                # hoppings positive if clockwise, spin-diagonal, different spins get different signs, down gets minus
+                [-2.46, 0, 0, -jnp.conj(lambda_b)], 
+                [2.46, 0, 0, -lambda_b],
+                [2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, -jnp.conj(lambda_b)],
+                [-2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, -lambda_b],
+                [2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, -jnp.conj(lambda_b)],
+                [-2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, -lambda_b]
+            ],
+        )
+        .add_interaction(
+            "hamiltonian",
+            participants=("B_up", "B_up"),
+            parameters=[                
+                [0, 0, 0, -onsite], # onsite, A gets positive
+                # hoppings positive if clockwise, spin-diagonal, different spins get different signs, down gets minus
+                [-2.46, 0, 0, jnp.conj(lambda_b)], 
+                [2.46, 0, 0, lambda_b],
+                [2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, jnp.conj(lambda_b)],
+                [-2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, lambda_b],
+                [2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, jnp.conj(lambda_b)],
+                [-2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, lambda_b]
+            ],
+        )
     )
-    .add_interaction(
-        "hamiltonian",
-        participants=("A_down", "B_down"),
-        parameters= [t],
-    )
-    .add_interaction(
-        "hamiltonian",
-        participants=("A_up", "B_down"),
-        # rashba soc, couples opposite spins like \lambda_R c^{\dagger} \begin{pmatrix} 0 & d^{ij}_x - i d^{ij}_y \\ d^{ij}_x + i d^{ij}_y \end{pmatrix} c => +- couples with d^{ij}_x + i d^{ij}_y, -+ couples with d^{ij}_x - i d^{ij}_y
-        parameters= [
-            nn_distance_vecs[0].tolist() + [lambda_r * (nn_distance_vecs_normed[0, 0].item() - 1j*nn_distance_vecs_normed[0, 1].item())],
-            nn_distance_vecs[1].tolist() + [lambda_r * (nn_distance_vecs_normed[1, 0].item() - 1j*nn_distance_vecs_normed[1, 1].item())],
-            nn_distance_vecs[2].tolist() + [lambda_r * (nn_distance_vecs_normed[2, 0].item() - 1j*nn_distance_vecs_normed[2, 1].item())],
-        ],
-    )
-    .add_interaction(
-        "hamiltonian",
-        participants=("A_down", "B_up"),
-        # rashba soc, couples opposite spins like \lambda_R c^{\dagger} \begin{pmatrix} 0 & d^{ij}_x - i d^{ij}_y \\ d^{ij}_x + i d^{ij}_y \end{pmatrix} c => +- couples with d^{ij}_x + i d^{ij}_y, -+ couples with d^{ij}_x - i d^{ij}_y
-        parameters= [
-            nn_distance_vecs[0].tolist() + [lambda_r * (nn_distance_vecs_normed[0, 0].item() + 1j*nn_distance_vecs_normed[0, 1].item())],
-            nn_distance_vecs[1].tolist() + [lambda_r * (nn_distance_vecs_normed[1, 0].item() + 1j*nn_distance_vecs_normed[1, 1].item())],
-            nn_distance_vecs[2].tolist() + [lambda_r * (nn_distance_vecs_normed[2, 0].item() + 1j*nn_distance_vecs_normed[2, 1].item())],
-        ],
-    )
-    .add_interaction(
-        "hamiltonian",
-        participants=("A_down", "A_down"),
-        # this is like [vec, hopping]
-        parameters=[                
-            [0, 0, 0, onsite], # onsite, A gets positive
-            # hoppings positive if clockwise, spin-diagonal, different spins get different signs, down gets minus
-            [-2.46, 0, 0, -jnp.conj(lambda_a)], 
-            [2.46, 0, 0, -lambda_a],
-            [2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, -jnp.conj(lambda_a)],
-            [-2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, -lambda_a],
-            [2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, -jnp.conj(lambda_a)],
-            [-2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, -lambda_a]
-        ],
-    )
-    .add_interaction(
-        "hamiltonian",
-        participants=("A_up", "A_up"),
-        # this is like [vec, hopping]
-        parameters=[                
-            [0, 0, 0, onsite], # onsite, A gets positive
-            # hoppings positive if clockwise, spin-diagonal, different spins get different signs, down gets minus
-            [-2.46, 0, 0, jnp.conj(lambda_a)], 
-            [2.46, 0, 0, lambda_a],
-            [2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, jnp.conj(lambda_a)],
-            [-2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, lambda_a],
-            [2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, jnp.conj(lambda_a)],
-            [-2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, lambda_a]
-        ],
-    )
-    .add_interaction(
-        "hamiltonian",
-        participants=("B_down", "B_down"),
-        # this is like [vec, hopping]
-        parameters=[                
-            [0, 0, 0, -onsite], # onsite, A gets positive
-            # hoppings positive if clockwise, spin-diagonal, different spins get different signs, down gets minus
-            [-2.46, 0, 0, -jnp.conj(lambda_b)], 
-            [2.46, 0, 0, -lambda_b],
-            [2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, -jnp.conj(lambda_b)],
-            [-2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, -lambda_b],
-            [2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, -jnp.conj(lambda_b)],
-            [-2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, -lambda_b]
-        ],
-    )
-    .add_interaction(
-        "hamiltonian",
-        participants=("B_up", "B_up"),
-        parameters=[                
-            [0, 0, 0, -onsite], # onsite, A gets positive
-            # hoppings positive if clockwise, spin-diagonal, different spins get different signs, down gets minus
-            [-2.46, 0, 0, jnp.conj(lambda_b)], 
-            [2.46, 0, 0, lambda_b],
-            [2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, jnp.conj(lambda_b)],
-            [-2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, lambda_b],
-            [2.46*0.5, -2.46*jnp.sqrt(3)/2, 0, jnp.conj(lambda_b)],
-            [-2.46*0.5, 2.46*jnp.sqrt(3)/2, 0, lambda_b]
-        ],
-    )
-)
+
+    return material
+
 
 # determining nn vectors
 # flake = material.cut_flake(Triangle(20, armchair = False))
@@ -234,20 +236,45 @@ def plot_spin_polarization(flake, eps):
 # diffs = [ x[i].position - y[i].position for i in range(len(y))]
 # print(jnp.abs(jnp.array(diffs)).max())
 
-sizes = [20, 40, 80, 100, 120]
-def get_flake(size):    
-    flake = material.cut_flake(Rectangle(20, size, armchair = False), plot = False)
-    flake.set_electrons(len(flake) // 2)
-    flake.set_open_shell()
-    flake.show_energies(name = f"{savedir}energies_{size}.pdf")
-    return flake
+def run_sizes():
+    sizes = [20, 40, 80, 100, 120]
+    def get_flake_size(size):
+        material = get_material()
+        flake = material.cut_flake(Rectangle(20, size, armchair = False), plot = False)
+        flake.set_electrons(len(flake) // 2)
+        flake.set_open_shell()
+        flake.show_energies(name = f"{savedir}energies_{size}.pdf")
+        return flake
 
-args_list = [(get_flake(size), f"soc_{size}") for size in sizes]
+    args_list = [(get_flake_size(size), f"soc_{size}") for size in sizes]
 
-name = "soc"
+    name = "soc"
 
-# lrt
-ip_response(args_list, name + ".npz")
+    # lrt
+    ip_response(args_list, name + ".npz")
 
-# figure chirality
-plot_chirality(f"cond_{name}" + ".npz")
+    # figure chirality
+    plot_chirality(f"cond_{name}" + ".npz")
+
+def run_scales():
+    scales = [ (i,j) for i in range(4) for j in range(4) ]
+    def get_flake_scales(scale_tuple):
+        material = get_material(*scale_tuple)
+        flake = material.cut_flake(Rectangle(20, 10, armchair = False), plot = False)
+        flake.set_electrons(len(flake) // 2)
+        flake.set_open_shell()
+        flake.show_energies(name = f"{savedir}energies_{scale_tuple}.pdf")
+        return flake
+
+    args_list = [(get_flake_scales(s), f"soc_{s}") for s in scales]
+
+    name = "soc"
+
+    # lrt
+    ip_response(args_list, name + ".npz")
+
+    # figure chirality
+    plot_chirality(f"cond_{name}" + ".npz")
+
+if __name__ == '__main__':
+    run_scales()
