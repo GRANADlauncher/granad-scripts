@@ -260,7 +260,7 @@ def run_scales():
     scales = [ (i,j) for i in range(4) for j in range(4) ]
     def get_flake_scales(scale_tuple):
         material = get_material(*scale_tuple)
-        flake = material.cut_flake(Rectangle(20, 10, armchair = False), plot = False)
+        flake = material.cut_flake(Rectangle(20, 40, armchair = False), plot = False)
         flake.set_electrons(len(flake) // 2)
         flake.set_open_shell()
         flake.show_energies(name = f"{savedir}energies_{scale_tuple}.pdf")
