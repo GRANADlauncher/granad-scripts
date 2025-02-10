@@ -195,68 +195,83 @@ def plot_chirality(results_file, keys=None, name="chirality.pdf"):
     
     # Load data
     omegas, data, keys = load_data(results_file, keys)
-    
-    # Set up the main plot with a larger figure size
-    fig, ax = plt.subplots(figsize=(10, 7))
-    
-    # Filter out 'topological' keys
-    keys = [k for k in keys if 'topological' not in k]
 
-    # Define a custom color palette
-    colors = plt.cm.viridis(np.linspace(0, 0.8, len(keys)))
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 33,
+        "xtick.labelsize": 8*3,
+        "ytick.labelsize": 8*3,
+        "legend.fontsize": 9*3,
+        "pdf.fonttype": 42
+    }
 
-    # Iterate over each key to plot the corresponding data
-    for i, key in enumerate(keys):
-        mat = data[key]
-        mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
-        mat = to_helicity(mat)        
-        
-        # Compute the real and imaginary parts
-        mat_real, mat_imag = mat.real, mat.imag
-        
-        # Calculate chirality        
-        left = np.abs(mat[0, :, :])
-        right = np.abs(mat[1, ::-1, :])
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
 
-        # Normalize and compute chirality
-        norm = lambda x: np.linalg.norm(x, axis=0)
-        chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
+        # Set up the main plot with a larger figure size
+        fig, ax = plt.subplots(figsize=(10, 7))
 
-        # change linestyle depending on topological or not        
-        ls = '-' if float(key.split('_')[-1]) < get_threshold(1.) else '--'
-        
-        # Plot the chirality with custom color and line style
-        ax.plot(
-            omegas, chi,
-            label=r'$t_2 =$ ' + key.split("_")[-1] + ' eV',
-            color=colors[i],
-            linewidth=2,
-            alpha=0.85,
-            ls = ls
-        )
+        # Filter out 'topological' keys
+        keys = [k for k in keys if 'topological' not in k]
 
-    # Add axis labels with larger fonts
-    ax.set_xlabel(r'$\omega$ (eV)', fontsize=16, weight='bold')
-    ax.set_ylabel(r'$\chi$', fontsize=16, weight='bold')
+        # Define a custom color palette
+        colors = plt.cm.viridis(np.linspace(0, 0.8, len(keys)))
 
-    # Add a legend with larger font size and frame turned off
-    ax.legend(loc="best", fontsize=12, frameon=False)
+        # Iterate over each key to plot the corresponding data
+        for i, key in enumerate(keys):
+            mat = data[key]
+            mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
+            mat = to_helicity(mat)        
 
-    # Add a grid for better readability
-    ax.grid(alpha=0.4)
+            # Compute the real and imaginary parts
+            mat_real, mat_imag = mat.real, mat.imag
 
-    # Adjust tick parameters for consistency
-    ax.tick_params(axis='both', which='major', labelsize=12)
+            # Calculate chirality        
+            left = np.abs(mat[0, :, :])
+            right = np.abs(mat[1, ::-1, :])
 
-    # Add a title to the plot
-    ax.set_title("Chirality of the Total Response", fontsize=18, weight='bold', pad=20)
+            # Normalize and compute chirality
+            norm = lambda x: np.linalg.norm(x, axis=0)
+            chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
 
-    # Optimize layout for better spacing
-    plt.tight_layout()
+            # change linestyle depending on topological or not        
+            ls = '-' if float(key.split('_')[-1]) < get_threshold(1.) else '--'
 
-    # Save the plot as a high-resolution PDF
-    plt.savefig(name, dpi=300)
-    plt.close()
+            # Plot the chirality with custom color and line style
+            ax.plot(
+                omegas, chi,
+                label=r'$t_2 =$ ' + key.split("_")[-1] + ' eV',
+                color=colors[i],
+                linewidth=2,
+                alpha=0.85,
+                ls = ls
+            )
+
+        # Add axis labels with larger fonts
+        ax.set_xlabel(r'$\omega$ (eV)', fontsize=16, weight='bold')
+        ax.set_ylabel(r'$\chi$', fontsize=16, weight='bold')
+
+        # Add a legend with larger font size and frame turned off
+        ax.legend(loc="best", fontsize=12, frameon=False)
+
+        # Add a grid for better readability
+        ax.grid(alpha=0.4)
+
+        # Adjust tick parameters for consistency
+        ax.tick_params(axis='both', which='major', labelsize=12)
+
+        # Add a title to the plot
+        # ax.set_title("Chirality of the Total Response", fontsize=18, weight='bold', pad=20)
+
+        # Optimize layout for better spacing
+        plt.tight_layout()
+
+        # Save the plot as a high-resolution PDF
+        plt.savefig(name, dpi=300)
+        plt.close()
 
 
 def plot_chirality_topo(results_file, keys=None, name="chirality_topo.pdf"):
@@ -318,7 +333,7 @@ def plot_chirality_topo(results_file, keys=None, name="chirality_topo.pdf"):
     ax.set_ylabel(r'$\chi$', fontsize=16, weight='bold')
 
     # Add a title to the plot
-    ax.set_title("Chirality of Total and Topological Response", fontsize=18, weight='bold', pad=20)
+    # ax.set_title("Chirality of Total and Topological Response", fontsize=18, weight='bold', pad=20)
 
     # Add a legend with larger font size and a clean design
     ax.legend(loc="best", fontsize=14, frameon=False)
