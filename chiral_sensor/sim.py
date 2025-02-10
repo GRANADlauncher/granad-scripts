@@ -617,7 +617,8 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
         plt.ylabel('Y')
         ax.grid(grid)
         ax.axis('equal')
-
+        plt.savefig('geometry.pdf')
+        
 
 if __name__ == '__main__':
     
@@ -652,7 +653,7 @@ if __name__ == '__main__':
     # figure example geometry
     flake = IP_ARGS[-1][0]
     idx = jnp.abs(flake.energies).argmin().item()
-    show_2d(flake, display = flake.eigenvectors[:, idx], scale = True, name = 'geometry.pdf')
+    show_2d(flake, display = flake.eigenvectors[:, idx], scale = True)
 
     # figure contribution of topological state
     plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
