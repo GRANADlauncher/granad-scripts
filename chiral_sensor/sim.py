@@ -534,16 +534,101 @@ def plot_rpa_response(results_file):
         plt.savefig("rpa.pdf", dpi=300)
         plt.close()
 
+def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 1e3, title = None, mode = None, indicate_atoms = False, grid = False):
+
+    # decider whether to take abs val and normalize 
+    def scale_vals( vals ):
+        return jnp.abs(vals) / jnp.abs(vals).max() if scale else vals
+
+    # Determine which tags to display
+    if show_tags is None:
+        show_tags = {orb.tag for orb in orbs}
+    else:
+        show_tags = set(show_tags)
+
+    # Prepare data structures for plotting
+    tags_to_pos, tags_to_idxs = defaultdict(list), defaultdict(list)
+    for orb in orbs:
+        if orb.tag in show_tags:
+            tags_to_pos[orb.tag].append(orb.position)
+            tags_to_idxs[orb.tag].append(orbs.index(orb))
+            
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 33,
+        "xtick.labelsize": 8*3,
+        "ytick.labelsize": 8*3,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
+
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
+
+
+        # Create plot
+        fig, ax = plt.subplots()
+        if display is not None:        
+            cmap = plt.cm.bwr if cmap is None else cmap
+            if mode == 'two-signed':
+                display = display.real
+                dmax = jnp.max(jnp.abs(display))            
+                scatter = ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], c = display, edgecolor='black', cmap=cmap, s = circle_scale / 10 )
+                scatter.set_clim(-dmax, dmax)
+            elif mode == 'one-signed':
+                cmap = plt.cm.Reds
+                display = display.real
+                dmax = display[jnp.argmax(jnp.abs(display))]
+                scatter = ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], c = display, edgecolor='black', cmap=cmap, s = circle_scale / 10 )
+                if(dmax<0):
+                    scatter.set_clim(dmax, 0)
+                else:
+                    scatter.set_clim(0, dmax)
+            else:
+                colors = scale_vals(display)            
+                scatter = ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], c=colors, edgecolor='black', cmap=cmap, s = circle_scale*jnp.abs(display) )
+            if indicate_atoms == True:
+                ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], color='black', s=10, marker='o')            
+            cbar = fig.colorbar(scatter, ax=ax)
+
+        else:
+            # Color by tags if no show_state is given
+            unique_tags = list(set(orb.tag for orb in orbs))
+            color_map = {tag: plt.cm.get_cmap('tab10')(i / len(unique_tags)) for i, tag in enumerate(unique_tags)}
+            for tag, positions in tags_to_pos.items():
+                positions = jnp.array(positions)
+                ax.scatter(positions[:, 0], positions[:, 1], label=tag, color=color_map[tag], edgecolor='white', alpha=0.7)
+            plt.legend(title='Orbital Tags')
+
+        # Optionally annotate points with their indexes
+        if show_index:
+            for orb in [orb for orb in orbs if orb.tag in show_tags]:
+                pos = orb.position
+                idx = orbs.index(orb)
+                ax.annotate(str(idx), (pos[0], pos[1]), textcoords="offset points", xytext=(0,10), ha='center')
+
+        # Finalize plot settings
+        if title is not None:
+            plt.title(title)
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        ax.grid(grid)
+        ax.axis('equal')
+
+
 if __name__ == '__main__':
     
     LRT_FILE = 'lrt.npz'
     RPA_FILE = 'rpa_triangle_2.npz'
 
-    # figure chirality
-    plot_rpa_response(RPA_FILE)
-    plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
-    plot_chirality("cond_" + LRT_FILE)
-    1/0
+    # # figure chirality
+    # plot_rpa_response(RPA_FILE)
+    # plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
+    # plot_chirality("cond_" + LRT_FILE)
+    # 1/0
     
     IP_ARGS = []
     for (t2, delta) in [(0.0, 0.0), (0.01, 1), (0.05, 1), (0.2, 1), (0.4, 1)] :
@@ -567,7 +652,7 @@ if __name__ == '__main__':
     # figure example geometry
     flake = IP_ARGS[-1][0]
     idx = jnp.abs(flake.energies).argmin().item()
-    flake.show_2d(display = flake.eigenvectors[:, idx], scale = True, name = 'geometry.pdf')
+    show_2d(flake, display = flake.eigenvectors[:, idx], scale = True, name = 'geometry.pdf')
 
     # figure contribution of topological state
     plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
