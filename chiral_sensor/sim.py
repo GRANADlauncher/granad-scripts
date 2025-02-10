@@ -223,7 +223,7 @@ def plot_chirality(results_file, keys=None, name="chirality.pdf"):
         chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
 
         # change linestyle depending on topological or not        
-        ls = '-' if float(name.split('_')) < get_threshold(1.) else '--'
+        ls = '-' if float(name.split('_')[-1]) < get_threshold(1.) else '--'
         
         # Plot the chirality with custom color and line style
         ax.plot(
