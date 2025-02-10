@@ -115,7 +115,7 @@ def ip_response(args_list, results_file):
     """
 
     def get_correlator(operators, mask = None):
-        return jnp.array([[flake.get_ip_green_function(o1, o2, omegas, relaxation_rate = 0.1, mask = mask) for o1 in operators] for o2 in operators])
+        return jnp.array([[flake.get_ip_green_function(o1, o2, omegas, relaxation_rate = 0.01, mask = mask) for o1 in operators] for o2 in operators])
 
     cond, pol = {}, {}
     omegas = jnp.linspace(0, 6, 200)    
@@ -209,7 +209,7 @@ def plot_chirality(results_file, keys=None, name="chirality.pdf"):
     for i, key in enumerate(keys):
         mat = data[key]
         mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
-        mat = to_helicity(mat)
+        mat = to_helicity(mat)        
         
         # Compute the real and imaginary parts
         mat_real, mat_imag = mat.real, mat.imag
@@ -221,6 +221,9 @@ def plot_chirality(results_file, keys=None, name="chirality.pdf"):
         # Normalize and compute chirality
         norm = lambda x: np.linalg.norm(x, axis=0)
         chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
+
+        # change linestyle depending on topological or not        
+        ls = '-' if float(name.split('_')) < get_threshold(1.) else '--'
         
         # Plot the chirality with custom color and line style
         ax.plot(
@@ -228,7 +231,8 @@ def plot_chirality(results_file, keys=None, name="chirality.pdf"):
             label=r'$t_2 =$ ' + key.split("_")[-1] + ' eV',
             color=colors[i],
             linewidth=2,
-            alpha=0.85
+            alpha=0.85,
+            ls = ls
         )
 
     # Add axis labels with larger fonts
