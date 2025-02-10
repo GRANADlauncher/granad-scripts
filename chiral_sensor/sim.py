@@ -282,9 +282,6 @@ def plot_chirality_topo(results_file, keys=None, name="chirality_topo.pdf"):
     # Load data
     omegas, data, keys = load_data(results_file, keys)
     
-    # Set up the main plot with a larger figure size
-    fig, ax = plt.subplots(figsize=(10, 7))
-
     # Load data
     omegas, data, keys = load_data(results_file, keys)
 
@@ -302,6 +299,9 @@ def plot_chirality_topo(results_file, keys=None, name="chirality_topo.pdf"):
 
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
+        
+        # Set up the main plot with a larger figure size
+        fig, ax = plt.subplots(figsize=(10, 7))
 
         # Iterate over each key to plot the corresponding data
         for i, key in enumerate(keys):
@@ -352,7 +352,7 @@ def plot_chirality_topo(results_file, keys=None, name="chirality_topo.pdf"):
         ax.grid(alpha=0.4)
 
         # Adjust tick parameters for consistency
-        ax.tick_params(axis='both', which='major', labelsize=12)
+        ax.tick_params(axis='both', which='major')
 
         # Optimize layout for better spacing
         plt.tight_layout()
@@ -423,7 +423,7 @@ def plot_power(results_file, keys=None):
         ax.set_xlabel(r'$\omega$ (eV)', fontsize=14)
         ax.set_title(titles[idx], fontsize=14, pad=10)
         ax.grid(alpha=0.4)
-        ax.tick_params(axis='both', which='major', labelsize=12)
+        ax.tick_params(axis='both', which='major')
 
     # Add legend to the first subplot
     axs_flat[0].legend(loc="best", fontsize=12, frameon=False)
@@ -482,9 +482,6 @@ def plot_rpa_response(results_file):
         cond = data["cond"][:, :2, :2, :]
         cs = data["cs"]
         
-    # Set up the figure
-    plt.figure(figsize=(10, 7))
-
 
     # Define custom settings for this plot only
     custom_params = {
@@ -500,7 +497,10 @@ def plot_rpa_response(results_file):
 
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
-
+        
+        # Set up the figure
+        plt.figure(figsize=(10, 7))
+        
         # Loop through each Coulomb strength and plot the response
         for i, coulomb_strength in enumerate(cs):
             mat = to_helicity(cond[i])
@@ -602,14 +602,14 @@ if __name__ == '__main__':
     LRT_FILE = 'lrt.npz'
     RPA_FILE = 'rpa_triangle_2.npz'
 
-    # # figure chirality
-    # plot_rpa_response(RPA_FILE)
-    # plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.1', 'haldane_graphene_0.1'] )
-    # plot_chirality("cond_" + LRT_FILE)
-    # 1/0
+    # figure chirality
+    plot_rpa_response(RPA_FILE)
+    plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
+    plot_chirality("cond_" + LRT_FILE)
+    1/0
     
     IP_ARGS = []
-    for (t2, delta) in [(0.0, 0.0), (0.05, 1), (0.08, 1), (0.2, 1), (0.4, 1)] :
+    for (t2, delta) in [(0.0, 0.0), (0.01, 1), (0.05, 1), (0.2, 1), (0.4, 1)] :
         flake = get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(42, armchair = True))
         flake.t2 = t2
         flake.trivial = bool(flake.t2 < get_threshold(delta))
