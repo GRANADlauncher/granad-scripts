@@ -239,20 +239,17 @@ def plot_chirality(results_file, keys=None, name="chirality.pdf"):
             )
 
         # Add axis labels with larger fonts
-        ax.set_xlabel(r'$\omega$ (eV)', fontsize=16, weight='bold')
-        ax.set_ylabel(r'$\chi$', fontsize=16, weight='bold')
+        ax.set_xlabel(r'$\omega$ (eV)', weight='bold')
+        ax.set_ylabel(r'$\chi$', weight='bold')
 
         # Add a legend with larger font size and frame turned off
-        ax.legend(loc="best", fontsize=12, frameon=False)
+        ax.legend(loc="best", frameon=False)
 
         # Add a grid for better readability
         ax.grid(alpha=0.4)
 
         # Adjust tick parameters for consistency
-        ax.tick_params(axis='both', which='major', labelsize=12)
-
-        # Add a title to the plot
-        # ax.set_title("Chirality of the Total Response", fontsize=18, weight='bold', pad=20)
+        ax.tick_params(axis='both', which='major')
 
         # Optimize layout for better spacing
         plt.tight_layout()
