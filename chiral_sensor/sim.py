@@ -534,69 +534,6 @@ def plot_rpa_response(results_file):
         plt.savefig("rpa.pdf", dpi=300)
         plt.close()
 
-
-### MEAN FIELD ###
-def rho(es, vecs, thresh):
-    """constructs the open-shell density matrix"""
-    d = jnp.where(es <= thresh, 1, 0)
-    return jnp.einsum('ij,j,kj->ik', vecs, d, vecs.conj())
-
-def scf_loop(flake, U, mixing, limit, max_steps):
-    """performs open-shell scf calculation
-
-    Returns:
-        rho_up, rho_dow, ham_eff_up, ham_eff_down
-    """
-    
-    def update(arg):
-        """scf update"""
-        
-        rho_old_up, rho_old_down, step, error = arg
-
-        # H = H_+ + H_-
-        ham_eff_up =  ham_0 + U * jnp.diag(jnp.diag(rho_old_down))        
-        ham_eff_down =  ham_0 + U * jnp.diag(jnp.diag(rho_old_up))
-
-        # diagonalize
-        vals_up, vecs_up = jnp.linalg.eigh(ham_eff_up)
-        vals_down, vecs_down = jnp.linalg.eigh(ham_eff_down)    
-
-        # build new density matrices
-        thresh = jnp.concatenate([vals_up, vals_down]).sort()[N]
-        rho_up = rho(vals_up, vecs_up, thresh) + mixing * rho_old_up
-        rho_down = rho(vals_down, vecs_down, thresh) + mixing * rho_old_down
-
-        # update breaks
-        error = ( jnp.linalg.norm(rho_up - rho_old_up) +  jnp.linalg.norm(rho_down - rho_old_down) ) / 2
-
-        step = jax.lax.cond(error <= limit, lambda x: step, lambda x: step + 1, step)
-
-        return rho_up, rho_down, step, error
-    
-    def step(idx, res):
-        """single SCF update step"""
-        return jax.lax.cond(res[-1] <= limit, lambda x: res, update, res)
-
-    ham_0 = flake.hamiltonian
-    
-    # GRANAD gives a closed-shell hamiltonian => for hubbard model, we split it into 2 NxN matrices, one for each spin component
-    N, _ = ham_0.shape
-
-    # initial guess for the density matrices
-    rho_old_up = jnp.zeros_like(ham_0)
-    rho_old_down = jnp.zeros_like(ham_0)
-
-    # scf loop
-    rho_up, rho_down, steps, error = jax.lax.fori_loop(0, max_steps, step, (rho_old_up, rho_old_down, 0, jnp.inf))
-    
-    print(f"{steps} / {max_steps}")
-
-    return (rho_up,
-            rho_down,
-            ham_0 + U * jnp.diag(jnp.diag(rho_down)),
-            ham_0 + U * jnp.diag(jnp.diag(rho_up)))
-
-
 if __name__ == '__main__':
     
     LRT_FILE = 'lrt.npz'
