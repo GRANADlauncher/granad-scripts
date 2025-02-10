@@ -171,46 +171,6 @@ def plot_response_functions(results_file):
     loop_plot(lambda x: x.real, "real_cond_pol_comparison.pdf", "Real Part Comparison")
     loop_plot(lambda x: jnp.abs(x), "abs_cond_pol_comparison.pdf", "Absolute Value Comparison")
     
-def plot_chirality_difference(results_file, keys = None):
-    """plots excess chirality of the total response"""
-    omegas, data, keys = load_data(results_file, keys)
-
-    fig, axs = plt.subplots(2,1)    
-    axs_flat = list(axs.flat)
-
-    # Loop through each key to plot the data
-    for i, key in enumerate(keys):
-        mat = data[key]
-        mat -= jnp.diag(mat[:, :, 0].diagonal())[:, :, None]
-        mat = to_helicity(mat)
-        mat_real, mat_imag = mat.real, mat.imag
-
-        ls = '-'
-        if 'topological' in key:            
-            ls = '--'
-        
-        idx = 0
-        left, right = jnp.array([[0, 0], [0, 1]]), jnp.array([[1, 0], [0, 0]])
-        norms = jnp.linalg.norm(mat, axis = (0,1))
-        
-        diff_left = jnp.linalg.norm(jnp.einsum('ij,jlk->ilk', left, mat), axis = (0,1)) / norms 
-        diff_right = jnp.linalg.norm(jnp.einsum('ij,jlk->ilk', right, mat), axis = (0,1)) / norms
-                
-        axs_flat[0].plot(omegas[idx:], diff_left[idx:], label=key.split("_")[-1], ls = ls)
-        axs_flat[1].plot(omegas[idx:], diff_right[idx:], label=key.split("_")[-1], ls = ls)
-
-    # Adding titles and labels to make it clear
-    axs_flat[0].set_ylabel(r'$\chi_{jj, +}$')
-    axs_flat[1].set_xlabel(r'$\omega (eV)$')
-    axs_flat[1].set_ylabel(r'$\chi_{jj, -}$')    
-    plt.legend(loc="upper left")
-
-    # Adjusting layout and saving
-    plt.tight_layout()
-    plt.savefig("chirality_difference.pdf")
-    plt.close()    
-
-
 def plot_chirality(results_file, keys=None, name="chirality.pdf"):
     """
     Plots the chirality of the total response with enhanced visuals.
@@ -591,8 +551,8 @@ if __name__ == '__main__':
     IP_ARGS = []
     for (t2, delta) in [(0.0, 0.0), (0.05, 1), (0.1, 1), (0.2, 1)] :
         flake = get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(42, armchair = True))
-        flake.t_2 = t_2
-        flake.trivial = bool(flake.t_2 < get_threshold(delta))
+        flake.t2 = t2
+        flake.trivial = bool(flake.t2 < get_threshold(delta))
         print(len(flake))
         name = f"haldane_graphene_{t2}"
         IP_ARGS.append( (flake, name) )
