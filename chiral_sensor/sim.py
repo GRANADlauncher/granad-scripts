@@ -1,18 +1,6 @@
 """common utilities"""
 
 import matplotlib as mpl
-mpl.rcParams.update({
-    "text.usetex": True,
-    "font.family": "serif",
-    "font.size": 10,      # Match RevTeX font size
-    "axes.labelsize": 10,  # Axis labels
-    "xtick.labelsize": 8,
-    "ytick.labelsize": 8,
-    "legend.fontsize": 9,
-    "pdf.fonttype": 42  # Ensures fonts are embedded
-})
-mpl.rcParams["font.family"] = "CMU Serif"  # Closest match to LaTeX's default
-
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import numpy as np
