@@ -103,7 +103,7 @@ def ip_response(args_list, results_file):
     """
 
     def get_correlator(operators, mask = None):
-        return jnp.array([[flake.get_ip_green_function(o1, o2, omegas, relaxation_rate = 0.01, mask = mask) for o1 in operators] for o2 in operators])
+        return jnp.array([[flake.get_ip_green_function(o1, o2, omegas, relaxation_rate = 0.05, mask = mask) for o1 in operators] for o2 in operators])
 
     cond, pol = {}, {}
     omegas = jnp.linspace(0, 6, 200)    
@@ -242,8 +242,12 @@ def plot_chirality(results_file, keys=None, name="chirality.pdf"):
         ax.set_xlabel(r'$\omega$ (eV)', weight='bold')
         ax.set_ylabel(r'$\chi$', weight='bold')
 
-        # Add a legend with larger font size and frame turned off
-        ax.legend(loc="best", frameon=False)
+        # Modify legend placement and add a white background for readability
+        ax.legend(loc="upper right", frameon=True, framealpha=0.8, edgecolor='black', facecolor='white')
+
+        # Optionally, increase legend spacing
+        ax.legend(loc="upper right", frameon=True, framealpha=0.8, edgecolor='black', facecolor='white', handlelength=2.5, labelspacing=0.5)
+
 
         # Add a grid for better readability
         ax.grid(alpha=0.4)
@@ -415,7 +419,7 @@ def plot_power(results_file, keys=None):
 
 
 ### RPA ###
-def rpa_sus(evs, omegas, occupations, energies, coulomb, electrons, relaxation_rate = 1e-1):
+def rpa_sus(evs, omegas, occupations, energies, coulomb, electrons, relaxation_rate = 0.05):
     """computes pp-response in RPA, following https://pubs.acs.org/doi/10.1021/nn204780e"""
     
     def inner(omega):
