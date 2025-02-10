@@ -270,6 +270,83 @@ def plot_chirality(results_file, keys=None, name="chirality.pdf"):
         plt.close()
 
 
+def plot_chirality_2d(results_file, keys=None, name="chirality.pdf"):
+    """
+    Plots the chirality as a 2D colormap.
+
+    Parameters:
+    - results_file: str, path to the file containing the results.
+    - keys: list of str, specific keys to plot. If None, all keys are used.
+    """
+    # Load data
+    omegas, data, keys = load_data(results_file, keys)
+    keys = [k for k in keys if 'topological' not in k]
+    
+    # Prepare chirality matrix
+    chirality_matrix = []
+    t2_values = []
+    
+    for key in keys:
+        mat = data[key]
+        mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
+        mat = to_helicity(mat)    
+        left = np.abs(mat[0, :, :])
+        right = np.abs(mat[1, ::-1, :])
+        norm = lambda x: np.linalg.norm(x, axis=0)
+        chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
+        chirality_matrix.append(chi)
+        t2_values.append(float(key.split('_')[-1]))
+    
+    chirality_matrix = np.array(chirality_matrix)
+    t2_values = np.array(t2_values)
+    
+    # Sort by t2 values for better visualization
+    sorted_indices = np.argsort(t2_values)
+    t2_values = t2_values[sorted_indices]
+    chirality_matrix = chirality_matrix[sorted_indices, :]
+    
+    # Define custom plotting parameters
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 33,
+        "xtick.labelsize": 8*3,
+        "ytick.labelsize": 8*3,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
+    
+    with mpl.rc_context(rc=custom_params):
+        fig, ax = plt.subplots(figsize=(10, 7))
+        
+        # Create a 2D color plot using imshow
+        cax = ax.imshow(
+            chirality_matrix.T, 
+            aspect='auto', 
+            cmap='coolwarm', 
+            origin='lower', 
+            extent=[t2_values.min(), t2_values.max(), omegas.min(), omegas.max()]
+        )
+        
+        # Axis labels
+        ax.set_xlabel(r'$t_2$ (eV)', weight='bold')
+        ax.set_ylabel(r'$\omega$ (eV)', weight='bold')
+        
+        # Add colorbar
+        cbar = fig.colorbar(cax, ax=ax, label=r'$\chi$', fraction=0.046, pad=0.04)
+        # cbar.ax.tick_params(labelsize=20)
+        
+        # Grid and layout improvements
+        ax.grid(alpha=0.4, linestyle='--')
+        plt.tight_layout()
+        
+        # Save the figure
+        plt.savefig(name, dpi=300)
+        plt.close()
+        
+
+
 def plot_chirality_topo(results_file, keys=None, name="chirality_topo.pdf"):
     """
     Plots the chirality of the total and topological response with enhanced visuals.
@@ -534,6 +611,73 @@ def plot_rpa_response(results_file):
         plt.savefig("rpa.pdf", dpi=300)
         plt.close()
 
+def plot_rpa_response_2d(results_file):
+    """
+    Plots the RPA response as a 2D colormap.
+
+    Parameters:
+    - results_file: str, path to the file containing the RPA response data.
+    """
+    with jnp.load(results_file) as data:
+        data = dict(data)
+        omegas = data["omegas"]
+        cond = data["cond"][:, :2, :2, :]
+        cs = data["cs"]
+    
+    # Prepare chirality matrix
+    chirality_matrix = []
+    
+    for i, coulomb_strength in enumerate(cs):
+        mat = to_helicity(cond[i])
+        left = np.abs(mat[0, :, :])
+        right = np.abs(mat[1, ::-1, :])
+        n = lambda x: jnp.linalg.norm(x, axis=0)
+        chi = n(left - right) / jnp.sqrt(n(left)**2 + n(right)**2)
+        chirality_matrix.append(chi)
+    
+    chirality_matrix = np.array(chirality_matrix)
+    
+    # Define custom plotting parameters
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 33,
+        "xtick.labelsize": 8*3,
+        "ytick.labelsize": 8*3,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
+    
+    with mpl.rc_context(rc=custom_params):
+        fig, ax = plt.subplots(figsize=(10, 7))
+        
+        # Create a 2D color plot using imshow
+        cax = ax.imshow(
+            chirality_matrix.T, 
+            aspect='auto', 
+            cmap='coolwarm', 
+            origin='lower', 
+            extent=[cs.min(), cs.max(), omegas.min(), omegas.max()]
+        )
+        
+        # Axis labels
+        ax.set_xlabel(r'$\omega$ (eV)', weight='bold')
+        ax.set_ylabel(r'$\lambda$', weight='bold')
+        
+        # Add colorbar
+        cbar = fig.colorbar(cax, ax=ax, label=r'$\chi$', fraction=0.046, pad=0.04)
+        # cbar.ax.tick_params(labelsize=20)
+        
+        # Grid and layout improvements
+        ax.grid(alpha=0.4, linestyle='--')
+        plt.tight_layout()
+        
+        # Save the figure
+        plt.savefig("rpa.pdf", dpi=300)
+        plt.close()
+        
+
 def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 1e3, title = None, mode = None, indicate_atoms = False, grid = False):
 
     # decider whether to take abs val and normalize 
@@ -571,48 +715,16 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
 
         # Create plot
         fig, ax = plt.subplots()
-        if display is not None:        
-            cmap = plt.cm.bwr if cmap is None else cmap
-            if mode == 'two-signed':
-                display = display.real
-                dmax = jnp.max(jnp.abs(display))            
-                scatter = ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], c = display, edgecolor='black', cmap=cmap, s = circle_scale / 10 )
-                scatter.set_clim(-dmax, dmax)
-            elif mode == 'one-signed':
-                cmap = plt.cm.Reds
-                display = display.real
-                dmax = display[jnp.argmax(jnp.abs(display))]
-                scatter = ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], c = display, edgecolor='black', cmap=cmap, s = circle_scale / 10 )
-                if(dmax<0):
-                    scatter.set_clim(dmax, 0)
-                else:
-                    scatter.set_clim(0, dmax)
-            else:
-                colors = scale_vals(display)            
-                scatter = ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], c=colors, edgecolor='black', cmap=cmap, s = circle_scale*jnp.abs(display) )
-            if indicate_atoms == True:
-                ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], color='black', s=10, marker='o')            
-            cbar = fig.colorbar(scatter, ax=ax)
-
-        else:
-            # Color by tags if no show_state is given
-            unique_tags = list(set(orb.tag for orb in orbs))
-            color_map = {tag: plt.cm.get_cmap('tab10')(i / len(unique_tags)) for i, tag in enumerate(unique_tags)}
-            for tag, positions in tags_to_pos.items():
-                positions = jnp.array(positions)
-                ax.scatter(positions[:, 0], positions[:, 1], label=tag, color=color_map[tag], edgecolor='white', alpha=0.7)
-            plt.legend(title='Orbital Tags')
-
-        # Optionally annotate points with their indexes
-        if show_index:
-            for orb in [orb for orb in orbs if orb.tag in show_tags]:
-                pos = orb.position
-                idx = orbs.index(orb)
-                ax.annotate(str(idx), (pos[0], pos[1]), textcoords="offset points", xytext=(0,10), ha='center')
+        cmap = plt.cm.bwr if cmap is None else cmap
+        colors = scale_vals(display)            
+        scatter = ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], c=colors, edgecolor='black', cmap=cmap, s = circle_scale*jnp.abs(display) )
+        ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], color='black', s=5, marker='o')            
+        cbar = fig.colorbar(scatter, ax=ax)
 
         # Finalize plot settings
         if title is not None:
             plt.title(title)
+            
         plt.xlabel('X')
         plt.ylabel('Y')
         ax.grid(grid)
@@ -625,14 +737,15 @@ if __name__ == '__main__':
     LRT_FILE = 'lrt.npz'
     RPA_FILE = 'rpa_triangle_2.npz'
 
-    # # figure chirality
-    # plot_rpa_response(RPA_FILE)
+    # figure chirality
+    # plot_rpa_response_2d(RPA_FILE)
     # plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
-    # plot_chirality("cond_" + LRT_FILE)
+    # plot_chirality_2d("cond_" + LRT_FILE)
     # 1/0
     
     IP_ARGS = []
-    for (t2, delta) in [(0.0, 0.0), (0.01, 1), (0.05, 1), (0.2, 1), (0.4, 1)] :
+    delta = 1.0
+    for t2 in jnp.linspace(0, 0.4, 20):
         flake = get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(42, armchair = True))
         flake.t2 = t2
         flake.trivial = bool(flake.t2 < get_threshold(delta))
