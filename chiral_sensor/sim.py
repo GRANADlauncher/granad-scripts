@@ -192,7 +192,7 @@ def plot_chirality(results_file, keys=None, name="chirality.pdf"):
         "axes.labelsize": 33,
         "xtick.labelsize": 8*3,
         "ytick.labelsize": 8*3,
-        "legend.fontsize": 9*3,
+        "legend.fontsize": 9*2,
         "pdf.fonttype": 42
     }
 
@@ -206,8 +206,8 @@ def plot_chirality(results_file, keys=None, name="chirality.pdf"):
         keys = [k for k in keys if 'topological' not in k]
 
         # Define a custom color palette
-        colors = plt.cm.viridis(np.linspace(0, 0.8, len(keys)))
-
+        colors = plt.cm.tab10(np.arange(len(keys)) % 10)
+        
         # Iterate over each key to plot the corresponding data
         for i, key in enumerate(keys):
             mat = data[key]
@@ -242,11 +242,18 @@ def plot_chirality(results_file, keys=None, name="chirality.pdf"):
         ax.set_xlabel(r'$\omega$ (eV)', weight='bold')
         ax.set_ylabel(r'$\chi$', weight='bold')
 
+
+        # ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), frameon=True, framealpha=0.8, edgecolor='black', facecolor='white')
+        # plt.tight_layout()
+        # plt.subplots_adjust(right=0.75)  # Adjust space for legend
+
         # Modify legend placement and add a white background for readability
         ax.legend(loc="upper right", frameon=True, framealpha=0.8, edgecolor='black', facecolor='white')
 
         # Optionally, increase legend spacing
         ax.legend(loc="upper right", frameon=True, framealpha=0.8, edgecolor='black', facecolor='white', handlelength=2.5, labelspacing=0.5)
+
+        ax.set_ylim(-0.05, 1)
 
 
         # Add a grid for better readability
@@ -278,67 +285,81 @@ def plot_chirality_topo(results_file, keys=None, name="chirality_topo.pdf"):
     # Set up the main plot with a larger figure size
     fig, ax = plt.subplots(figsize=(10, 7))
 
-    # Define color palette
-    colors = {"total": "blue", "topological": "red"}
+    # Load data
+    omegas, data, keys = load_data(results_file, keys)
 
-    # Iterate over each key to plot the corresponding data
-    for i, key in enumerate(keys):
-        mat = data[key]
-        mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
-        mat = to_helicity(mat)
-        
-        # Compute the real and imaginary parts
-        mat_real, mat_imag = mat.real, mat.imag
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 33,
+        "xtick.labelsize": 8*3,
+        "ytick.labelsize": 8*3,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
 
-        # Set line style and label
-        linestyle = '-'
-        label = "Total"
-        color = colors["total"]
-        if "topo" in key:
-            linestyle = '--'
-            label = "Topological"
-            color = colors["topological"]
-        
-        # Calculate chirality
-        left = np.abs(mat[0, :, :])
-        right = np.abs(mat[1, ::-1, :])
-        
-        # Normalize and compute chirality
-        norm = lambda x: np.linalg.norm(x, axis=0)
-        chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
-        
-        # Plot the chirality with custom color and line style
-        ax.plot(
-            omegas, chi,
-            label=label,
-            linestyle=linestyle,
-            linewidth=2,
-            color=color,
-            alpha=0.8
-        )
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
 
-    # Add axis labels with larger fonts
-    ax.set_xlabel(r'$\omega$ (eV)', fontsize=16, weight='bold')
-    ax.set_ylabel(r'$\chi$', fontsize=16, weight='bold')
+        # Iterate over each key to plot the corresponding data
+        for i, key in enumerate(keys):
+            mat = data[key]
+            mat -= np.diag(mat[:, :, 0].diagonal())[:, :, None]
+            mat = to_helicity(mat)
 
-    # Add a title to the plot
-    # ax.set_title("Chirality of Total and Topological Response", fontsize=18, weight='bold', pad=20)
+            # Compute the real and imaginary parts
+            mat_real, mat_imag = mat.real, mat.imag
 
-    # Add a legend with larger font size and a clean design
-    ax.legend(loc="best", fontsize=14, frameon=False)
+            # Set line style and label
+            linestyle = '-'
+            label = "Total"
+            if "topo" in key:
+                linestyle = '--'
+                label = "Topological"
 
-    # Add gridlines for better readability
-    ax.grid(alpha=0.4)
+            # Calculate chirality
+            left = np.abs(mat[0, :, :])
+            right = np.abs(mat[1, ::-1, :])
 
-    # Adjust tick parameters for consistency
-    ax.tick_params(axis='both', which='major', labelsize=12)
+            # Normalize and compute chirality
+            norm = lambda x: np.linalg.norm(x, axis=0)
+            chi = norm(left - right) / np.sqrt(norm(left)**2 + norm(right)**2)
 
-    # Optimize layout for better spacing
-    plt.tight_layout()
+            # Plot the chirality with custom color and line style
+            ax.plot(
+                omegas, chi,
+                label=label,
+                linestyle=linestyle,
+                linewidth=2,
+                alpha=0.8
+            )
 
-    # Save the plot as a high-resolution PDF
-    plt.savefig(name, dpi=300)
-    plt.close()
+        # Add axis labels with larger fonts
+        ax.set_xlabel(r'$\omega$ (eV)', weight='bold')
+        ax.set_ylabel(r'$\chi$', weight='bold')
+
+        # Modify legend placement and add a white background for readability
+        ax.legend(loc="upper right", frameon=True, framealpha=0.8, edgecolor='black', facecolor='white')
+
+        # Optionally, increase legend spacing
+        ax.legend(loc="upper right", frameon=True, framealpha=0.8, edgecolor='black', facecolor='white', handlelength=2.5, labelspacing=0.5)
+
+        ax.set_ylim(-0.05, 1)
+
+        # Add gridlines for better readability
+        ax.grid(alpha=0.4)
+
+        # Adjust tick parameters for consistency
+        ax.tick_params(axis='both', which='major', labelsize=12)
+
+        # Optimize layout for better spacing
+        plt.tight_layout()
+
+        # Save the plot as a high-resolution PDF
+        plt.savefig(name, dpi=300)
+        plt.close()
 
 
 def plot_power(results_file, keys=None):
@@ -437,7 +458,7 @@ def rpa_sus(evs, omegas, occupations, energies, coulomb, electrons, relaxation_r
 def rpa_response(flake, results_file, cs):
     """computes j-j response from p-p in RPA"""
     
-    omegas =  jnp.linspace(0, 15, 150)
+    omegas =  jnp.linspace(0, 6, 200)
     res = []
     
     for c in cs:        
@@ -464,44 +485,54 @@ def plot_rpa_response(results_file):
     # Set up the figure
     plt.figure(figsize=(10, 7))
 
-    # Define a custom color palette
-    colors = plt.cm.viridis(np.linspace(0, 1, len(cs)))
 
-    # Loop through each Coulomb strength and plot the response
-    for i, coulomb_strength in enumerate(cs):
-        mat = to_helicity(cond[i])
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 33,
+        "xtick.labelsize": 8*3,
+        "ytick.labelsize": 8*3,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
 
-        # Calculate left and right-handed responses
-        left = np.abs(mat[0, :, :])
-        right = np.abs(mat[1, ::-1, :])
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
 
-        # Compute chirality
-        n = lambda x: jnp.linalg.norm(x, axis=0)
-        chi = n(left - right) / jnp.sqrt(n(left)**2 + n(right)**2)
+        # Loop through each Coulomb strength and plot the response
+        for i, coulomb_strength in enumerate(cs):
+            mat = to_helicity(cond[i])
 
-        # Plot the response
-        plt.plot(
-            omegas, chi, label=fr'$\lambda = {coulomb_strength}$',
-            color=colors[i], linewidth=2, alpha=0.85
-        )
+            # Calculate left and right-handed responses
+            left = np.abs(mat[0, :, :])
+            right = np.abs(mat[1, ::-1, :])
 
-    # Add axis labels
-    plt.xlabel(r'$\omega$ (eV)', fontsize=16, weight='bold')
-    plt.ylabel(r'$\chi$', fontsize=16, weight='bold')
+            # Compute chirality
+            n = lambda x: jnp.linalg.norm(x, axis=0)
+            chi = n(left - right) / jnp.sqrt(n(left)**2 + n(right)**2)
 
-    # Add a legend
-    plt.legend(loc="best", fontsize=12, frameon=False)
+            # Plot the response
+            plt.plot(
+                omegas, chi, label=fr'$\lambda = {coulomb_strength}$',
+                linewidth=2, alpha=0.85
+            )
 
-    # Add gridlines for clarity
-    plt.grid(alpha=0.4)
+        # Add axis labels
+        plt.xlabel(r'$\omega$ (eV)', weight='bold')
+        plt.ylabel(r'$\chi$', weight='bold')
 
-    # Add a title to the plot
-    plt.title("RPA Response vs. Frequency", fontsize=18, weight='bold', pad=15)
+        # Add a legend
+        plt.legend(loc="best", frameon=False)
 
-    # Optimize layout and save the plot as a high-resolution PDF
-    plt.tight_layout()
-    plt.savefig("rpa.pdf", dpi=300)
-    plt.close()
+        # Add gridlines for clarity
+        plt.grid(alpha=0.4)
+
+        # Optimize layout and save the plot as a high-resolution PDF
+        plt.tight_layout()
+        plt.savefig("rpa.pdf", dpi=300)
+        plt.close()
 
 
 ### MEAN FIELD ###
@@ -569,8 +600,16 @@ def scf_loop(flake, U, mixing, limit, max_steps):
 if __name__ == '__main__':
     
     LRT_FILE = 'lrt.npz'
+    RPA_FILE = 'rpa_triangle_2.npz'
+
+    # # figure chirality
+    # plot_rpa_response(RPA_FILE)
+    # plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.1', 'haldane_graphene_0.1'] )
+    # plot_chirality("cond_" + LRT_FILE)
+    # 1/0
+    
     IP_ARGS = []
-    for (t2, delta) in [(0.0, 0.0), (0.05, 1), (0.1, 1), (0.2, 1)] :
+    for (t2, delta) in [(0.0, 0.0), (0.05, 1), (0.08, 1), (0.2, 1), (0.4, 1)] :
         flake = get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(42, armchair = True))
         flake.t2 = t2
         flake.trivial = bool(flake.t2 < get_threshold(delta))
@@ -580,7 +619,6 @@ if __name__ == '__main__':
 
     print(IP_ARGS[0][0])
 
-    RPA_FILE = 'rpa_triangle_2.npz'
     RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(42))
     RPA_VALS = [0, 0.1, 0.5, 1.0]
 
@@ -595,7 +633,7 @@ if __name__ == '__main__':
     flake.show_2d(display = flake.eigenvectors[:, idx], scale = True, name = 'geometry.pdf')
 
     # figure contribution of topological state
-    plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.1', 'haldane_graphene_0.1'] )
+    plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
 
     # fig RPA
     rpa_response(RPA_FLAKE, RPA_FILE, RPA_VALS)
