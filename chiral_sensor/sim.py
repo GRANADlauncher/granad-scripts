@@ -20,9 +20,15 @@ def to_helicity(mat):
     trafo_inv = jnp.linalg.inv(trafo)
     return jnp.einsum('ij,jmk,ml->ilk', trafo, mat, trafo_inv)
 
+def get_threshold(delta):
+    """threshold for topological nontriviality for t_2"""
+    return delta / (3 * jnp.sqrt(3) )
+
 def get_haldane_graphene(t1, t2, delta):
     """Constructs a graphene model with
     onsite hopping difference between sublattice A and B, nn hopping, nnn hopping = delta, t1, t2
+
+    threshold is at $t_2 > \frac{\delta}{3 \sqrt{3}}$
     """
     return (
         Material("haldane_graphene")
@@ -106,6 +112,7 @@ def ip_response(args_list, results_file):
         pol[name] = get_correlator(p[:2])
 
         trivial = jnp.abs(flake.energies) > 0.1
+        print("edge states for", name, len(flake) - trivial.sum())
 
         mask = jnp.logical_and(trivial[:, None], trivial)
         
@@ -448,7 +455,7 @@ def rpa_sus(evs, omegas, occupations, energies, coulomb, electrons, relaxation_r
 
 def rpa_response(flake, results_file, cs):
     """computes j-j response from p-p in RPA"""
-       
+    
     omegas =  jnp.linspace(0, 15, 150)
     res = []
     
@@ -581,7 +588,16 @@ def scf_loop(flake, U, mixing, limit, max_steps):
 if __name__ == '__main__':
     
     LRT_FILE = 'lrt.npz'
-    IP_ARGS = [ (get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(42, armchair = True)), f"haldane_graphene_{t2}") for (t2, delta) in [(0.0, 0.0), (0.05, 1), (0.1, 1), (0.2, 1)] ]
+    IP_ARGS = []
+    for (t2, delta) in [(0.0, 0.0), (0.05, 1), (0.1, 1), (0.2, 1)] :
+        flake = get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(42, armchair = True))
+        flake.t_2 = t_2
+        flake.trivial = bool(flake.t_2 < get_threshold(delta))
+        print(len(flake))
+        name = f"haldane_graphene_{t2}"
+        IP_ARGS.append( (flake, name) )
+
+    print(IP_ARGS[0][0])
 
     RPA_FILE = 'rpa_triangle_2.npz'
     RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(42))
