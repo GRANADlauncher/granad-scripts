@@ -745,8 +745,8 @@ if __name__ == '__main__':
     # 1/0
 
     IP_ARGS = []
-    delta = 1.0
-    for t2 in jnp.linspace(0, 0.4, 20):
+    delta = 0.1
+    for t2 in jnp.linspace(0, 0.4, 20) * 0.1:
         flake = get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Rhomboid(45, 45, armchair = False))
         flake.t2 = t2
         flake.trivial = bool(flake.t2 < get_threshold(delta))
