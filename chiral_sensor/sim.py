@@ -735,8 +735,8 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
 
 if __name__ == '__main__':
     
-    LRT_FILE = 'lrt_rekt_ac.npz'
-    RPA_FILE = 'rpa_rekt_ac.npz'
+    LRT_FILE = 'lrt_rekt_zz.npz'
+    RPA_FILE = 'rpa_rekt_zz.npz'
 
     # figure chirality
     # plot_rpa_response_2d(RPA_FILE)
@@ -745,9 +745,9 @@ if __name__ == '__main__':
     # 1/0
 
     IP_ARGS = []
-    delta = 0.1
-    for t2 in jnp.linspace(0, 0.4, 20) * 0.1:
-        flake = get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Rhomboid(45, 45, armchair = True))
+    delta = 1
+    for t2 in jnp.linspace(0, 0.4, 20):
+        flake = get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(42, armchair = False))
         flake.t2 = t2
         flake.trivial = bool(flake.t2 < get_threshold(delta))
         print(len(flake))
@@ -769,7 +769,7 @@ if __name__ == '__main__':
     # figure contribution of topological state
     plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
     
-    RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Rhomboid(45, 45, armchair = False))
+    RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(42, armchair = False))
     RPA_VALS = np.linspace(0, 1, 5)
 
     # fig RPA
