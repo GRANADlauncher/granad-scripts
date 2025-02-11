@@ -735,8 +735,8 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
 
 if __name__ == '__main__':
     
-    LRT_FILE = 'lrt_rekt_zz.npz'
-    RPA_FILE = 'rpa_rekt_zz.npz'
+    LRT_FILE = 'lrt_tri_zz.npz'
+    RPA_FILE = 'rpa_tri_zz.npz'
 
     # figure chirality
     # plot_rpa_response_2d(RPA_FILE)
