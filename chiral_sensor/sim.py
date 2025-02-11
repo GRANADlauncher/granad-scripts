@@ -409,7 +409,7 @@ def plot_chirality_topo(results_file, keys=None, name="chirality_topo.pdf"):
                 omegas, chi,
                 label=label,
                 linestyle=linestyle,
-                linewidth=2,
+                linewidth=4,
                 alpha=0.8
             )
 
@@ -684,69 +684,58 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
     def scale_vals( vals ):
         return jnp.abs(vals) / jnp.abs(vals).max() if scale else vals
 
-    # Determine which tags to display
-    if show_tags is None:
-        show_tags = {orb.tag for orb in orbs}
-    else:
-        show_tags = set(show_tags)
-
-    # Prepare data structures for plotting
-    tags_to_pos, tags_to_idxs = defaultdict(list), defaultdict(list)
-    for orb in orbs:
-        if orb.tag in show_tags:
-            tags_to_pos[orb.tag].append(orb.position)
-            tags_to_idxs[orb.tag].append(orbs.index(orb))
             
     # Define custom settings for this plot only
     custom_params = {
         "text.usetex": True,
         "font.family": "serif",
         "font.size": 33,
-        "axes.labelsize": 33,
-        "xtick.labelsize": 8*3,
-        "ytick.labelsize": 8*3,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
         "legend.fontsize": 9*2,
         "pdf.fonttype": 42
     }
 
+    scale = 1
+
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
-
 
         # Create plot
         fig, ax = plt.subplots()
         cmap = plt.cm.bwr if cmap is None else cmap
         colors = scale_vals(display)            
-        scatter = ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], c=colors, edgecolor='black', cmap=cmap, s = circle_scale*jnp.abs(display) )
-        ax.scatter([orb.position[0] for orb in orbs], [orb.position[1] for orb in orbs], color='black', s=5, marker='o')            
+        scatter = ax.scatter([orb.position[0] * scale for orb in orbs], [orb.position[1]  * scale for orb in orbs], c=colors, edgecolor='none', cmap=cmap, s = circle_scale*jnp.abs(display) )
+        ax.scatter([orb.position[0] * scale  for orb in orbs], [orb.position[1]  * scale  for orb in orbs], color='black', s=5, marker='o')            
         cbar = fig.colorbar(scatter, ax=ax)
 
         # Finalize plot settings
         if title is not None:
             plt.title(title)
             
-        plt.xlabel('X')
-        plt.ylabel('Y')
-        ax.grid(grid)
+        plt.xlabel('X (Å)')
+        plt.ylabel('Y (Å)')    
+        ax.grid(True)
         ax.axis('equal')
         plt.savefig('geometry.pdf')
         
 
 if __name__ == '__main__':
     
-    LRT_FILE = 'lrt.npz'
-    RPA_FILE = 'rpa_triangle_2.npz'
+    LRT_FILE = 'lrt_rekt.npz'
+    RPA_FILE = 'rpa_rekt.npz'
 
     # figure chirality
     # plot_rpa_response_2d(RPA_FILE)
     # plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
     # plot_chirality_2d("cond_" + LRT_FILE)
     # 1/0
-    
+
     IP_ARGS = []
     delta = 1.0
     for t2 in jnp.linspace(0, 0.4, 20):
-        flake = get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(42, armchair = False))
+        flake = get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Rhomboid(45, 45, armchair = False))
         flake.t2 = t2
         flake.trivial = bool(flake.t2 < get_threshold(delta))
         print(len(flake))
@@ -754,22 +743,22 @@ if __name__ == '__main__':
         IP_ARGS.append( (flake, name) )
 
     print(IP_ARGS[0][0])
-
-    RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(42))
-    RPA_VALS = np.linspace(0, 1, 20)
+    
+    # figure example geometry
+    flake = IP_ARGS[-1][0]
+    idx = jnp.abs(flake.energies).argmin().item()
+    show_2d(flake, display = flake.eigenvectors[:, idx], scale = True)
 
     ip_response(IP_ARGS, LRT_FILE)
 
     # figure chirality
     plot_chirality_2d("cond_" + LRT_FILE)
 
-    # figure example geometry
-    flake = IP_ARGS[-1][0]
-    idx = jnp.abs(flake.energies).argmin().item()
-    show_2d(flake, display = flake.eigenvectors[:, idx], scale = True)
-
     # figure contribution of topological state
     plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
+    
+    RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Rhomboid(45, 45, armchair = False))
+    RPA_VALS = np.linspace(0, 1, 5)
 
     # fig RPA
     rpa_response(RPA_FLAKE, RPA_FILE, RPA_VALS)
