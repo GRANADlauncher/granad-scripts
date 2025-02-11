@@ -1,0 +1,2 @@
+* storyline
+  + put insulator in array, use equation from prl, vary t_2
