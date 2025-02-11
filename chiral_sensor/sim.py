@@ -662,8 +662,8 @@ def plot_rpa_response_2d(results_file):
         )
         
         # Axis labels
-        ax.set_xlabel(r'$\omega$ (eV)', weight='bold')
-        ax.set_ylabel(r'$\lambda$', weight='bold')
+        ax.set_xlabel(r'$\lambda$', weight='bold')
+        ax.set_ylabel(r'$\omega$ (eV)', weight='bold')
         
         # Add colorbar
         cbar = fig.colorbar(cax, ax=ax, label=r'$\chi$', fraction=0.046, pad=0.04)
@@ -756,7 +756,7 @@ if __name__ == '__main__':
     print(IP_ARGS[0][0])
 
     RPA_FLAKE = get_haldane_graphene(-2.66, -0.5j, 0.3).cut_flake(Triangle(42))
-    RPA_VALS = [0, 0.1, 0.5, 1.0]
+    RPA_VALS = np.linspace(0, 1, 20)
 
     ip_response(IP_ARGS, LRT_FILE)
 
