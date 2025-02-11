@@ -761,7 +761,7 @@ if __name__ == '__main__':
     ip_response(IP_ARGS, LRT_FILE)
 
     # figure chirality
-    plot_chirality("cond_" + LRT_FILE)
+    plot_chirality_2d("cond_" + LRT_FILE)
 
     # figure example geometry
     flake = IP_ARGS[-1][0]
@@ -772,7 +772,7 @@ if __name__ == '__main__':
     plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
 
     # fig RPA
-    rpa_response(RPA_FLAKE, RPA_FILE, RPA_VALS)
+    rpa_response_2d(RPA_FLAKE, RPA_FILE, RPA_VALS)
     plot_rpa_response(RPA_FILE)
 
     # fig sensor
