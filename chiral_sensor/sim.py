@@ -316,6 +316,7 @@ def plot_chirality_2d(results_file, keys=None, name="chirality.pdf"):
         "legend.fontsize": 9*2,
         "pdf.fonttype": 42
     }
+
     
     with mpl.rc_context(rc=custom_params):
         fig, ax = plt.subplots(figsize=(10, 7))
@@ -339,6 +340,17 @@ def plot_chirality_2d(results_file, keys=None, name="chirality.pdf"):
         
         # Grid and layout improvements
         ax.grid(alpha=0.4, linestyle='--')
+
+        # Compute threshold value
+        threshold_value = get_threshold(1)
+
+        # Add vertical line
+        ax.axvline(threshold_value, color='k', linestyle='--', linewidth=2, label=r'$1$')
+        
+        # Add legend
+        ax.legend()
+
+        
         plt.tight_layout()
         
         # Save the figure
@@ -723,13 +735,13 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
 
 if __name__ == '__main__':
     
-    LRT_FILE = 'lrt_rekt.npz'
-    RPA_FILE = 'rpa_rekt.npz'
+    LRT_FILE = 'lrt_rekt_ac.npz'
+    RPA_FILE = 'rpa_rekt_ac.npz'
 
     # figure chirality
     # plot_rpa_response_2d(RPA_FILE)
     # plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
-    # plot_chirality_2d("cond_" + LRT_FILE)
+    # plot_chirality("cond_" + LRT_FILE)
     # 1/0
 
     IP_ARGS = []
