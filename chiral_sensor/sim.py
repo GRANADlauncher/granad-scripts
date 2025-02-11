@@ -772,8 +772,8 @@ if __name__ == '__main__':
     plot_chirality_topo("cond_" + LRT_FILE, keys = ['topological.haldane_graphene_0.4', 'haldane_graphene_0.4'] )
 
     # fig RPA
-    rpa_response_2d(RPA_FLAKE, RPA_FILE, RPA_VALS)
-    plot_rpa_response(RPA_FILE)
+    rpa_response(RPA_FLAKE, RPA_FILE, RPA_VALS)
+    plot_rpa_response_2d(RPA_FILE)
 
     # fig sensor
     plot_power("cond_" + LRT_FILE)
