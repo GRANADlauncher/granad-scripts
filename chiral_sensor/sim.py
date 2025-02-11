@@ -735,8 +735,8 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
 
 if __name__ == '__main__':
     
-    LRT_FILE = 'lrt_tri_zz_large.npz'
-    RPA_FILE = 'rpa_tri_zz_large.npz'
+    LRT_FILE = 'lrt_tri_zz.npz'
+    RPA_FILE = 'rpa_tri_zz.npz'
 
     # figure chirality
     # plot_rpa_response_2d(RPA_FILE)
@@ -746,20 +746,24 @@ if __name__ == '__main__':
 
     IP_ARGS = []
     delta = 1
-    for t2 in jnp.linspace(0, 0.4, 20):
-        flake = get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(80, armchair = False))
+    for t2 in jnp.linspace(0, 0.4, 50):
+        flake = get_haldane_graphene(-2.66, -1j*t2, delta).cut_flake(Triangle(42, armchair = False))
         flake.t2 = t2
         flake.trivial = bool(flake.t2 < get_threshold(delta))
         print(len(flake))
         name = f"haldane_graphene_{t2}"
         IP_ARGS.append( (flake, name) )
 
+    count_topo = lambda flake : jnp.sum(jnp.abs(flake.energies) < 0.1)
+    
     print(IP_ARGS[0][0])
     
     # figure example geometry
     flake = IP_ARGS[-1][0]
     idx = jnp.abs(flake.energies).argmin().item()
     show_2d(flake, display = flake.eigenvectors[:, idx], scale = True)
+
+    # load_data("cond_lrt")
 
     ip_response(IP_ARGS, LRT_FILE)
 
