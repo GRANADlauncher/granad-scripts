@@ -36,7 +36,7 @@ def omega(wavelength):
 def get_haldane_graphene(t1, t2, delta):
     """Constructs a graphene model with onsite hopping difference between sublattice A and B, nn hopping, nnn hopping = delta, t1, t2
 
-    threshold is at $t_2 > \\frac{\delta}{3 \sqrt{3}}$
+    threshold is at $t_2 > \\frac{\\delta}{3 \sqrt{3}}$
     """
     return (
         Material("haldane_graphene")
