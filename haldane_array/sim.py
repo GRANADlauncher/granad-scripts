@@ -1,13 +1,18 @@
-"""common utilities"""
+# TODO: bring in alpha from micro sims
+# TODO: there is sth wrong if eps1 != eps2, but im not gonna fix that
 
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-import numpy as np
+# relevant scales:
+# length in nm, energies in eV, hbar = 1
+from typing import Any
+
+import jax
 import jax.numpy as jnp
 from flax import struct
 
+import matplotlib.pyplot as plt
+
 from granad import *
+
 
 ### UTILITIES ###
 def load_data(results_file, keys):
@@ -188,54 +193,190 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
         ax.axis('equal')
         plt.savefig('geometry.pdf')
 
-# TODO: pick g, a, t0, r0, area
-# TODO: bring in alpha
-# TODO: fix speed of light
 
-LIGHT = 1
+LIGHT = 299.8
+def wavelength(omega):
+    return LIGHT / (omega / 2*jnp.pi)
+
+def omega(wavelength):
+    return 2*jnp.pi * LIGHT / wavelength
+
+@struct.dataclass
+class Params:
+    omegas : Any
+    alpha : Any
+    theta : Any
 
 @struct.dataclass
 class Lattice:
-    r0: float
-    t0: float
-    g: float
+    eps1: float
+    eps2: float
     a: float
-    area: float
-        
-def S_s(area, omegas, theta):
-    return 2*jnp.pi*omegas/(LIGHT * area * jnp.cos(theta))
+    is_square: bool = True
 
-def S_p(area, omegas, theta):
-    return 2*jnp.pi*omegas*jnp.cos(theta)/(LIGHT * area)
-        
-def reflection_layer(lattice, alpha, S):
-    # periodically patterned haldane model
-    G_im = S - 2 * (omegas/LIGHT)**3 / 3
-    G_re = lattice.g / lattice.a**3    
-    r = 1j * S / (alpha - G)
-    return r, -r
+    @property
+    def area(self):
+        return jax.lax.cond(
+            self.is_square,
+            lambda: self.a**2,
+            lambda: (jnp.sqrt(3) / 2) * self.a**2
+        )
 
-def amplitude(lattice, alpha, S):
-    r = reflection_layer(lattice, alpha, S)
-    eta_s = r*(1 + lattice.r0) / (1 - lattice.r0 * r)
-    eta_p= r*(1 - lattice.r0) / (1 - lattice.r0 * r)
-    return eta_s, eta_p
+    @property
+    def g(self):
+        return jax.lax.cond(
+            self.is_square,
+            lambda: 4.52,
+            lambda: 5.52
+        )
 
-def total_reflection(lattice, alpha, S):
-    eta = amplitude(lattice, alpha, incidence, S)    
-    R_s = lattice.r0 + (1 + lattice.r0)*eta
-    R_p = lattice.r0 + (1 - lattice.r0)*eta
-    return R_s, R_p
+    
+    def _snell_angle(self, theta_i):
+        """Compute transmitted angle using Snell's Law."""
+        n1 = jnp.sqrt(self.eps1)
+        n2 = jnp.sqrt(self.eps2)
+        sin_theta_t = n1 * jnp.sin(theta_i) / n2
+        # Ensure the angle is valid (total internal reflection case)
+        return jnp.arcsin(jax.lax.clamp(-1.0, sin_theta_t, 1.0))
+    
+    def r0(self, params):
+        """Compute Fresnel reflection coefficient (r) for s and p polarization."""
+        theta_i = params.theta
+        theta_t = self._snell_angle(theta_i)
 
-def total_transmission(lattice, alpha, S):
-    eta = amplitude(lattice, alpha, incidence, S)    
-    T_s = lattice.t0 + lattice.t0 *eta
-    T_p = lattice.t0 - lattice.t0*eta
-    return T_s, T_p
+        n1 = jnp.sqrt(self.eps1)
+        n2 = jnp.sqrt(self.eps2)
 
-def total_absorption(lattice, alpha, incidence, S):
-    x = total_reflection(lattice, alpha, incidence, S) + total_transmission(lattice, alpha, incidence, S)
-    return 1 - x[0], 1 - x[1]
-        
-if __name__ == '__main__':    
-    lattice()
+        # Compute reflection coefficients
+        rs = (n1 * jnp.cos(theta_i) - n2 * jnp.cos(theta_t)) / (n1 * jnp.cos(theta_i) + n2 * jnp.cos(theta_t))
+        rp = (n2 * jnp.cos(theta_i) - n1 * jnp.cos(theta_t)) / (n2 * jnp.cos(theta_i) + n1 * jnp.cos(theta_t))
+
+        return {"s": rs, "p": rp}
+
+    def t0(self, params):
+        """Compute Fresnel transmission coefficient (t) for s and p polarization."""
+        theta_i = params.theta
+        theta_t = self._snell_angle(theta_i)
+
+        n1 = jnp.sqrt(self.eps1)
+        n2 = jnp.sqrt(self.eps2)
+
+        # Compute transmission coefficients
+        ts = (2 * n1 * jnp.cos(theta_i)) / (n1 * jnp.cos(theta_i) + n2 * jnp.cos(theta_t))
+        tp = (2 * n1 * jnp.cos(theta_i)) / (n2 * jnp.cos(theta_i) + n1 * jnp.cos(theta_t))
+
+        return {"s": ts, "p": tp}
+
+    # fine
+    def reflection_layer(self, params, polarization):
+        """Generalized reflection layer calculation for s and p polarization."""
+        omegas, alpha, theta = params.omegas, params.alpha, params.theta
+        S = 2 * jnp.pi * omegas * (1/jnp.cos(theta) if polarization == "s" else jnp.cos(theta)) / (LIGHT * self.area)
+        G_im = S - 2 * (omegas / LIGHT) ** 3 / 3
+        G_re = self.g / self.a ** 3
+        G = G_re + 1j * G_im
+        factor = 1j if polarization == "s" else -1j
+        return factor * S / (1/alpha - G)
+
+    # fine
+    def amplitude(self, params, polarization):
+        """Generalized amplitude calculation for s and p polarization."""
+        r = self.reflection_layer(params, polarization)
+        r0 = self.r0(params)[polarization]
+        factor = 1 if polarization == "s" else -1
+        return r * (1 + factor * r0) / (1 - r0 * r)
+
+    # fine
+    def total_reflection(self, params, polarization):
+        """Generalized total reflection calculation for s and p polarization."""
+        eta = self.amplitude(params, polarization)
+        r0 = self.r0(params)[polarization]
+        factor = 1 if polarization == "s" else -1
+        return r0 + (1 + factor * r0) * eta
+
+    # fine
+    def total_transmission(self, params, polarization):
+        """Generalized total transmission calculation for s and p polarization."""
+        eta = self.amplitude(params, polarization)
+        t0 = self.t0(params)[polarization]
+        factor = 1 if polarization == "s" else -1
+        return t0 + factor * t0 * eta
+
+    def coefficients(self, params):
+        t_s = l.total_transmission(p, "s")
+        r_s = l.total_reflection(p, "s")    
+        t_p = l.total_transmission(p, "p")
+        r_p = l.total_reflection(p, "p")
+        return t_s, r_s, t_p, r_p        
+
+def plot_absorption(omegas, t, r):
+    a = 1 - (jnp.abs(t)**2 + jnp.abs(r)**2)
+    plt.plot(omegas, a)
+    plt.show()
+    plt.close()
+
+
+def check_prl_figures():    
+    # params paper:
+    # eps1 = 1, eps2 = 10
+    # disk 60nm, Ef = 0.4 eV
+    # lambda >> lattice const 72 - 126 nm, 
+
+    # selling point: there is analytical upper limit on absorption, eqn. 3, how to reach? can with graphene and eqn. 5
+
+    def alpha_ref(omegas):
+        omega_p = 0.195 # eV
+
+        kappa = 0.196 - 0.194 # eV, eye-balled
+
+        sigma_ext = 6 * jnp.pi*(60/2)**2 # dimensionless peak in fig 1 a times approximate disk area (nm)
+
+        res_wv = 1240 / omega_p # convert to nm
+        sigma_prefac = 3*res_wv**2 / (2 * jnp.pi) # nm
+        kappa_r = sigma_ext / sigma_prefac * kappa # eV
+
+        c = 299.8 # nm / fs, since hbar = 1
+
+        prefac = 3 * c**3 * kappa_r / (2 * omega_p**2)
+        freq = 1/(omega_p**2 - omegas**2 - 1j * kappa * omegas**3/omega_p**2)
+        return prefac * freq    
+
+    # fig 1 a
+    omegas = jnp.linspace(0.18, 0.21, 100)
+    ext = alpha_ref(omegas).imag * 4 * jnp.pi * omegas / 300 / (jnp.pi * 30**2)
+    plt.plot(omegas, ext)
+    plt.show()
+
+    # fig 2 normal incidence
+    eps1 = 1
+    eps2 = 1
+    l = Lattice(eps1 = eps1, eps2 = eps2, a = 99.0, is_square = False)
+
+    # freqs dont match entirely but thats okay given i had to eyeball everything
+    omegas = jnp.linspace(0.14, 0.2, 100)
+    alpha = alpha_ref(omegas)
+
+    p = Params(omegas = omegas, alpha = alpha, theta = 0) #jnp.pi / 180 * 35)
+    
+    t_s, r_s, t_p, r_p = l.coefficients(p)
+
+    plot_absorption(omegas, t_s, r_s)
+    plot_absorption(omegas, t_p, r_p)
+
+    # fig 2 oblique, there is sth wrong if eps1 != eps2, but im not gonna fix that
+    eps1 = 1
+    eps2 = 1
+    l = Lattice(eps1 = eps1, eps2 = eps2, a = 78.0, is_square = False)
+
+    omegas = jnp.linspace(0.0, 0.2, 100)
+    alpha = alpha_ref(omegas)
+
+    p = Params(omegas = omegas, alpha = alpha, theta = jnp.pi / 180 * 35)
+
+    t_s, r_s, t_p, r_p = l.coefficients(p)
+
+    plot_absorption(omegas, t_s, r_s)
+    plot_absorption(omegas, t_p, r_p)
+
+if __name__ == '__main__':
+    pass
