@@ -25,6 +25,14 @@ def get_threshold(delta):
     """threshold for topological nontriviality for t_2"""
     return delta / (3 * jnp.sqrt(3) )
 
+LIGHT = 299.8
+def wavelength(omega):
+    return LIGHT / (omega / 2*jnp.pi)
+
+def omega(wavelength):
+    return 2*jnp.pi * LIGHT / wavelength
+
+### MATERIAL ###
 def get_haldane_graphene(t1, t2, delta):
     """Constructs a graphene model with
     onsite hopping difference between sublattice A and B, nn hopping, nnn hopping = delta, t1, t2
@@ -97,110 +105,69 @@ def get_haldane_graphene(t1, t2, delta):
     )
 
 
-### RESPONSE ###
-def ip_response(args_list, results_file):
-    """computes IP j-j and p-p response. saves j-j, pp in "cond_" + results_file, "pol_" + results_file.
-    """
+### IP RESPONSE ###
+def get_correlator(flake, omegas, operators, relaxation_rate = 0.05, mask = None):
+    return jnp.array([
+        [
+            flake.get_ip_green_function(o1, o2, omegas, relaxation_rate, mask = mask) for o1 in operators
+        ]
+        for o2 in operators]
+                     )
 
-    def get_correlator(operators, mask = None):
-        return jnp.array([[flake.get_ip_green_function(o1, o2, omegas, relaxation_rate = 0.05, mask = mask) for o1 in operators] for o2 in operators])
-
+def ip_polarizability(flake, results_file = None):
+    """computes IP polarizability according to usual lehman representation"""    
     pol = {}
-    omegas = jnp.linspace(0, 6, 200)    
-    for (flake, name) in args_list:        
-        v, p = flake.velocity_operator_e, flake.dipole_operator_e
-        pol[name] = get_correlator(p[:2])
-
-        trivial = jnp.abs(flake.energies) > 0.1
-        print("edge states for", name, len(flake) - trivial.sum())
-
-        mask = jnp.logical_and(trivial[:, None], trivial)
-        
-        pol["topological." + name] = get_correlator(p[:2], mask)
-        
+    omegas = jnp.linspace(0, 6, 200)
+    pol["total"] =  get_correlator(p[:2])
+    
+    trivial = jnp.abs(flake.energies) > 0.1
+    mask = jnp.logical_and(trivial[:, None], trivial)        
+    pol["topological"] = get_correlator(p[:2], mask)
+    
     pol["omegas"] = omegas
-    jnp.savez("pol_" + results_file, **pol)
+
+    if results_file is not None:
+        jnp.savez(results_file, **pol)
+        
+    return pol
 
 ### RPA ###
-def rpa_sus(evs, omegas, occupations, energies, coulomb, electrons, relaxation_rate = 0.05):
-    """computes pp-response in RPA, following https://pubs.acs.org/doi/10.1021/nn204780e"""
+def rpa_susceptibility(flake, c, relaxation_rate = 0.05):
+    """computes RPA susceptibility, following https://pubs.acs.org/doi/10.1021/nn204780e"""
     
     def inner(omega):
         mat = delta_occ / (omega + delta_e + 1j*relaxation_rate)
         sus = jnp.einsum('ab, ak, al, bk, bl -> kl', mat, evs, evs.conj(), evs.conj(), evs)
         return sus @ jnp.linalg.inv(one - coulomb @ sus)
-
-    one = jnp.identity(evs.shape[0])
-    evs = evs.T
-    delta_occ = (occupations[:, None] - occupations) * electrons
-    delta_e = energies[:, None] - energies
+    
+    one = jnp.identity(len(flake))
+    coulomb = c * flake.coulomb
+    evs = flake.eigenvectors.T
+    occupations = flake.initial_density_matrix_e.diagonal()
+    delta_occ = (occupations[:, None] - occupations) * flake.electrons
+    delta_e = flake.energies[:, None] - flake.energies
     
     return jax.lax.map(jax.jit(inner), omegas)
 
-def rpa_response(flake, results_file, cs):
-    """computes j-j response from p-p in RPA"""
-    
-    omegas =  jnp.linspace(0, 6, 200)
-    res = []
-    
-    for c in cs:        
-        sus = rpa_sus(flake.eigenvectors, omegas, flake.initial_density_matrix_e.diagonal(), flake.energies, c*flake.coulomb, flake.electrons)        
-        p = flake.positions.T        
-        ref = jnp.einsum('Ii,wij,Jj->IJw', p, sus, p)        
-        res.append(omegas[None, None, :]**2 * ref)
+def rpa_polarizability(flake, omegas, cs, results_file = None):
+    """computes RPA polarizability, following https://pubs.acs.org/doi/10.1021/nn204780e"""
+    pol = []    
+    for c in cs:
+        # sus is sandwiched like x * sus * x
+        sus = rpa_susceptibility(flake, c)
         
-    jnp.savez(results_file, cond = res, omegas = omegas, cs = cs)
+        p = flake.positions.T
+        ref = jnp.einsum('Ii,wij,Jj->IJw', p, sus, p)
 
-def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 1e3, title = None, mode = None, indicate_atoms = False, grid = False):
+        # TODO: check if this is right, maybe missing omegas?
+        pol.append(ref)
 
-    # decider whether to take abs val and normalize 
-    def scale_vals( vals ):
-        return jnp.abs(vals) / jnp.abs(vals).max() if scale else vals
+    if results_file is not None:
+        jnp.savez(results_file, pol = pol, omegas = omegas, cs = cs)
+        
+    return res
 
-            
-    # Define custom settings for this plot only
-    custom_params = {
-        "text.usetex": True,
-        "font.family": "serif",
-        "font.size": 33,
-        "axes.labelsize": 22,
-        "xtick.labelsize": 8*2,
-        "ytick.labelsize": 8*2,
-        "legend.fontsize": 9*2,
-        "pdf.fonttype": 42
-    }
-
-    scale = 1
-
-    # Apply settings only for this block
-    with mpl.rc_context(rc=custom_params):
-
-        # Create plot
-        fig, ax = plt.subplots()
-        cmap = plt.cm.bwr if cmap is None else cmap
-        colors = scale_vals(display)            
-        scatter = ax.scatter([orb.position[0] * scale for orb in orbs], [orb.position[1]  * scale for orb in orbs], c=colors, edgecolor='none', cmap=cmap, s = circle_scale*jnp.abs(display) )
-        ax.scatter([orb.position[0] * scale  for orb in orbs], [orb.position[1]  * scale  for orb in orbs], color='black', s=5, marker='o')            
-        cbar = fig.colorbar(scatter, ax=ax)
-
-        # Finalize plot settings
-        if title is not None:
-            plt.title(title)
-            
-        plt.xlabel('X (Å)')
-        plt.ylabel('Y (Å)')    
-        ax.grid(True)
-        ax.axis('equal')
-        plt.savefig('geometry.pdf')
-
-
-LIGHT = 299.8
-def wavelength(omega):
-    return LIGHT / (omega / 2*jnp.pi)
-
-def omega(wavelength):
-    return 2*jnp.pi * LIGHT / wavelength
-
+### OPTICAL SIMS ###
 @struct.dataclass
 class Params:
     omegas : Any
@@ -213,7 +180,7 @@ class Lattice:
     eps2: float
     a: float
     is_square: bool = True
-
+    
     @property
     def area(self):
         return jax.lax.cond(
@@ -230,6 +197,10 @@ class Lattice:
             lambda: 5.52
         )
 
+    def subwavelength_omegas():
+        lambda_min = self.a * 1.1 # nm, 10 % larger than lattice, just to make sure
+        omega_min = 1240 / lambda_min # eV
+        return jnp.linspace(omega_min, 10*omega_max, 100)
     
     def _snell_angle(self, theta_i):
         """Compute transmitted angle using Snell's Law."""
@@ -309,12 +280,55 @@ class Lattice:
         r_p = l.total_reflection(p, "p")
         return t_s, r_s, t_p, r_p        
 
+### PLOTTING ###
+def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 1e3, title = None, mode = None, indicate_atoms = False, grid = False):
+
+    # decider whether to take abs val and normalize 
+    def scale_vals( vals ):
+        return jnp.abs(vals) / jnp.abs(vals).max() if scale else vals
+
+            
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
+
+    scale = 1
+
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
+
+        # Create plot
+        fig, ax = plt.subplots()
+        cmap = plt.cm.bwr if cmap is None else cmap
+        colors = scale_vals(display)            
+        scatter = ax.scatter([orb.position[0] * scale for orb in orbs], [orb.position[1]  * scale for orb in orbs], c=colors, edgecolor='none', cmap=cmap, s = circle_scale*jnp.abs(display) )
+        ax.scatter([orb.position[0] * scale  for orb in orbs], [orb.position[1]  * scale  for orb in orbs], color='black', s=5, marker='o')            
+        cbar = fig.colorbar(scatter, ax=ax)
+
+        # Finalize plot settings
+        if title is not None:
+            plt.title(title)
+            
+        plt.xlabel('X (Å)')
+        plt.ylabel('Y (Å)')    
+        ax.grid(True)
+        ax.axis('equal')
+        plt.savefig('geometry.pdf')
+
+    
 def plot_absorption(omegas, t, r, name):
     a = 1 - (jnp.abs(t)**2 + jnp.abs(r)**2)
     plt.plot(omegas, a)
     plt.show()
-    plt.savefig(name)
-
+    plt.savefig(name)    
 
 def check_prl_figures():    
     # params paper:
