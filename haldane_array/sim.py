@@ -309,11 +309,11 @@ class Lattice:
         r_p = l.total_reflection(p, "p")
         return t_s, r_s, t_p, r_p        
 
-def plot_absorption(omegas, t, r):
+def plot_absorption(omegas, t, r, name):
     a = 1 - (jnp.abs(t)**2 + jnp.abs(r)**2)
     plt.plot(omegas, a)
     plt.show()
-    plt.close()
+    plt.savefig(name)
 
 
 def check_prl_figures():    
@@ -345,7 +345,7 @@ def check_prl_figures():
     omegas = jnp.linspace(0.18, 0.21, 100)
     ext = alpha_ref(omegas).imag * 4 * jnp.pi * omegas / 300 / (jnp.pi * 30**2)
     plt.plot(omegas, ext)
-    plt.show()
+    plt.savefig("extinction_prl.pdf")
 
     # fig 2 normal incidence
     eps1 = 1
@@ -360,8 +360,8 @@ def check_prl_figures():
     
     t_s, r_s, t_p, r_p = l.coefficients(p)
 
-    plot_absorption(omegas, t_s, r_s)
-    plot_absorption(omegas, t_p, r_p)
+    plot_absorption(omegas, t_s, r_s, "normal_s_prl.pdf")
+    plot_absorption(omegas, t_p, r_p, "normal_p_prl.pdf")
 
     # fig 2 oblique, there is sth wrong if eps1 != eps2, but im not gonna fix that
     eps1 = 1
@@ -375,8 +375,8 @@ def check_prl_figures():
 
     t_s, r_s, t_p, r_p = l.coefficients(p)
 
-    plot_absorption(omegas, t_s, r_s)
-    plot_absorption(omegas, t_p, r_p)
+    plot_absorption(omegas, t_s, r_s, "oblique_s_prl.pdf")
+    plot_absorption(omegas, t_p, r_p, "oblique_p_prl.pdf")
 
 if __name__ == '__main__':
     pass
