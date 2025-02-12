@@ -7,7 +7,7 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
-from flax import struct
+from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 
@@ -169,13 +169,13 @@ def rpa_polarizability(flake, omegas, cs, results_file = None):
     return res
 
 ### OPTICAL SIMS ###
-@struct.dataclass
+@dataclass
 class Params:
     omegas : Any
     alpha : Any
     theta : Any
-
-@struct.dataclass
+    
+@dataclass
 class Lattice:
     eps1: float
     eps2: float
