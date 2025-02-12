@@ -434,7 +434,7 @@ if __name__ == '__main__':
         absorption = extinction - scattering
 
         ls = '-' if t > get_threshold(delta) else '--'
-        plt.plot(omegas, extinction, label = f'{t:.2f}')
+        plt.plot(omegas, extinction, label = f'{t:.2f}', ls = ls)
 
     plt.legend()
     plt.savefig("cross_sections.pdf")
