@@ -109,21 +109,22 @@ def get_haldane_graphene(t1, t2, delta):
 def get_correlator(flake, omegas, operators, relaxation_rate = 0.05, mask = None):
     return jnp.array([
         [
-            flake.get_ip_green_function(o1, o2, omegas, relaxation_rate, mask = mask) for o1 in operators
+            flake.get_ip_green_function(o1, o2, omegas, relaxation_rate = relaxation_rate, mask = mask) for o1 in operators
         ]
         for o2 in operators]
                      )
 
-def ip_polarizability(flake, results_file = None):
-    """computes IP polarizability according to usual lehman representation"""    
+def ip_polarizability(flake, omegas, results_file = None, topology = False):
+    """computes Wx3x3 IP polarizability according to usual lehman representation"""    
     pol = {}
-    omegas = jnp.linspace(0, 6, 200)
-    pol["total"] =  get_correlator(p[:2])
-    
-    trivial = jnp.abs(flake.energies) > 0.1
-    mask = jnp.logical_and(trivial[:, None], trivial)        
-    pol["topological"] = get_correlator(p[:2], mask)
-    
+    p = flake.dipole_operator_e
+    pol["total"] =  get_correlator(flake, omegas, p[:2])
+
+    if topology == True:
+        trivial = jnp.abs(flake.energies) > 0.1
+        mask = jnp.logical_and(trivial[:, None], trivial)        
+        pol["topological"] = get_correlator(p[:2], mask)
+
     pol["omegas"] = omegas
 
     if results_file is not None:
@@ -278,9 +279,23 @@ class Lattice:
         r_s = l.total_reflection(p, "s")    
         t_p = l.total_transmission(p, "p")
         r_p = l.total_reflection(p, "p")
-        return t_s, r_s, t_p, r_p        
+        return t_s, r_s, t_p, r_p
+
 
 ### PLOTTING ###
+def plot_cross_sections(flake, omegas):
+    # flake => lattice (easier than other way around)
+    # flake = get_haldane_graphene(-2.66, t2, delta )    
+    alpha = ip_polarizability(flake, omegas)
+    k = omegas / LIGHT
+
+    extinction = k * alpha.imag
+    scattering = k**2 / (6 * jnp.pi) * jnp.abs(alpha)**2
+    absorption = extinction - scattering
+    plt.plot(omegas, extinction)
+    plt.plot(omegas, scattering, '--')    
+    plt.savefig("cross_sections.pdf")
+    
 def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 1e3, title = None, mode = None, indicate_atoms = False, grid = False):
 
     # decider whether to take abs val and normalize 
@@ -393,4 +408,29 @@ def check_prl_figures():
     plot_absorption(omegas, t_p, r_p, "oblique_p_prl.pdf")
 
 if __name__ == '__main__':
-    pass
+    # look if single flake is interesting
+
+    # vary shape?
+    shape = Triangle(42, armchair = False)
+    
+    # vary mass?
+    ts = jnp.linspace(0, 0.5, 10)
+
+    # omegas
+    omegas = jnp.linspace(0, 3, 100)
+    
+    for t in ts:        
+        material = get_haldane_graphene(-2.66, t, 1.0)
+        flake = material.cut_flake(shape)
+        
+        alpha = jnp.trace(ip_polarizability(flake, omegas)["total"], axis1=0, axis2=1)
+        
+        k = omegas / LIGHT
+
+        extinction = -k * alpha.imag
+        scattering = k**2 / (6 * jnp.pi) * jnp.abs(alpha)**2
+        absorption = extinction - scattering
+        plt.plot(omegas, extinction, label = f'{t:.2f}')
+
+    plt.legend()
+    plt.savefig("cross_sections.pdf")
