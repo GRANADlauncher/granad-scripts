@@ -34,10 +34,9 @@ def omega(wavelength):
 
 ### MATERIAL ###
 def get_haldane_graphene(t1, t2, delta):
-    """Constructs a graphene model with
-    onsite hopping difference between sublattice A and B, nn hopping, nnn hopping = delta, t1, t2
+    """Constructs a graphene model with onsite hopping difference between sublattice A and B, nn hopping, nnn hopping = delta, t1, t2
 
-    threshold is at $t_2 > \frac{\delta}{3 \sqrt{3}}$
+    threshold is at $t_2 > \\frac{\delta}{3 \sqrt{3}}$
     """
     return (
         Material("haldane_graphene")
@@ -413,14 +412,17 @@ if __name__ == '__main__':
     # vary shape?
     shape = Triangle(42, armchair = False)
     
-    # vary mass?
+    # vary?
+    delta = 1.0
+    t_nn = -2.66
+    
     ts = jnp.linspace(0, 0.5, 10)
 
     # omegas
     omegas = jnp.linspace(0, 3, 100)
     
-    for t in ts:        
-        material = get_haldane_graphene(-2.66, t, 1.0)
+    for t in ts:              
+        material = get_haldane_graphene(t_nn, t, delta)
         flake = material.cut_flake(shape)
         
         alpha = jnp.trace(ip_polarizability(flake, omegas)["total"], axis1=0, axis2=1)
@@ -430,6 +432,8 @@ if __name__ == '__main__':
         extinction = -k * alpha.imag
         scattering = k**2 / (6 * jnp.pi) * jnp.abs(alpha)**2
         absorption = extinction - scattering
+
+        ls = '-' if t > get_threshold(delta) else '--'
         plt.plot(omegas, extinction, label = f'{t:.2f}')
 
     plt.legend()
