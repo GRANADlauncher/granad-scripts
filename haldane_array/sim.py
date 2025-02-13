@@ -1,5 +1,9 @@
-# TODO: bring in alpha from micro sims
+# TODO: present circular dichroism in flakes, reference DOI: 10.1103/PhysRevB.99.161404
+# TODO: tell nice story going from condensed bulk to optical bulk, interacting via dipole stuff
+# TODO: no analytical lattice, use treams
+
 # TODO: there is sth wrong if eps1 != eps2, but im not gonna fix that
+# TODO: rot average / use geometry with xx = yy, think about s / p implication if alpha_zz = 0
 
 # relevant scales:
 # length in nm, energies in eV, hbar = 1
@@ -31,12 +35,18 @@ def wavelength(omega):
 
 def omega(wavelength):
     return 2*jnp.pi * LIGHT / wavelength
+    
+def to_helicity(mat):
+    """converts mat to helicity basis"""
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
+    trafo_inv = jnp.linalg.inv(trafo)
+    return jnp.einsum('ij,jmk,ml->ilk', trafo, mat, trafo_inv)
 
 ### MATERIAL ###
 def get_haldane_graphene(t1, t2, delta):
     """Constructs a graphene model with onsite hopping difference between sublattice A and B, nn hopping, nnn hopping = delta, t1, t2
 
-    threshold is at $t_2 > \\frac{\\delta}{3 \sqrt{3}}$
+    threshold is at $t_2 > \\frac{\\delta}{3 \\sqrt{3}}$
     """
     return (
         Material("haldane_graphene")
@@ -105,34 +115,36 @@ def get_haldane_graphene(t1, t2, delta):
 
 
 ### IP RESPONSE ###
-def get_correlator(flake, omegas, operators, relaxation_rate = 0.05, mask = None):
+def get_correlator(flake, omegas, os1, os2, relaxation_rate, mask = None):
     return jnp.array([
         [
-            flake.get_ip_green_function(o1, o2, omegas, relaxation_rate = relaxation_rate, mask = mask) for o1 in operators
+            flake.get_ip_green_function(o1, o2, omegas, relaxation_rate = relaxation_rate, mask = mask) for o1 in os1
         ]
-        for o2 in operators]
+        for o2 in os2]
                      )
 
-def ip_polarizability(flake, omegas, results_file = None, topology = False):
-    """computes Wx3x3 IP polarizability according to usual lehman representation"""    
-    pol = {}
-    p = flake.dipole_operator_e
-    pol["total"] =  get_correlator(flake, omegas, p[:2])
+def ip_response(flake, omegas, relaxation_rate = 0.05, os1 = None, os2 = None, results_file = None, topology = False):
+    """computes Wx3x3 IP polarizability according to usual lehman representation"""
+    corr = {}
+    os1 = os1 if os1 is not None else flake.dipole_operator_e[:2]
+    os2 = os2 if os2 is not None else flake.dipole_operator_e[:2]
+    
+    corr["total"] =  get_correlator(flake, omegas, os1, os2, relaxation_rate = relaxation_rate)
 
     if topology == True:
         trivial = jnp.abs(flake.energies) > 0.1
         mask = jnp.logical_and(trivial[:, None], trivial)        
-        pol["topological"] = get_correlator(p[:2], mask)
+        corr["topological"] = get_correlator(flake, omegas, os1, os2, relaxation_rate = relaxation_rate, mask = mask)
 
-    pol["omegas"] = omegas
-
+    corr["omegas"] = omegas
+    
     if results_file is not None:
-        jnp.savez(results_file, **pol)
+        jnp.savez(results_file, **corr)
         
-    return pol
+    return corr
 
 ### RPA ###
-def rpa_susceptibility(flake, c, relaxation_rate = 0.05):
+def rpa_susceptibility(flake, c, relaxation_rate):
     """computes RPA susceptibility, following https://pubs.acs.org/doi/10.1021/nn204780e"""
     
     def inner(omega):
@@ -149,12 +161,12 @@ def rpa_susceptibility(flake, c, relaxation_rate = 0.05):
     
     return jax.lax.map(jax.jit(inner), omegas)
 
-def rpa_polarizability(flake, omegas, cs, results_file = None):
+def rpa_polarizability(flake, omegas, cs, relaxation_rate = 0.05, results_file = None):
     """computes RPA polarizability, following https://pubs.acs.org/doi/10.1021/nn204780e"""
     pol = []    
     for c in cs:
         # sus is sandwiched like x * sus * x
-        sus = rpa_susceptibility(flake, c)
+        sus = rpa_susceptibility(flake, c, relaxation_rate = 0.05)
         
         p = flake.positions.T
         ref = jnp.einsum('Ii,wij,Jj->IJw', p, sus, p)
@@ -281,20 +293,7 @@ class Lattice:
         return t_s, r_s, t_p, r_p
 
 
-### PLOTTING ###
-def plot_cross_sections(flake, omegas):
-    # flake => lattice (easier than other way around)
-    # flake = get_haldane_graphene(-2.66, t2, delta )    
-    alpha = ip_polarizability(flake, omegas)
-    k = omegas / LIGHT
-
-    extinction = k * alpha.imag
-    scattering = k**2 / (6 * jnp.pi) * jnp.abs(alpha)**2
-    absorption = extinction - scattering
-    plt.plot(omegas, extinction)
-    plt.plot(omegas, scattering, '--')    
-    plt.savefig("cross_sections.pdf")
-    
+### PLOTTING ###    
 def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 1e3, title = None, mode = None, indicate_atoms = False, grid = False):
 
     # decider whether to take abs val and normalize 
@@ -336,7 +335,6 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
         ax.grid(True)
         ax.axis('equal')
         plt.savefig('geometry.pdf')
-
     
 def plot_absorption(omegas, t, r, name):
     a = 1 - (jnp.abs(t)**2 + jnp.abs(r)**2)
@@ -406,26 +404,61 @@ def check_prl_figures():
     plot_absorption(omegas, t_s, r_s, "oblique_s_prl.pdf")
     plot_absorption(omegas, t_p, r_p, "oblique_p_prl.pdf")
 
-if __name__ == '__main__':
-    # look if single flake is interesting
-
-    # vary shape?
+# TODO: identify transitions by states    
+def plot_dipole_operator_components():
+    # look if single flake is interesting    
     shape = Triangle(42, armchair = False)
     
+    # why do peak happen? => dipole transitions between edge states become allowed
+    material = get_haldane_graphene(t_nn, 0, delta)
+    flake_triv = material.cut_flake(shape)
+
+    material = get_haldane_graphene(t_nn, 1j*0.005, delta)
+    flake_topo = material.cut_flake(shape)
+
+    flake_triv.dipole_operator_e
+
+    lower = 0#flake_triv.homo - 2
+    upper = -1#flake_triv.homo + 2
+
+    dip_triv = jnp.abs(flake_triv.dipole_operator_e[1, lower:upper, lower:upper])
+    dip_triv /= dip_triv.max()
+    dip_topo = jnp.abs(flake_topo.dipole_operator_e[1, lower:upper, lower:upper])
+    dip_topo /= dip_topo.max()
+    vmax = jnp.concatenate([dip_triv, dip_topo]).max()
+    vmin = jnp.concatenate([dip_triv, dip_topo]).min()
+    
+    plt.matshow(dip_triv, vmin = vmin, vmax = vmax)
+    plt.colorbar()
+    plt.savefig("triv.pdf")
+    plt.close()
+    
+    plt.matshow(dip_topo, vmin = vmin, vmax = vmax)
+    plt.colorbar()
+    plt.savefig("topo.pdf")
+    plt.close()
+
+# extinction shows large values towards lower freqs associated with edge states
+def plot_single_cross_sections():    
+    # vary shape?
+    shape = Triangle(20, armchair = False)
+    
     # vary?
-    delta = 1.0
+    delta = 0.0
     t_nn = -2.66
     
-    ts = jnp.linspace(0, 0.5, 10)
+    ts = jnp.linspace(0, 0.05, 10)
 
     # omegas
-    omegas = jnp.linspace(0, 3, 100)
+    omegas = jnp.linspace(0, 4, 100)
     
-    for t in ts:              
-        material = get_haldane_graphene(t_nn, t, delta)
+    for t in ts:
+        material = get_haldane_graphene(t_nn, 1j*t, delta)
         flake = material.cut_flake(shape)
+
+        flake.show_energies(name = f'{t:.2f}.pdf')
         
-        alpha = jnp.trace(ip_polarizability(flake, omegas)["total"], axis1=0, axis2=1)
+        alpha = jnp.trace(ip_response(flake, omegas, relaxation_rate = 0.001)["total"], axis1=0, axis2=1)
         
         k = omegas / LIGHT
 
@@ -438,3 +471,122 @@ if __name__ == '__main__':
 
     plt.legend()
     plt.savefig("cross_sections.pdf")
+    plt.close()
+
+def plot_flake_cd():
+    # vary shape?
+    shape = Triangle(20, armchair = True)
+    
+    # vary?    
+    delta = 1.0
+    t_nn = -2.66
+    
+    ts = jnp.linspace(0, 0.1, 10)
+    
+    # omegas
+    omegas = jnp.linspace(0.2, 6, 100)
+    
+    # # uses 9 trillion ways to compute cd
+    # flake = get_haldane_graphene(t_nn, 0.5j, delta).cut_flake(shape)
+    # jj = ip_response(flake, omegas, os1 = flake.velocity_operator_e[:2], os2 = flake.velocity_operator_e[:2], relaxation_rate = 0.01)["total"]
+    # xj = jj[1, 0, :].imag / (2 * jj[0,0,:].real)
+    # print(xj)
+    # xj2 = jj[1, 0, :].imag / (2 * jnp.trace(jj).real) * omegas / LIGHT
+    # print(xj2)
+    
+    # # "canonical" way
+    # pp = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]
+    # pph = to_helicity(pp)
+    # xp = (pph[0, 0].imag - pph[1, 1].imag) / (2*(pph[0, 0].imag + pph[1, 1].imag))
+    # print(xp)
+
+    f_cd = lambda pph: (pph[0, 0].imag - pph[1, 1].imag) / (2*(pph[0, 0].imag + pph[1, 1].imag))    
+
+    for t in ts:
+        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
+
+        alpha = to_helicity(ip_response(flake, omegas, relaxation_rate = 0.01)["total"])
+        cd = f_cd(alpha)
+        
+        ls = '-' if t > get_threshold(delta) else '--'
+        plt.plot(omegas, cd, label = f'{t:.2f}', ls = ls)
+
+    plt.legend()
+    plt.savefig("cd.pdf")
+    plt.close()
+    
+# wavelength resolution resonance at a glance
+def plot_flake_alpha():
+    # vary shape?
+    shape = Triangle(20, armchair = False)
+    
+    # vary?
+    delta = 0.01
+    t_nn = -2.66
+    
+    ts = [0, 0.05]# jnp.linspace(0, 0.05, 10)
+    
+    # omegas
+    omegas = jnp.linspace(0.01, 1., 100)
+    
+    for t in ts:
+        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
+                
+        # alpha = jnp.trace(ip_response(flake, omegas, relaxation_rate = 0.01)["total"], axis1=0, axis2=1)
+        alpha = jnp.diagonal(ip_response(flake, omegas, relaxation_rate = 0.01)["total"])[:, 1]
+        
+        k = omegas / LIGHT
+        alpha = alpha.imag
+        ls = '-' if t > get_threshold(delta) else '--'
+        plt.plot(1240 / omegas, alpha, label = f'{t:.2f}', ls = ls)
+
+    plt.legend()
+    plt.savefig("alphas.pdf")
+    plt.close()
+
+# TODO: unfug yet   
+def plot_lattice():
+        
+    # vary shape?
+    shape = Triangle(20, armchair = False)
+    
+    # vary?
+    delta = 1
+    t_nn = -2.66
+    
+    ts = [0.0, 0.5]# jnp.linspace(0, 0.05, 10)
+
+    # fig 2 normal incidence
+    eps1 = 1
+    eps2 = 1
+    l = Lattice(eps1 = eps1, eps2 = eps2, a = 95.0, is_square = False)
+
+    # omegas
+    omegas = jnp.linspace(0, 20, 400)
+    
+    for t in ts:
+        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
+                
+        alpha = jnp.trace(ip_response(flake, omegas, relaxation_rate = 0.01)["total"], axis1=0, axis2=1)                
+
+        p = Params(omegas = omegas, alpha = alpha, theta = 0)
+        t_s, r_s, t_p, r_p = l.coefficients(p)
+
+        ls = '-' if t > get_threshold(delta) else '--'
+
+        plt.plot(omegas, 1 - jnp.abs(r_s)**2 - jnp.abs(t_s)**2, label = f's_{t:.2f}', ls = ls)
+        plt.plot(omegas, 1 - jnp.abs(r_p)**2 - jnp.abs(t_p)**2, label = f'p_{t:.2f}', ls = ls)
+        
+        # plt.plot(omegas, jnp.angle(t_s), label = f's_{t:.2f}', ls = ls)
+        # plt.plot(omegas, jnp.angle(t_p), label = f'p_{t:.2f}', ls = ls)
+        
+        # plt.plot(t_s.real, t_s.imag, label = f's_{t:.2f}', ls = ls)
+        # plt.plot(t_p.real, t_p.imag, label = f'p_{t:.2f}', ls = ls)
+
+    plt.legend()
+    plt.savefig("coefficients.pdf")
+    plt.close()
+
+    
+if __name__ == '__main__':
+    plot_lattice()
