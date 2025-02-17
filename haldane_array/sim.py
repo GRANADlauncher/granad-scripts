@@ -1,3 +1,5 @@
+# TODO: check if bulk haldane is correct
+# TODO: correct finite flake haldane
 # TODO: present circular dichroism in flakes, reference DOI: 10.1103/PhysRevB.99.161404
 # TODO: tell nice story going from condensed bulk to optical bulk, interacting via dipole stuff
 # TODO: no analytical lattice, use treams
@@ -13,7 +15,12 @@ import jax
 import jax.numpy as jnp
 from dataclasses import dataclass
 
+import numpy as np
+
+
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
 
 from granad import *
 
@@ -43,11 +50,102 @@ def to_helicity(mat):
     return jnp.einsum('ij,jmk,ml->ilk', trafo, mat, trafo_inv)
 
 ### MATERIAL ###
+def sample_brillouin_zone(num_kpoints=100):
+    """
+    Samples the hexagonal Brillouin zone along the high-symmetry path Γ-K-M-K'-Γ.
+    
+    Parameters:
+    num_kpoints : int
+        Number of k-points to sample along the path.
+    
+    Returns:
+    kx, ky : ndarray
+        Arrays of kx and ky values along the high-symmetry path.
+    """
+    # High-symmetry points in the hexagonal Brillouin zone
+    Gamma = np.array([0, 0])
+    K = np.array([4*np.pi/3, 0])
+    M = np.array([2*np.pi/3, 2*np.pi/3*np.sqrt(3)])
+    Kp = np.array([-4*np.pi/3, 0])
+    
+    # Define path segments
+    segments = [Gamma, K, M, Kp, Gamma]
+    
+    # Generate k-point path
+    kx, ky = [], []
+    for i in range(len(segments)-1):
+        k_start, k_end = segments[i], segments[i+1]
+        k_linspace = np.linspace(k_start, k_end, num_kpoints // (len(segments)-1))
+        kx.extend(k_linspace[:, 0])
+        ky.extend(k_linspace[:, 1])
+    
+    return np.array(kx), np.array(ky)
+
+def haldane_hamiltonian(k, t1=1.0, t2=0.2 / (3 * jnp.sqrt(3)), phi=np.pi/2, M=0.2):
+    """
+    Computes the Haldane model Hamiltonian in momentum space.
+    
+    Parameters:
+    k : array-like
+        momentum in the Brillouin zone.
+    t1 : float
+        Nearest-neighbor hopping amplitude.
+    t2 : float
+        Next-nearest-neighbor hopping amplitude.
+    phi : float
+        Phase associated with the complex hopping (breaks time-reversal symmetry).
+    M : float
+        Sublattice potential term (breaks inversion symmetry).
+    
+    Returns:
+    H : ndarray
+        Hamiltonian matrix of shape (2, 2, len(kx))
+    """    
+    sigma_0 = jnp.eye(2)
+    sigma_x = jnp.array( [ [0, 1], [1, 0] ] )
+    sigma_y = 1j * jnp.array( [ [0, 1], [-1, 0] ] )
+    sigma_z = jnp.array( [ [1, 0], [0, -1] ] )
+
+    # nearest-neighbor vectors
+    a_vecs = jnp.array( [
+        [1, 0],
+        [-1/2, jnp.sqrt(3)/2],
+        [-1/2, -jnp.sqrt(3)/2]        
+        ]
+    )
+    
+    # Next-nearest-neighbor vectors
+    b_vecs = jnp.array([
+        [0, jnp.sqrt(3)],
+        [-3/2, -jnp.sqrt(3)/2],
+        [3/2, -jnp.sqrt(3)/2]
+        ]
+    )
+
+    # wave numbers
+    ka = a_vecs @ k 
+    kb = b_vecs @ k
+
+    # Hamiltonian components
+    A0 = 2 * t2 * jnp.cos(phi) * jnp.cos(kb).sum()
+    A1 = t1 * jnp.cos(ka).sum()
+    A2 = t1 * jnp.sin(ka).sum()
+    A3 = -2 * t2 * jnp.sin(phi) * jnp.sin(kb).sum() + M
+
+    # hamiltonian matrix
+    H = A0 * sigma_0 + A1 * sigma_x + A2 * sigma_y + A3 * sigma_z
+    
+    return H
+
 def get_haldane_graphene(t1, t2, delta):
     """Constructs a graphene model with onsite hopping difference between sublattice A and B, nn hopping, nnn hopping = delta, t1, t2
 
     threshold is at $t_2 > \\frac{\\delta}{3 \\sqrt{3}}$
     """
+    
+    # direction = np.cross(shift, [0, 0, 1])[2]  # Determines phase sign
+    # H[i, j] += t2 * np.exp(1j * phi * np.sign(direction))
+
     return (
         Material("haldane_graphene")
         .lattice_constant(2.46)
@@ -589,4 +687,42 @@ def plot_lattice():
 
     
 if __name__ == '__main__':
-    plot_lattice()
+    haldane_hamiltonian( jnp.array([1,1]))
+
+    
+    # Create kx, ky meshgrid
+    kx_vals = jnp.linspace(-np.pi, np.pi, 400)
+    ky_vals = jnp.linspace(-np.pi, np.pi, 400)
+    kx_grid, ky_grid = jnp.meshgrid(kx_vals, ky_vals)
+
+    # Flatten the grids and stack to create input shape (2, Nk)
+    ks = jnp.stack([kx_grid.ravel(), ky_grid.ravel()])
+
+    # JIT-compiled function mapping
+    h_map = jax.jit(jax.vmap(haldane_hamiltonian, in_axes=1))
+    h = h_map(ks)  # (Nk, 2, 2)
+
+    # Compute eigenvalues
+    vals, vecs = jnp.linalg.eigh(h)  # (Nk, 2)
+
+    # Reshape back to 2D grid shape
+    vals = vals.reshape(kx_grid.shape + (-1,))  # (100, 100, 2)
+
+    # # Plot the eigenvalues as a colormap
+    # plt.figure(figsize=(6, 5))
+    # plt.contourf(kx_vals, ky_vals, vals[..., 0], levels=50, cmap='viridis')  # First band
+    # plt.colorbar(label="Eigenvalue 1")
+    # plt.title("Band Structure")
+    # plt.xlabel(r"$k_x$")
+    # plt.ylabel(r"$k_y$")
+    # plt.show()
+
+    fig = plt.figure(figsize=(7, 6))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(kx_grid, ky_grid, vals[..., 0], cmap='viridis', edgecolor='k')
+    ax.plot_surface(kx_grid, ky_grid, vals[..., 1], cmap='viridis', edgecolor='k')
+    ax.set_xlabel(r"$k_x$")
+    ax.set_ylabel(r"$k_y$")
+    ax.set_zlabel("Eigenvalue 1")
+    ax.set_title("3D Band Structure")
+    plt.show()
