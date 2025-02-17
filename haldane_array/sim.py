@@ -698,7 +698,7 @@ def plot_dispersion():
 
     # # Plot the eigenvalues as a colormap
     # plt.figure(figsize=(6, 5))
-    # plt.contourf(kx_vals, ky_vals, vals[..., 0], levels=50, cmap='viridis')  # First band
+    # plt.contourf(kx_vals, ky_vals, vals[..., 0], levels=50, cmap='plasma')  # First band
     # plt.colorbar(label="Eigenvalue 1")
     # plt.title("Band Structure")
     # plt.xlabel(r"$k_x$")
@@ -707,8 +707,8 @@ def plot_dispersion():
 
     fig = plt.figure(figsize=(7, 6))
     ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(kx_grid, ky_grid, vals[..., 0], cmap='viridis', edgecolor='k')
-    ax.plot_surface(kx_grid, ky_grid, vals[..., 1], cmap='viridis', edgecolor='k')
+    ax.plot_surface(kx_grid, ky_grid, vals[..., 0], cmap='plasma', edgecolor='k')
+    ax.plot_surface(kx_grid, ky_grid, vals[..., 1], cmap='plasma', edgecolor='k')
     ax.set_xlabel(r"$k_x$")
     ax.set_ylabel(r"$k_y$")
     ax.set_zlabel("Eigenvalue 1")
@@ -718,8 +718,8 @@ def plot_dispersion():
 
 if __name__ == '__main__':
     # Create kx, ky meshgrid
-    kx_vals = jnp.linspace(-np.pi, np.pi, 100)
-    ky_vals = jnp.linspace(-np.pi, np.pi, 100)
+    kx_vals = jnp.linspace(-jnp.pi, jnp.pi, 200)
+    ky_vals = jnp.linspace(-jnp.pi, jnp.pi, 200)
     kx_grid, ky_grid = jnp.meshgrid(kx_vals, ky_vals)    
 
     # Flatten the grids and stack to create input shape (2, Nk)
@@ -753,8 +753,8 @@ if __name__ == '__main__':
 
     fig = plt.figure(figsize=(7, 6))
     ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(kx_grid, ky_grid, element[..., 0], cmap='viridis', edgecolor='k')
-    # ax.plot_surface(kx_grid, ky_grid, element[..., 1], cmap='viridis', edgecolor='k')
+    ax.plot_surface(kx_grid, ky_grid, element[..., 0], cmap='plasma', edgecolor='k')
+    # ax.plot_surface(kx_grid, ky_grid, element[..., 1], cmap='plasma', edgecolor='k')
     ax.set_xlabel(r"$k_x$")
     ax.set_ylabel(r"$k_y$")
     ax.set_zlabel("Eigenvalue 1")
@@ -764,7 +764,7 @@ if __name__ == '__main__':
     
     fig = plt.figure(figsize=(7, 6))
     ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(kx_grid, ky_grid, element[..., 1], cmap='viridis', edgecolor='k')
+    ax.plot_surface(kx_grid, ky_grid, element[..., 1], cmap='plasma', edgecolor='k')
     ax.set_xlabel(r"$k_x$")
     ax.set_ylabel(r"$k_y$")
     ax.set_zlabel("Eigenvalue 1")
