@@ -15,10 +15,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-
 
 from granad import *
 
@@ -79,7 +77,7 @@ def sample_brillouin_zone(num_kpoints=100):
     
     return np.array(kx), np.array(ky)
 
-def haldane_hamiltonian(k, t1=1.0, t2=0.2 / (3 * jnp.sqrt(3)), phi=np.pi/2, M=0.2):
+def haldane_hamiltonian(k, t1=1.0, t2=0.2, phi=jnp.pi/2, M=0.0):
     """
     Computes the Haldane model Hamiltonian in momentum space.
     
@@ -141,9 +139,6 @@ def get_haldane_graphene(t1, t2, delta):
     threshold is at $t_2 > \\frac{\\delta}{3 \\sqrt{3}}$
     """
     
-    # direction = np.cross(shift, [0, 0, 1])[2]  # Determines phase sign
-    # H[i, j] += t2 * np.exp(1j * phi * np.sign(direction))
-
     return (
         Material("haldane_graphene")
         .lattice_constant(2.46)
@@ -683,25 +678,79 @@ def plot_lattice():
     plt.savefig("coefficients.pdf")
     plt.close()
 
+
+def bulk_polarization(k, t1=1.0, t2=0.2 / (3 * jnp.sqrt(3)), phi=np.pi/2, M=0.2):
+    return 
     
 if __name__ == '__main__':
-    haldane_hamiltonian( jnp.array([1,1]))
-
-    
     # Create kx, ky meshgrid
-    kx_vals = jnp.linspace(-np.pi, np.pi, 400)
-    ky_vals = jnp.linspace(-np.pi, np.pi, 400)
-    kx_grid, ky_grid = jnp.meshgrid(kx_vals, ky_vals)
+    kx_vals = jnp.linspace(-np.pi, np.pi, 100)
+    ky_vals = jnp.linspace(-np.pi, np.pi, 100)
+    kx_grid, ky_grid = jnp.meshgrid(kx_vals, ky_vals)    
 
     # Flatten the grids and stack to create input shape (2, Nk)
-    ks = jnp.stack([kx_grid.ravel(), ky_grid.ravel()])
+    ks = jnp.stack([kx_grid.ravel(), ky_grid.ravel()])    
+    # kx = jnp.linspace(-jnp.pi, jnp.pi, 100)
+    # ks = jnp.stack([kx, 0 * jnp.ones_like(kx)])
 
     # JIT-compiled function mapping
     h_map = jax.jit(jax.vmap(haldane_hamiltonian, in_axes=1))
     h = h_map(ks)  # (Nk, 2, 2)
 
+    # CD transition matrix elements
+    f_state = lambda k : jnp.linalg.eigh(haldane_hamiltonian(k))[1]
+    f_state_prime = jax.jacfwd(f_state)
+    state_prime = f_state_prime(ks) # 2 x 2 x 2 x Nk; last two dims are derivs
+    
+    # derivative of valence band
+    v_prime = state_prime[:, 0, :, :]
+
+    # derivative of conduction band
+    c_prime = state_prime[:, 1, :, :]    
+
+    # conduction band
+    c = jax.vmap(f_state, in_axes = 1)(ks)[:, 0, :]
+
+    # bulk polarization
+    pol = jnp.einsum('kc, cdk->dk', c, v_prime)
+
+    # circular electric field
+    circ = 1 / jnp.sqrt(2) * jnp.array([ [1, 1], [1j, -1j] ] )
+
+    # projection => transition matrix element
+    element = jnp.abs(circ.conj().T @ pol)**2    
+    # plt.plot(kx, element.T)
+    # plt.show()
+
+    # Reshape back to 2D grid shape
+    element = element.reshape(kx_grid.shape + (-1,))  # (100, 100, 2)
+
+    fig = plt.figure(figsize=(7, 6))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(kx_grid, ky_grid, element[..., 0], cmap='viridis', edgecolor='k')
+    # ax.plot_surface(kx_grid, ky_grid, element[..., 1], cmap='viridis', edgecolor='k')
+    ax.set_xlabel(r"$k_x$")
+    ax.set_ylabel(r"$k_y$")
+    ax.set_zlabel("Eigenvalue 1")
+    ax.set_title("3D Band Structure")
+    plt.savefig("cd+.pdf")
+    plt.close()
+    
+    fig = plt.figure(figsize=(7, 6))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(kx_grid, ky_grid, element[..., 1], cmap='viridis', edgecolor='k')
+    ax.set_xlabel(r"$k_x$")
+    ax.set_ylabel(r"$k_y$")
+    ax.set_zlabel("Eigenvalue 1")
+    ax.set_title("3D Band Structure")
+    plt.savefig("cd-.pdf")
+
+    
+    ffif
+
+    
     # Compute eigenvalues
-    vals, vecs = jnp.linalg.eigh(h)  # (Nk, 2)
+    vals, vecs = jnp.linalg.eigh(h)  # (Nk, 2)    
 
     # Reshape back to 2D grid shape
     vals = vals.reshape(kx_grid.shape + (-1,))  # (100, 100, 2)
