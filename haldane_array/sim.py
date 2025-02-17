@@ -1,5 +1,3 @@
-# TODO: check if bulk haldane is correct
-# TODO: correct finite flake haldane
 # TODO: present circular dichroism in flakes, reference DOI: 10.1103/PhysRevB.99.161404
 # TODO: tell nice story going from condensed bulk to optical bulk, interacting via dipole stuff
 # TODO: no analytical lattice, use treams
