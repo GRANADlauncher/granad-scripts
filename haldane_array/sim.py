@@ -1,6 +1,8 @@
+# TODO: reformulate paper with spin angular momentum sensitivity
+# TODO: equivalence of jones vector and RS for plane wave
 # TODO: present circular dichroism in flakes, reference DOI: 10.1103/PhysRevB.99.161404
 # TODO: tell nice story going from condensed bulk to optical bulk, interacting via dipole stuff
-# TODO: no analytical lattice, use treams
+# TODO: no analytical lattice, use treams, like this https://tfp-photonics.github.io/treams/smatrix.html
 
 # TODO: there is sth wrong if eps1 != eps2, but im not gonna fix that
 # TODO: rot average / use geometry with xx = yy, think about s / p implication if alpha_zz = 0
@@ -77,7 +79,9 @@ def sample_brillouin_zone(num_kpoints=100):
     
     return np.array(kx), np.array(ky)
 
-def haldane_hamiltonian(k, t1=1.0, t2=0.2, phi=jnp.pi/2, M=0.0):
+# def haldane_hamiltonian(k, t1=1.0, t2=0.0, phi=jnp.pi/2, M=0.0):
+# def haldane_hamiltonian(k, t1=1.0, t2=0.2/(jnp.sqrt(3)*3), phi=jnp.pi/2, M=0.2):
+def haldane_hamiltonian(k, t1=1.0, t2=-0.1, phi=jnp.pi/2, M=0.2):
     """
     Computes the Haldane model Hamiltonian in momentum space.
     
@@ -696,39 +700,99 @@ def plot_dispersion():
     # Reshape back to 2D grid shape
     vals = vals.reshape(kx_grid.shape + (-1,))  # (100, 100, 2)
 
-    # # Plot the eigenvalues as a colormap
-    # plt.figure(figsize=(6, 5))
-    # plt.contourf(kx_vals, ky_vals, vals[..., 0], levels=50, cmap='plasma')  # First band
-    # plt.colorbar(label="Eigenvalue 1")
-    # plt.title("Band Structure")
-    # plt.xlabel(r"$k_x$")
-    # plt.ylabel(r"$k_y$")
-    # plt.show()
-
-    fig = plt.figure(figsize=(7, 6))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(kx_grid, ky_grid, vals[..., 0], cmap='plasma', edgecolor='k')
-    ax.plot_surface(kx_grid, ky_grid, vals[..., 1], cmap='plasma', edgecolor='k')
-    ax.set_xlabel(r"$k_x$")
-    ax.set_ylabel(r"$k_y$")
-    ax.set_zlabel("Eigenvalue 1")
-    ax.set_title("3D Band Structure")
+    # Plot the eigenvalues as a colormap
+    plt.figure(figsize=(6, 5))
+    plt.contourf(kx_vals, ky_vals, vals[..., 0] - vals[..., 1], levels=50, cmap='plasma')  # First band
+    plt.colorbar(label="Eigenvalue 1")
+    plt.title("Band Structure")
+    plt.xlabel(r"$k_x$")
+    plt.ylabel(r"$k_y$")
     plt.show()
 
+    # fig = plt.figure(figsize=(7, 6))
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.plot_surface(kx_grid, ky_grid, vals[..., 0], cmap='plasma', edgecolor='k')
+    # ax.plot_surface(kx_grid, ky_grid, vals[..., 1], cmap='plasma', edgecolor='k')
+    # ax.set_xlabel(r"$k_x$")
+    # ax.set_ylabel(r"$k_y$")
+    # ax.set_zlabel("Eigenvalue 1")
+    # ax.set_title("3D Band Structure")
+    # plt.show()
 
-if __name__ == '__main__':
+def plot_bc():
     # Create kx, ky meshgrid
-    kx_vals = jnp.linspace(-jnp.pi, jnp.pi, 200)
-    ky_vals = jnp.linspace(-jnp.pi, jnp.pi, 200)
+    kx_vals = jnp.linspace(-np.pi, np.pi, 40)
+    ky_vals = jnp.linspace(-np.pi, np.pi, 40)
     kx_grid, ky_grid = jnp.meshgrid(kx_vals, ky_vals)    
-
-    # Flatten the grids and stack to create input shape (2, Nk)
     ks = jnp.stack([kx_grid.ravel(), ky_grid.ravel()])    
-
-    # CD transition matrix elements
+    
+    # JIT-compiled function mapping
+    h_map = jax.jit(jax.vmap(haldane_hamiltonian, in_axes=1))
+    h = h_map(ks)  # (Nk, 2, 2)
+        
+    
+    # CD transition matrix elements    
     f_state = lambda k : jnp.linalg.eigh(haldane_hamiltonian(k))[1]
     f_state_prime = jax.jacfwd(f_state)
     state_prime = f_state_prime(ks) # 2 x 2 x 2 x Nk; last two dims are derivs
+    
+    # derivative of valence band
+    v_prime = state_prime[:, 0, :, :]
+
+    # Im[x|y]
+    bc = -2*jnp.einsum('ck, ck -> k', v_prime[:, 0, :].conj(), v_prime[:, 1, :]).imag
+
+    # Reshape back to 2D grid shape
+    vals = bc.reshape(kx_grid.shape + (-1,))  # (100, 100, 2)
+
+    # Plot the eigenvalues as a colormap
+    plt.figure(figsize=(6, 5))
+    plt.contourf(kx_vals, ky_vals, vals[..., 0], levels=50, cmap='plasma')  # First band
+    plt.colorbar(label="bc")
+    plt.title("Berry curvature")
+    plt.xlabel(r"$k_x$")
+    plt.ylabel(r"$k_y$")
+    plt.show()
+
+def check_deriv():        
+    # numerical derivative check
+    eps = 1e-5
+    dx = -(haldane_hamiltonian(ks[:, 0]) - haldane_hamiltonian(ks[:, 0].at[0].set(ks[0, 0] + eps) )) / eps
+    dy = -(haldane_hamiltonian(ks[:, 0]) - haldane_hamiltonian(ks[:, 0].at[1].set(ks[1, 0] + eps) )) / eps
+    h_prime = jax.jacrev(haldane_hamiltonian, holomorphic = True)
+    res = h_prime(ks[:, 0].astype(complex))
+    print(dx, "\n", res[..., 0], "\n", dy, "\n", res[..., 1])
+
+    # eps = 1e-7
+    # dx = -(f_state(ks[:, 0]) - f_state(ks[:, 0].at[0].set(ks[0, 0] + eps) )) / eps
+    # dy = -(f_state(ks[:, 0]) - f_state(ks[:, 0].at[1].set(ks[1, 0] + eps) )) / eps
+    # f_state_prime = jax.jacfwd(f_state)
+    # res = f_state_prime(ks[:, 0])
+    # print(dx, "\n", res[..., 0], "\n", dy, "\n", res[..., 1])
+    
+def whatev():    
+    plot_bc()
+    1/0
+    
+    # Create kx, ky meshgrid
+    kx_vals = jnp.linspace(-jnp.pi, jnp.pi, 10)
+    ky_vals = jnp.linspace(-jnp.pi, jnp.pi, 10)
+    kx_grid, ky_grid = jnp.meshgrid(kx_vals, ky_vals)    
+
+    # Flatten the grids and stack to create input shape (2, Nk)
+    ks = jnp.stack([kx_grid.ravel(), ky_grid.ravel()])
+    # ks = jnp.array([[0, -4*jnp.pi/3], [0, 4*jnp.pi/3]]) *  1.42 / 2.46
+    # ks = ks.T
+    # ks = 2*jnp.pi * jnp.array([[1, 1/ jnp.sqrt(3)]]).T
+
+    # JIT-compiled function mapping
+    h_map = jax.jit(jax.vmap(haldane_hamiltonian, in_axes=1))
+    h = h_map(ks)  # (Nk, 2, 2)
+    
+    # CD transition matrix elements    
+    f_state = lambda k : jnp.linalg.eigh(haldane_hamiltonian(k))[1]
+    f_state_prime = jax.jacrev(f_state, holomorphic = True)
+    state_prime = f_state_prime(ks.astype(complex)) # 2 x 2 x 2 x Nk; last two dims are derivs
     
     # derivative of valence band
     v_prime = state_prime[:, 0, :, :]
@@ -743,10 +807,10 @@ if __name__ == '__main__':
     pol = jnp.einsum('kc, cdk->dk', c, v_prime)
 
     # circular electric field
-    circ = 1 / jnp.sqrt(2) * jnp.array([ [1, 1], [1j, -1j] ] )
+    circ = 1 / jnp.sqrt(2) * jnp.array([[1, 1], [1j, -1j]])
 
     # projection => transition matrix element
-    element = jnp.abs(circ.conj().T @ pol)**2    
+    element = jnp.abs(circ.conj().T @ pol)**2
 
     # Reshape back to 2D grid shape
     element = element.reshape(kx_grid.shape + (-1,))  # (100, 100, 2)
@@ -770,3 +834,8 @@ if __name__ == '__main__':
     ax.set_zlabel("Eigenvalue 1")
     ax.set_title("3D Band Structure")
     plt.savefig("cd-.pdf")
+
+    
+
+if __name__ == '__main__':
+    pass
