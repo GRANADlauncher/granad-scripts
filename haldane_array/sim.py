@@ -1,5 +1,6 @@
 # TODO: reformulate paper with spin angular momentum sensitivity, reference DOI: 10.1103/PhysRevB.99.161404
-# TODO: expleen why sometimes + larger
+# TODO: expleen why sometimes + larger => vector components are never totally zero
+# TODO: motivate with time reversal bla
 
 # relevant scales:
 # length in nm, energies in eV, hbar = 1
@@ -10,6 +11,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.colors import LogNorm
 
 from granad import *
 
@@ -377,6 +379,7 @@ def plot_single_cross_sections():
     plt.savefig("cross_sections.pdf")
     plt.close()
 
+
 # TODO    
 def plot_projected_polarization():
     """plots projection of polarization operator matrix elements onto circular basis"""
@@ -385,20 +388,20 @@ def plot_projected_polarization():
     delta = 1.0
     t_nn = -2.66    
     t = 0.4
-    flake = get_haldane_graphene(t_nn, -1j*t * 0.1, delta).cut_flake(shape)
+    flake = get_haldane_graphene(t_nn, -1j*t, delta).cut_flake(shape)
     
     trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
     
     dip = flake.velocity_operator_e[:2]    
     projection = jnp.einsum('ij, jkl -> ikl', trafo, dip)
+    import pdb; pdb.set_trace()
 
-    plt.matshow(jnp.abs(projection[0])**2)
-    plt.colorbar()
-    plt.savefig("polarization_+.pdf")
 
-    plt.matshow(jnp.abs(projection[1])**2)
-    plt.colorbar()
-    plt.savefig("polarization_-.pdf")
+    norm = None #LogNorm()
+    plt.matshow(jnp.abs(projection[0])**2, norm=norm); plt.colorbar(); plt.savefig("polarization_+.pdf")
+
+    plt.matshow(jnp.abs(projection[1])**2, norm=norm); plt.colorbar(); plt.savefig("polarization_-.pdf")
+    
     plt.close()
     
     
@@ -503,43 +506,28 @@ def plot_dipole_moments_p_j():
 
 def plot_flake_cd():
     # vary shape?
-    shape = Triangle(40, armchair = False)
+    shape = Triangle(20, armchair = False)
     
     # vary?    
     delta = 1.0
     t_nn = -2.66
     
     ts = [0, 0.1, 0.3, 1] #jnp.linspace(0, 1, 10)
+    ts = [0.4]
     
     # omegas
-    omegas = jnp.linspace(0.0, 2, 100)
-    
-    # # uses 9 trillion ways to compute cd
-    # flake = get_haldane_graphene(t_nn, 0.5j, delta).cut_flake(shape)
-    # jj = ip_response(flake, omegas, os1 = flake.velocity_operator_e[:2], os2 = flake.velocity_operator_e[:2], relaxation_rate = 0.01)["total"]
-    # xj = jj[1, 0, :].imag / (2 * jj[0,0,:].real)
-    # print(xj)
-    # xj2 = jj[1, 0, :].imag / (2 * jnp.trace(jj).real) * omegas / LIGHT
-    # print(xj2)
-    
-    # # "canonical" way
-    # pp = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]
-    # pph = to_helicity(pp)
-    # xp = (pph[0].sum(axis=1).imag - pph[1].sum(axis=1).imag) / ((pph[0].sum(axis=1).imag + pph[1].sum(axis=1).imag))
-    # xp = (jnp.abs(pph.imag)[:, 0].sum(axis=0) - jnp.abs(pph.imag)[:, 1].sum(axis=0)) / ((jnp.abs(pph.imag)[:, 0].sum(axis=0) + jnp.abs(pph.imag)[:, 1].sum(axis=0)))
-    # print(xp)
-    # # import pdb; pdb.set_trace()
-
+    omegas = jnp.linspace(0.0, 2, 100)    
     
     f_cd = lambda pph: (pph[0, 0].imag - pph[1, 1].imag) / ((pph[0, 0].imag + pph[1, 1].imag))
-    # f_cd = lambda pph: (jnp.abs(pph.imag)[:, 0].sum(axis=0) - jnp.abs(pph.imag)[:, 1].sum(axis=0)) / ((jnp.abs(pph.imag)[:, 0].sum(axis=0) + jnp.abs(pph.imag)[:, 1].sum(axis=0)))
-    # f_cd = lambda jjh: jjh[1, 0, :].imag / (2 * jjh[0,0,:].real)
-
 
     for t in ts:
         flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)        
         alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]
         alpha_cart_j = ip_response(flake, omegas, os1 = flake.velocity_operator_e[:2], os2 = flake.velocity_operator_e[:2], relaxation_rate = 0.01)["total"]
+        alpha_cart_j = (alpha_cart_j - alpha_cart_j[..., 0][:, :, None]) / omegas**2
+
+        alpha_circ = to_helicity(alpha_cart)
+        alpha_circ_j = to_helicity(alpha_cart_j)
         
         alpha_circ = to_helicity(alpha_cart)
         f_cd = lambda xx : jnp.abs(xx.sum(axis=1)).T[:, 0] - jnp.abs(xx.sum(axis=1)).T[:, 1]
@@ -589,5 +577,5 @@ def plot_flake_alpha():
 if __name__ == '__main__':
     # plot_dipole_moments_p_j() # ensure gauge invariant jj results match pp results
     # plot_dipole_moments()
-    # plot_projected_polarization()
-    plot_flake_cd()
+    plot_projected_polarization()
+    # plot_flake_cd()
