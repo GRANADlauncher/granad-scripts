@@ -1,12 +1,10 @@
 # TODO: reformulate paper with spin angular momentum sensitivity, reference DOI: 10.1103/PhysRevB.99.161404
+# TODO: expleen why sometimes + larger
 
 # relevant scales:
 # length in nm, energies in eV, hbar = 1
-from typing import Any
-
 import jax
 import jax.numpy as jnp
-from dataclasses import dataclass
 
 import numpy as np
 
@@ -379,18 +377,142 @@ def plot_single_cross_sections():
     plt.savefig("cross_sections.pdf")
     plt.close()
 
+# TODO    
+def plot_projected_polarization():
+    """plots projection of polarization operator matrix elements onto circular basis"""
+    shape = Triangle(20, armchair = False)
+    
+    delta = 1.0
+    t_nn = -2.66    
+    t = 0.4
+    flake = get_haldane_graphene(t_nn, -1j*t * 0.1, delta).cut_flake(shape)
+    
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
+    
+    dip = flake.velocity_operator_e[:2]    
+    projection = jnp.einsum('ij, jkl -> ikl', trafo, dip)
+
+    plt.matshow(jnp.abs(projection[0])**2)
+    plt.colorbar()
+    plt.savefig("polarization_+.pdf")
+
+    plt.matshow(jnp.abs(projection[1])**2)
+    plt.colorbar()
+    plt.savefig("polarization_-.pdf")
+    plt.close()
+    
+    
+def plot_phase_shift():
+    """plots phase between E_x and E_y"""
+    shape = Triangle(20, armchair = False)
+    
+    delta = 1.0
+    t_nn = -2.66
+    
+    ts = [0, 0.15, 0.4]
+    
+    # omegas
+    omegas = jnp.linspace(-0.0, 2, 100)    
+
+    f_dip = lambda xx : xx.sum(axis=1)
+    
+    for t in ts:
+        flake = get_haldane_graphene(t_nn, -1j*t, delta).cut_flake(shape)  
+        alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]        
+        
+        dip = f_dip(alpha_cart)
+        
+        ls = '-' if t > get_threshold(delta) else '--'
+
+        plt.plot(omegas, jnp.angle(dip[0] / dip[1]), label = rf'$p_+$ {t:.2f}')
+
+
+    plt.legend()
+    plt.savefig("phase.pdf")
+    plt.close()
+        
+
+def plot_dipole_moments():
+    """plots p_+, p_-"""
+    shape = Triangle(20, armchair = True)
+    
+    delta = 1.0
+    t_nn = -2.66
+    
+    ts = [0, 0.15, 0.4]
+    
+    # omegas
+    omegas = jnp.linspace(-0., 8, 100)    
+
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
+    f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )
+    
+    for t in ts:
+        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
+        alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]        
+        dip = f_dip(alpha_cart)
+
+
+        plt.plot(omegas, dip[0], label = rf'$p_+$ {t:.2f}')
+        plt.plot(omegas, dip[1], label = rf'$p_-$ {t:.2f}', ls = '--')
+
+    plt.legend()
+    plt.savefig("p.pdf")
+    plt.close()
+
+def plot_dipole_moments_p_j():
+    """plots p_+, p_- computed from xpp and xjj"""
+    shape = Triangle(20, armchair = True)
+    
+    delta = 1.0
+    t_nn = -2.66
+    
+    ts = [0, 0.15, 0.4]
+    
+    # omegas
+    omegas = jnp.linspace(-0., 8, 100)    
+
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
+    f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )
+
+    # xjj = w**2 xpp
+    f_dip_j = lambda jj : f_dip( (jj - jj[..., 0][:, :, None]) / omegas**2 )
+    
+    for t in ts:
+        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
+        alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]        
+        dip = f_dip(alpha_cart)
+
+        chi_cart = ip_response(flake, omegas,
+                                 relaxation_rate = 0.01,
+                                 os1 = flake.velocity_operator_e[:2],
+                                 os2 = flake.velocity_operator_e[:2])["total"]
+        
+        dip2 = f_dip_j(chi_cart)
+
+        plt.plot(omegas, dip[0], label = rf'$p_+$ {t:.2f}')
+        plt.plot(omegas, dip[1], label = rf'$p_-$ {t:.2f}')
+        
+        plt.plot(omegas, dip2[0], label = rf'$jp_+$ {t:.2f}', ls = '--')
+        plt.plot(omegas, dip2[1], label = rf'$jp_-$ {t:.2f}', ls = '--')
+
+    plt.legend()
+    plt.savefig("p.pdf")
+    plt.close()
+    
+
 def plot_flake_cd():
     # vary shape?
-    shape = Triangle(20, armchair = True)
+    shape = Triangle(40, armchair = False)
     
     # vary?    
     delta = 1.0
     t_nn = -2.66
     
-    ts = jnp.linspace(0, 0.1, 10)
+    ts = [0, 0.1, 0.3, 1] #jnp.linspace(0, 1, 10)
     
     # omegas
-    omegas = jnp.linspace(0.2, 6, 100)
+    omegas = jnp.linspace(0.0, 2, 100)
     
     # # uses 9 trillion ways to compute cd
     # flake = get_haldane_graphene(t_nn, 0.5j, delta).cut_flake(shape)
@@ -403,19 +525,33 @@ def plot_flake_cd():
     # # "canonical" way
     # pp = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]
     # pph = to_helicity(pp)
-    # xp = (pph[0, 0].imag - pph[1, 1].imag) / (2*(pph[0, 0].imag + pph[1, 1].imag))
+    # xp = (pph[0].sum(axis=1).imag - pph[1].sum(axis=1).imag) / ((pph[0].sum(axis=1).imag + pph[1].sum(axis=1).imag))
+    # xp = (jnp.abs(pph.imag)[:, 0].sum(axis=0) - jnp.abs(pph.imag)[:, 1].sum(axis=0)) / ((jnp.abs(pph.imag)[:, 0].sum(axis=0) + jnp.abs(pph.imag)[:, 1].sum(axis=0)))
     # print(xp)
+    # # import pdb; pdb.set_trace()
 
-    f_cd = lambda pph: (pph[0, 0].imag - pph[1, 1].imag) / (2*(pph[0, 0].imag + pph[1, 1].imag))    
+    
+    f_cd = lambda pph: (pph[0, 0].imag - pph[1, 1].imag) / ((pph[0, 0].imag + pph[1, 1].imag))
+    # f_cd = lambda pph: (jnp.abs(pph.imag)[:, 0].sum(axis=0) - jnp.abs(pph.imag)[:, 1].sum(axis=0)) / ((jnp.abs(pph.imag)[:, 0].sum(axis=0) + jnp.abs(pph.imag)[:, 1].sum(axis=0)))
+    # f_cd = lambda jjh: jjh[1, 0, :].imag / (2 * jjh[0,0,:].real)
+
 
     for t in ts:
-        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
-
-        alpha = to_helicity(ip_response(flake, omegas, relaxation_rate = 0.01)["total"])
-        cd = f_cd(alpha)
+        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)        
+        alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]
+        alpha_cart_j = ip_response(flake, omegas, os1 = flake.velocity_operator_e[:2], os2 = flake.velocity_operator_e[:2], relaxation_rate = 0.01)["total"]
         
+        alpha_circ = to_helicity(alpha_cart)
+        f_cd = lambda xx : jnp.abs(xx.sum(axis=1)).T[:, 0] - jnp.abs(xx.sum(axis=1)).T[:, 1]
+        f_cd = lambda xx : jnp.trace(xx).imag * omegas
+        cd = f_cd(alpha_cart)
+        # cd = f_cd(jj)
+
         ls = '-' if t > get_threshold(delta) else '--'
         plt.plot(omegas, cd, label = f'{t:.2f}', ls = ls)
+        
+    # import pdb; pdb.set_trace()
+
 
     plt.legend()
     plt.savefig("cd.pdf")
@@ -451,4 +587,7 @@ def plot_flake_alpha():
     plt.close()
     
 if __name__ == '__main__':
-    pass
+    # plot_dipole_moments_p_j() # ensure gauge invariant jj results match pp results
+    # plot_dipole_moments()
+    # plot_projected_polarization()
+    plot_flake_cd()
