@@ -309,76 +309,6 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
         ax.grid(True)
         ax.axis('equal')
         plt.savefig('geometry.pdf')
-    
-# TODO: identify transitions by states    
-def plot_dipole_operator_components():
-    # look if single flake is interesting    
-    shape = Triangle(42, armchair = False)
-    
-    # why do peak happen? => dipole transitions between edge states become allowed
-    material = get_haldane_graphene(t_nn, 0, delta)
-    flake_triv = material.cut_flake(shape)
-
-    material = get_haldane_graphene(t_nn, 1j*0.005, delta)
-    flake_topo = material.cut_flake(shape)
-
-    flake_triv.dipole_operator_e
-
-    lower = 0#flake_triv.homo - 2
-    upper = -1#flake_triv.homo + 2
-
-    dip_triv = jnp.abs(flake_triv.dipole_operator_e[1, lower:upper, lower:upper])
-    dip_triv /= dip_triv.max()
-    dip_topo = jnp.abs(flake_topo.dipole_operator_e[1, lower:upper, lower:upper])
-    dip_topo /= dip_topo.max()
-    vmax = jnp.concatenate([dip_triv, dip_topo]).max()
-    vmin = jnp.concatenate([dip_triv, dip_topo]).min()
-    
-    plt.matshow(dip_triv, vmin = vmin, vmax = vmax)
-    plt.colorbar()
-    plt.savefig("triv.pdf")
-    plt.close()
-    
-    plt.matshow(dip_topo, vmin = vmin, vmax = vmax)
-    plt.colorbar()
-    plt.savefig("topo.pdf")
-    plt.close()
-
-# extinction shows large values towards lower freqs associated with edge states
-def plot_single_cross_sections():    
-    # vary shape?
-    shape = Triangle(20, armchair = False)
-    
-    # vary?
-    delta = 0.0
-    t_nn = -2.66
-    
-    ts = jnp.linspace(0, 0.05, 10)
-
-    # omegas
-    omegas = jnp.linspace(0, 4, 100)
-    
-    for t in ts:
-        material = get_haldane_graphene(t_nn, 1j*t, delta)
-        flake = material.cut_flake(shape)
-
-        flake.show_energies(name = f'{t:.2f}.pdf')
-        
-        alpha = jnp.trace(ip_response(flake, omegas, relaxation_rate = 0.001)["total"], axis1=0, axis2=1)
-        
-        k = omegas / LIGHT
-
-        extinction = -k * alpha.imag
-        scattering = k**2 / (6 * jnp.pi) * jnp.abs(alpha)**2
-        absorption = extinction - scattering
-
-        ls = '-' if t > get_threshold(delta) else '--'
-        plt.plot(omegas, extinction, label = f'{t:.2f}', ls = ls)
-
-    plt.legend()
-    plt.savefig("cross_sections.pdf")
-    plt.close()
-
 
 # TODO    
 def plot_projected_polarization():
@@ -544,36 +474,7 @@ def plot_flake_cd():
     plt.legend()
     plt.savefig("cd.pdf")
     plt.close()
-    
-# wavelength resolution resonance at a glance
-def plot_flake_alpha():
-    # vary shape?
-    shape = Triangle(20, armchair = False)
-    
-    # vary?
-    delta = 0.01
-    t_nn = -2.66
-    
-    ts = [0, 0.05]# jnp.linspace(0, 0.05, 10)
-    
-    # omegas
-    omegas = jnp.linspace(0.01, 1., 100)
-    
-    for t in ts:
-        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
-                
-        # alpha = jnp.trace(ip_response(flake, omegas, relaxation_rate = 0.01)["total"], axis1=0, axis2=1)
-        alpha = jnp.diagonal(ip_response(flake, omegas, relaxation_rate = 0.01)["total"])[:, 1]
         
-        k = omegas / LIGHT
-        alpha = alpha.imag
-        ls = '-' if t > get_threshold(delta) else '--'
-        plt.plot(1240 / omegas, alpha, label = f'{t:.2f}', ls = ls)
-
-    plt.legend()
-    plt.savefig("alphas.pdf")
-    plt.close()
-    
 if __name__ == '__main__':
     # plot_dipole_moments_p_j() # ensure gauge invariant jj results match pp results
     # plot_dipole_moments()
