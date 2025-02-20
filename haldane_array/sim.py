@@ -9,7 +9,9 @@ import jax.numpy as jnp
 
 import numpy as np
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.colors import LogNorm
 
@@ -36,9 +38,8 @@ def omega(wavelength):
     
 def to_helicity(mat):
     """converts mat to helicity basis"""
-    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
-    trafo_inv = jnp.linalg.inv(trafo)
-    return jnp.einsum('ij,jmk,ml->ilk', trafo, mat, trafo_inv)
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1], [1j, -1j] ])    
+    return jnp.einsum('ij,jmk,ml->ilk', trafo.conj().T, mat, trafo)
 
 ### MATERIAL ###
 def sample_brillouin_zone(num_kpoints=100):
@@ -310,6 +311,10 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
         ax.axis('equal')
         plt.savefig('geometry.pdf')
 
+def get_projection(dip):
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
+    return jnp.einsum('ij, jkl -> ikl', trafo, dip)
+        
 # TODO    
 def plot_projected_polarization():
     """plots projection of polarization operator matrix elements onto circular basis"""
@@ -317,22 +322,58 @@ def plot_projected_polarization():
     
     delta = 1.0
     t_nn = -2.66    
-    t = 0.4
-    flake = get_haldane_graphene(t_nn, -1j*t, delta).cut_flake(shape)
+    ts = [0.0, 0.1, 0.5]
     
-    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
-    
-    dip = flake.velocity_operator_e[:2]    
-    projection = jnp.einsum('ij, jkl -> ikl', trafo, dip)
-    import pdb; pdb.set_trace()
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 33,
+        "xtick.labelsize": 8*3,
+        "ytick.labelsize": 8*3,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
+
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
+        
+        # Create a figure with a 2x3 grid of subplots
+        fig, axes = plt.subplots(2, 3, figsize=(12, 8))
+
+        for i, t in enumerate(ts):
+
+            flake = get_haldane_graphene(t_nn, -1j*t, delta).cut_flake(shape)
+            
+            dip = flake.velocity_operator_e[:2]
+            projection = get_projection(dip)
+            
+            norm = None #LogNorm()
+            im = axes[0, i].matshow(jnp.abs(projection[0])**2, norm=norm)
+            
+            # Attach a colorbar to each subplot
+            divider = make_axes_locatable(axes[0, i])
+            cax = divider.append_axes("right", size="5%", pad=0.1)
+            plt.colorbar(im, cax=cax)
+
+            im = axes[1, i].matshow(jnp.abs(projection[1])**2, norm=norm)            
+            # Attach a colorbar to each subplot
+            divider = make_axes_locatable(axes[1, i])
+            cax = divider.append_axes("right", size="5%", pad=0.1)
+            plt.colorbar(im, cax=cax)
 
 
-    norm = None #LogNorm()
-    plt.matshow(jnp.abs(projection[0])**2, norm=norm); plt.colorbar(); plt.savefig("polarization_+.pdf")
+    plt.tight_layout()
+    plt.savefig("foo.pdf")
 
-    plt.matshow(jnp.abs(projection[1])**2, norm=norm); plt.colorbar(); plt.savefig("polarization_-.pdf")
-    
-    plt.close()
+
+    # plt.matshow(jnp.abs(projection[0])**2, norm=norm); plt.colorbar(); plt.savefig("polarization_+.pdf")
+
+    # plt.matshow(jnp.abs(projection[1])**2, norm=norm); plt.colorbar(); plt.savefig("polarization_-.pdf")
+
+    # plt.close()
+            
     
     
 def plot_phase_shift():
@@ -345,26 +386,61 @@ def plot_phase_shift():
     ts = [0, 0.15, 0.4]
     
     # omegas
-    omegas = jnp.linspace(-0.0, 2, 100)    
+    omegas = jnp.linspace(-0.0, 2, 100)
 
-    f_dip = lambda xx : xx.sum(axis=1)
     
-    for t in ts:
-        flake = get_haldane_graphene(t_nn, -1j*t, delta).cut_flake(shape)  
-        alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]        
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 33,
+        "xtick.labelsize": 8*3,
+        "ytick.labelsize": 8*3,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
+
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
+
+        f_dip = lambda xx : xx.sum(axis=1)
+
+        for t in ts:
+            flake = get_haldane_graphene(t_nn, -1j*t, delta).cut_flake(shape)  
+            alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]        
+
+            dip = f_dip(alpha_cart)
+
+            ls = '-' if t > get_threshold(delta) else '--'
+
+            plt.plot(omegas, jnp.angle(dip[0] / dip[1]), label = rf'$p_+$ {t:.2f}')
+
+
+        plt.legend()
+        plt.savefig("phase.pdf")
+        plt.close()
         
-        dip = f_dip(alpha_cart)
+def find_peaks(arr):
+    # Create boolean masks for peak conditions
+    left = arr[1:-1] > arr[:-2]   # Compare each element to its left neighbor
+    right = arr[1:-1] > arr[2:]   # Compare each element to its right neighbor
+    
+    peaks = jnp.where(left & right)[0] + 1  # Get indices and shift by 1 to match original array
+    return peaks
+
+def get_closest_transition(flake, omega):
+    diff = jnp.abs(flake.energies - flake.energies[:, None])
+    
+    # Find the index of the closest element to omega
+    idx = jnp.argmin(jnp.abs(diff - omega))
+    
+    # Convert flattened index to row and column indices
+    row, col = jnp.unravel_index(idx, diff.shape)
+    
+    return row, col
+    
         
-        ls = '-' if t > get_threshold(delta) else '--'
-
-        plt.plot(omegas, jnp.angle(dip[0] / dip[1]), label = rf'$p_+$ {t:.2f}')
-
-
-    plt.legend()
-    plt.savefig("phase.pdf")
-    plt.close()
-        
-
 def plot_dipole_moments():
     """plots p_+, p_-"""
     shape = Triangle(20, armchair = True)
@@ -375,23 +451,39 @@ def plot_dipole_moments():
     ts = [0, 0.15, 0.4]
     
     # omegas
-    omegas = jnp.linspace(-0., 8, 100)    
+    omegas = jnp.linspace(0., 4, 100)    
 
-    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
-    f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )
-    
-    for t in ts:
-        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
-        alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]        
-        dip = f_dip(alpha_cart)
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 33,
+        "xtick.labelsize": 8*3,
+        "ytick.labelsize": 8*3,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
 
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
 
-        plt.plot(omegas, dip[0], label = rf'$p_+$ {t:.2f}')
-        plt.plot(omegas, dip[1], label = rf'$p_-$ {t:.2f}', ls = '--')
+        trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
+        f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )
 
-    plt.legend()
-    plt.savefig("p.pdf")
-    plt.close()
+        for t in ts:
+            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
+            alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]
+            dip = f_dip(alpha_cart)
+
+            proj = get_projection(flake.velocity_operator_e[:2])
+
+            plt.plot(omegas, dip[0], label = rf'$p_+$ {t:.2f}')
+            plt.plot(omegas, dip[1], label = rf'$p_-$ {t:.2f}', ls = '--')
+
+        plt.legend()
+        plt.savefig("p.pdf")
+        plt.close()
 
 def plot_dipole_moments_p_j():
     """plots p_+, p_- computed from xpp and xjj"""
@@ -434,6 +526,79 @@ def plot_dipole_moments_p_j():
     plt.close()
     
 
+def get_ip_abs(flake, omegas, comp, relaxation_rate = 1e-2):
+
+    def inner(omega):
+        return jnp.trace( (delta_occ / (omega + delta_e + 1j*relaxation_rate)) @ trans)
+
+    print("Computing Greens function. Remember we default to site basis")
+
+    dip = flake.velocity_operator_e[:2]    
+    projection = get_projection(dip)
+
+    trans = jnp.abs(projection[comp])**2
+        
+    occupations = flake.initial_density_matrix_e.diagonal() * flake.electrons 
+    energies = flake.energies
+    delta_occ = (occupations[:, None] - occupations)
+    delta_e = energies[:, None] - energies
+
+    return jax.lax.map(jax.jit(inner), omegas)
+
+def plot_flake_ip_cd():
+    # vary shape?
+    shape = Triangle(20, armchair = False)
+    
+    # vary?    
+    delta = 1.0
+    t_nn = -2.66
+    
+    ts = [0, 1e-5, 0.4]
+    
+    # omegas
+    omegas = jnp.linspace(0, 8, 100)    
+
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 33,
+        "xtick.labelsize": 8*3,
+        "ytick.labelsize": 8*3,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
+
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
+    
+        f_cd = lambda pph: (pph[0, 0].imag - pph[1, 1].imag) / ((pph[0, 0].imag + pph[1, 1].imag))
+        f_cd = lambda pph: (jnp.abs(pph[0, 0].imag) - jnp.abs(pph[1, 1].imag)) / ((jnp.abs(pph[0, 0].imag) + jnp.abs(pph[1, 1].imag)))
+        
+
+
+        for t in ts:
+            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
+
+            absp = get_ip_abs(flake, omegas, 0, relaxation_rate = 1e-2)
+            absm = get_ip_abs(flake, omegas, 1, relaxation_rate = 1e-2)
+            nom  = (absp.imag - absm.imag)
+            denom = (absp.imag + absm.imag)
+            cd = nom / denom
+
+            print(nom.max(), denom.min())            
+            
+            ls = '-' if t > get_threshold(delta) else '--'
+            plt.plot(omegas, cd, label = f'{t:.2f}', ls = ls)
+
+            # import pdb; pdb.set_trace()
+
+
+        plt.legend()
+        plt.savefig("ip_cd.pdf")
+        plt.close()
+    
 def plot_flake_cd():
     # vary shape?
     shape = Triangle(20, armchair = False)
@@ -442,41 +607,56 @@ def plot_flake_cd():
     delta = 1.0
     t_nn = -2.66
     
-    ts = [0, 0.1, 0.3, 1] #jnp.linspace(0, 1, 10)
-    ts = [0.4]
+    ts = [0, 1e-5, 0.4]
     
     # omegas
-    omegas = jnp.linspace(0.0, 2, 100)    
+    omegas = jnp.linspace(0.01, 8, 100)    
+
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 33,
+        "xtick.labelsize": 8*3,
+        "ytick.labelsize": 8*3,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
+
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
     
-    f_cd = lambda pph: (pph[0, 0].imag - pph[1, 1].imag) / ((pph[0, 0].imag + pph[1, 1].imag))
+        f_cd = lambda pph: (pph[0, 0].imag - pph[1, 1].imag) / ((pph[0, 0].imag + pph[1, 1].imag))
+        f_cd = lambda pph: (jnp.abs(pph[0, 0].imag) - jnp.abs(pph[1, 1].imag)) / ((jnp.abs(pph[0, 0].imag) + jnp.abs(pph[1, 1].imag)))
 
-    for t in ts:
-        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)        
-        alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]
-        alpha_cart_j = ip_response(flake, omegas, os1 = flake.velocity_operator_e[:2], os2 = flake.velocity_operator_e[:2], relaxation_rate = 0.01)["total"]
-        alpha_cart_j = (alpha_cart_j - alpha_cart_j[..., 0][:, :, None]) / omegas**2
+        for t in ts:
+            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)        
+            alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]
+            alpha_circ = to_helicity(alpha_cart)
+            # alpha_cart_j = ip_response(flake, omegas, os1 = flake.velocity_operator_e[:2], os2 = flake.velocity_operator_e[:2], relaxation_rate = 0.01)["total"]
+            # alpha_cart_j = (alpha_cart_j - alpha_cart_j[..., 0][:, :, None]) / omegas**2
+            # alpha_circ_j = to_helicity(alpha_cart_j)
 
-        alpha_circ = to_helicity(alpha_cart)
-        alpha_circ_j = to_helicity(alpha_cart_j)
-        
-        alpha_circ = to_helicity(alpha_cart)
-        f_cd = lambda xx : jnp.abs(xx.sum(axis=1)).T[:, 0] - jnp.abs(xx.sum(axis=1)).T[:, 1]
-        f_cd = lambda xx : jnp.trace(xx).imag * omegas
-        cd = f_cd(alpha_cart)
-        # cd = f_cd(jj)
+            alpha_circ = to_helicity(alpha_cart)
+            # f_cd = lambda xx : jnp.abs(xx.sum(axis=1)).T[:, 0] - jnp.abs(xx.sum(axis=1)).T[:, 1]
+            # f_cd = lambda xx : jnp.trace(xx).imag * omegas
+            cd = f_cd(alpha_circ)
+            # cd = f_cd(jj)
+            # import pdb; pdb.set_trace()
+            print((jnp.diagonal(alpha_circ.imag) > 0).sum())
 
-        ls = '-' if t > get_threshold(delta) else '--'
-        plt.plot(omegas, cd, label = f'{t:.2f}', ls = ls)
-        
-    # import pdb; pdb.set_trace()
+            ls = '-' if t > get_threshold(delta) else '--'
+            plt.plot(omegas, cd, label = f'{t:.2f}', ls = ls)
 
 
-    plt.legend()
-    plt.savefig("cd.pdf")
-    plt.close()
+        plt.legend()
+        plt.savefig("cd.pdf")
+        plt.close()
         
 if __name__ == '__main__':
     # plot_dipole_moments_p_j() # ensure gauge invariant jj results match pp results
-    # plot_dipole_moments()
-    plot_projected_polarization()
+    plot_dipole_moments()
+    # plot_projected_polarization()
     # plot_flake_cd()
+    # plot_flake_ip_cd()
