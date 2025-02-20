@@ -1,7 +1,3 @@
-# TODO: reformulate paper with spin angular momentum sensitivity, reference DOI: 10.1103/PhysRevB.99.161404
-# TODO: expleen why sometimes + larger => vector components are never totally zero
-# TODO: motivate with time reversal bla
-
 # relevant scales:
 # length in nm, energies in eV, hbar = 1
 import jax
@@ -26,7 +22,7 @@ def load_data(results_file, keys):
     return omegas, data, data.keys() if keys is None else keys    
 
 def get_threshold(delta):
-    """threshold for topological nontriviality for t_2"""
+    """threshold for topological nontriviality for lambda"""
     return delta / (3 * jnp.sqrt(3) )
 
 LIGHT = 299.8
@@ -134,7 +130,7 @@ def haldane_hamiltonian(k, t1=1.0, t2=-0.1, phi=jnp.pi/2, M=0.2):
 def get_haldane_graphene(t1, t2, delta):
     """Constructs a graphene model with onsite hopping difference between sublattice A and B, nn hopping, nnn hopping = delta, t1, t2
 
-    threshold is at $t_2 > \\frac{\\delta}{3 \\sqrt{3}}$
+    threshold is at $\\lambda > \\frac{\\delta}{3 \\sqrt{3}}$
     """
     
     return (
@@ -314,15 +310,14 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
 def get_projection(dip):
     trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
     return jnp.einsum('ij, jkl -> ikl', trafo, dip)
-        
-# TODO    
+
 def plot_projected_polarization():
-    """plots projection of polarization operator matrix elements onto circular basis"""
-    shape = Triangle(20, armchair = False)
+    """Plots projection of polarization operator matrix elements onto circular basis."""
+    shape = Triangle(20, armchair=False)
     
     delta = 1.0
-    t_nn = -2.66    
-    ts = [0.0, 0.1, 0.5]
+    t_nn = 1.0
+    ts = [0.0, 0.1, 0.2]
     
     # Define custom settings for this plot only
     custom_params = {
@@ -335,47 +330,49 @@ def plot_projected_polarization():
         "legend.fontsize": 9*2,
         "pdf.fonttype": 42
     }
-
+    
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
         
-        # Create a figure with a 2x3 grid of subplots
-        fig, axes = plt.subplots(2, 3, figsize=(12, 8))
+        # Create a figure with a 1x3 grid of subplots
+        fig, axes = plt.subplots(1, 3, figsize=(12, 8))
 
         for i, t in enumerate(ts):
-
             flake = get_haldane_graphene(t_nn, -1j*t, delta).cut_flake(shape)
-            
             dip = flake.velocity_operator_e[:2]
             projection = get_projection(dip)
             
             norm = None #LogNorm()
-            im = axes[0, i].matshow(jnp.abs(projection[0])**2, norm=norm)
+            im = axes[i].matshow(jnp.abs(projection[0])**2, norm=norm, cmap = "twilight_r")
+
+            # Move x-ticks below the plot
+            axes[i].xaxis.set_ticks_position("bottom")
+
+            # Attach a colorbar on top of the matshow plot
+            divider = make_axes_locatable(axes[i])
+            cax = divider.append_axes("top", size="5%", pad=0.3)  # "top" places it above
+
+            # Create colorbar with horizontal orientation
+            cbar = plt.colorbar(im, cax=cax, orientation="horizontal")
+
+            # Set label above the colorbar
+            cax.xaxis.set_ticks_position("top")  # Move ticks to the top
+            axes[i].set_title(rf"$\lambda / t$ = {t:.2f}", pad = 110)
             
-            # Attach a colorbar to each subplot
-            divider = make_axes_locatable(axes[0, i])
-            cax = divider.append_axes("right", size="5%", pad=0.1)
-            plt.colorbar(im, cax=cax)
+            if i != 0:
+                axes[i].set_xticks([])
+                axes[i].set_yticks([])
+            else:
+                axes[i].set_xlabel(r"$m$")
+                axes[i].set_ylabel(r"$n$")
 
-            im = axes[1, i].matshow(jnp.abs(projection[1])**2, norm=norm)            
-            # Attach a colorbar to each subplot
-            divider = make_axes_locatable(axes[1, i])
-            cax = divider.append_axes("right", size="5%", pad=0.1)
-            plt.colorbar(im, cax=cax)
-
-
+            if i == 1:
+                cbar.set_label(r"$\vert J_+ \vert^2$ (a.u.)", fontsize=25, labelpad=-70)
+                        
     plt.tight_layout()
-    plt.savefig("foo.pdf")
+    plt.savefig("projected_polarizations.pdf")
 
 
-    # plt.matshow(jnp.abs(projection[0])**2, norm=norm); plt.colorbar(); plt.savefig("polarization_+.pdf")
-
-    # plt.matshow(jnp.abs(projection[1])**2, norm=norm); plt.colorbar(); plt.savefig("polarization_-.pdf")
-
-    # plt.close()
-            
-    
-    
 def plot_phase_shift():
     """plots phase between E_x and E_y"""
     shape = Triangle(20, armchair = False)
@@ -440,18 +437,17 @@ def get_closest_transition(flake, omega):
     
     return row, col
     
-        
 def plot_dipole_moments():
     """plots p_+, p_-"""
-    shape = Triangle(20, armchair = True)
+    shape = Triangle(30, armchair = False)
     
     delta = 1.0
-    t_nn = -2.66
+    t_nn = 1.0
     
     ts = [0, 0.15, 0.4]
     
     # omegas
-    omegas = jnp.linspace(0., 4, 100)    
+    omegas = jnp.linspace(0., 0.8, 300)    
 
     # Define custom settings for this plot only
     custom_params = {
@@ -473,18 +469,75 @@ def plot_dipole_moments():
 
         for t in ts:
             flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
-            alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]
+            alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
             dip = f_dip(alpha_cart)
 
             proj = get_projection(flake.velocity_operator_e[:2])
+            diff = dip[0] - dip[1]
+            
+            plt.plot(omegas, diff, label = rf'$\lambda$ = {t:.2f}')
 
-            plt.plot(omegas, dip[0], label = rf'$p_+$ {t:.2f}')
-            plt.plot(omegas, dip[1], label = rf'$p_-$ {t:.2f}', ls = '--')
+            plt.xlabel(r'$\omega$ (eV)')
+            plt.ylabel(r'$\Delta p$ (a.u.)')
+
+            # plt.plot(omegas, dip[0], label = rf'$p_+$ {t:.2f}')
+            # plt.plot(omegas, dip[1], label = rf'$p_-$ {t:.2f}', ls = '--')
 
         plt.legend()
         plt.savefig("p.pdf")
         plt.close()
 
+def plot_dipole_moments_topological_vs_trivial():
+    """plots p_+, p_- for topological and trivial contributions"""
+    shape = Triangle(30, armchair = False)
+    
+    delta = 1.0
+    t_nn = -2.66
+    
+    ts = [0, 0.15, 0.4]
+    
+    # omegas
+    omegas = jnp.linspace(0., 2, 200)    
+
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 33,
+        "xtick.labelsize": 8*3,
+        "ytick.labelsize": 8*3,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
+
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
+
+        trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
+        f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )
+
+        for t in ts:
+            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
+            alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
+            dip = f_dip(alpha_cart)
+
+            proj = get_projection(flake.velocity_operator_e[:2])
+            diff = dip[0] - dip[1]
+            
+            plt.plot(omegas, diff, label = rf'$\lambda$ = {t:.2f}')
+
+            plt.xlabel(r'$\omega$ (eV)')
+            plt.ylabel(r'$\Delta p$ (a.u.)')
+
+            # plt.plot(omegas, dip[0], label = rf'$p_+$ {t:.2f}')
+            # plt.plot(omegas, dip[1], label = rf'$p_-$ {t:.2f}', ls = '--')
+
+        plt.legend()
+        plt.savefig("p.pdf")
+        plt.close()
+
+        
 def plot_dipole_moments_p_j():
     """plots p_+, p_- computed from xpp and xjj"""
     shape = Triangle(20, armchair = True)
@@ -655,8 +708,10 @@ def plot_flake_cd():
         plt.close()
         
 if __name__ == '__main__':
-    # plot_dipole_moments_p_j() # ensure gauge invariant jj results match pp results
-    plot_dipole_moments()
-    # plot_projected_polarization()
+    # plot_projected_polarization() # DONE
+    plot_dipole_moments() 
     # plot_flake_cd()
-    # plot_flake_ip_cd()
+    # plot_flake_ip_cd() # selectivity measure
+
+    # APPENDIX
+    # plot_dipole_moments_p_j() # ensure gauge invariant jj results match pp results    
