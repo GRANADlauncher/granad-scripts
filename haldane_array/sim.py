@@ -151,7 +151,7 @@ def ip_response(flake, omegas, relaxation_rate = 0.05, os1 = None, os2 = None, r
     return corr
 
 ### RPA ###
-def rpa_susceptibility(flake, c, relaxation_rate):
+def rpa_susceptibility(flake, c, omegas, relaxation_rate):
     """computes RPA susceptibility, following https://pubs.acs.org/doi/10.1021/nn204780e"""
     
     def inner(omega):
@@ -448,48 +448,7 @@ def plot_dipole_moments_sweep():
 
         # Save and close
         plt.savefig("p_sweep.pdf", bbox_inches='tight')
-        plt.close()        
-        
-def plot_dipole_moments_p_j():
-    """plots p_+, p_- computed from xpp and xjj"""
-    shape = Triangle(20, armchair = True)
-    
-    delta = 1.0
-    t_nn = -2.66
-    
-    ts = [0, 0.15, 0.4]
-    
-    # omegas
-    omegas = jnp.linspace(-0., 8, 100)    
-
-    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, 1j], [1, -1j] ])
-    f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )
-
-    # xjj = w**2 xpp
-    f_dip_j = lambda jj : f_dip( (jj - jj[..., 0][:, :, None]) / omegas**2 )
-    
-    for t in ts:
-        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
-        alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]        
-        dip = f_dip(alpha_cart)
-
-        chi_cart = ip_response(flake, omegas,
-                                 relaxation_rate = 0.01,
-                                 os1 = flake.velocity_operator_e[:2],
-                                 os2 = flake.velocity_operator_e[:2])["total"]
-        
-        dip2 = f_dip_j(chi_cart)
-
-        plt.plot(omegas, dip[0], label = rf'$p_+$ {t:.2f}')
-        plt.plot(omegas, dip[1], label = rf'$p_-$ {t:.2f}')
-        
-        plt.plot(omegas, dip2[0], label = rf'$jp_+$ {t:.2f}', ls = '--')
-        plt.plot(omegas, dip2[1], label = rf'$jp_-$ {t:.2f}', ls = '--')
-
-    plt.legend()
-    plt.savefig("p.pdf")
-    plt.close()
-    
+        plt.close()            
 
 def get_ip_abs(flake, omegas, comp, relaxation_rate = 1e-2):
 
@@ -752,7 +711,134 @@ def plot_size_sweep():
 
         # Save and close
         plt.savefig("size_sweep.pdf", bbox_inches='tight')
+        plt.close()
+
+
+## APPENDIX
+def plot_rpa_sweep():
+    """plots p_+ - p_- in colormap"""
+    shape = Rhomboid(40, 40, armchair = False)
+    
+    delta = 1.0
+    t_nn = 1.0
+    
+    # omegas
+    omegas = jnp.linspace(0., 0.5, 300)    
+
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 22,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
+        "legend.fontsize": 9*1.2,
+        "pdf.fonttype": 42
+    }
+
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
+    f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )    
+    res = []
+    cs = jnp.linspace(0, 1, 10)    
+    for c in cs:
+        flake = get_haldane_graphene(t_nn, 1j*0.5, delta).cut_flake(shape)  
+        alpha_cart = rpa_susceptibility(flake, c, omegas, relaxation_rate = 1e-3)["total"]
+        dip = f_dip(alpha_cart)
+        res.append(dip[0] - dip[1])
+    res = jnp.array(res)
+
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
+        fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
+
+        # Create the main plot
+        im = ax.imshow(res.T, 
+                       aspect='equal', 
+                       cmap='coolwarm', 
+                       origin='lower', 
+                       extent=[cs.min(), cs.max(), omegas.min(), omegas.max()])
+
+
+        ax.axvline(get_threshold(delta), color='k', linestyle='--', linewidth=2)
+
+        # Axis labels
+        ax.set_xlabel(r'$\lambda / t$', weight='bold')
+        ax.set_ylabel(r'$\omega / t$', weight='bold')
+
+        # Adjust colorbar size
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust size and spacing
+
+        # Create smaller colorbar
+        cbar = plt.colorbar(im, cax=cax, label=r'$p_+ - p_-$ (a.u.)')
+        cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
+        cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
+        cbar.update_ticks()
+
+        # Save and close
+        plt.savefig("rpa_sweep.pdf", bbox_inches='tight')
         plt.close()        
+
+        
+def plot_dipole_moments_p_j():
+    """plots p_+, p_- computed from xpp and xjj"""
+    shape = Rhomboid(20, 20, armchair = False)
+    
+    delta = 1.0
+    t_nn = 1.0
+    
+    ts = [0, 0.15, 0.4]
+    
+    # omegas
+    omegas = jnp.linspace(0., 1, 300)    
+
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
+    f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )
+
+    # xjj = w**2 xpp
+    f_dip_j = lambda jj : f_dip( (jj - jj[..., 0][:, :, None])  )
+
+    
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 22,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
+        "legend.fontsize": 9*1.2,
+        "pdf.fonttype": 42
+    }
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
+
+        for t in ts:
+            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
+            alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]        
+            dip = f_dip(alpha_cart)
+
+            chi_cart = ip_response(flake, omegas,
+                                     relaxation_rate = 1e-3,
+                                     os1 = flake.velocity_operator_e[:2],
+                                     os2 = flake.velocity_operator_e[:2])["total"]
+
+            dip2 = f_dip_j(chi_cart) / omegas**2
+
+            diff1 = dip[0] - dip[1]
+            plt.plot(omegas, diff1, label = rf'$\lambda / t =$ {t:.2f}')
+            
+            diff2 = dip2[0] - dip2[1]
+            plt.plot(omegas, diff2, label = rf'$\lambda / t =$ {t:.2f}', ls = '--')
+
+        plt.xlabel(r'$\omega / t$')
+        plt.ylabel(r'$p_+ - p_-$ (a.u.)')
+        
+        plt.legend()
+        plt.savefig("p_trk.pdf")
+        plt.close()
+        
     
         
 if __name__ == '__main__':
@@ -761,7 +847,8 @@ if __name__ == '__main__':
     # plot_dipole_moments_sweep() # DONE
     # plot_energy_localization() # DONE
     # plot_selectivity_sweep() # DONE
-    plot_size_sweep() # DONE
+    # plot_size_sweep() # DONE
     
     # APPENDIX
-    # plot_dipole_moments_p_j() # ensure gauge invariant jj results match pp results
+    # plot_dipole_moments_p_j() # DONE
+    plot_rpa_sweep()
