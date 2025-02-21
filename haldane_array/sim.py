@@ -260,7 +260,7 @@ def plot_projected_polarization():
         fig, axes = plt.subplots(1, 3, figsize=(12, 8))
 
         for i, t in enumerate(ts):
-            flake = get_haldane_graphene(t_nn, -1j*t, delta).cut_flake(shape)
+            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
             dip = flake.velocity_operator_e[:2]
             projection = get_projection(dip)
             
@@ -651,7 +651,7 @@ def plot_energy_localization():
 
         # Second loop for plotting with consistent color scale
         for i, ax in enumerate(axs):
-            flake = get_haldane_graphene(1., -1j * ts[i], 1.).cut_flake(shape)
+            flake = get_haldane_graphene(1., 1j * ts[i], 1.).cut_flake(shape)
             
             e_max = flake.energies.max()
             e_min = flake.energies.min()
@@ -688,13 +688,80 @@ def plot_energy_localization():
         
         plt.savefig("energy_localization.pdf")
         plt.close()
+
+def plot_size_sweep():
+    """plots p_+ - p_- in colormap depending on size and frequency"""
+
+    delta = 1.0
+    t_nn = 1.0
+    
+    # omegas
+    omegas = jnp.linspace(0., 0.5, 10)    
+
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 22,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
+        "legend.fontsize": 9*1.2,
+        "pdf.fonttype": 42
+    }
+
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
+    f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )    
+    res = []
+    sizes = jnp.arange(20, 110, 10)
+    for s in sizes:
+        shape = Rhomboid(s, s, armchair = False)
+        flake = get_haldane_graphene(t_nn, 1j*0.5, delta).cut_flake(shape)  
+        alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
+        dip = f_dip(alpha_cart)
+        res.append(dip[0] - dip[1])
+    res = jnp.array(res)
+
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
+        fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
+
+        # Create the main plot
+        im = ax.imshow(res.T, 
+                       aspect='equal', 
+                       cmap='coolwarm', 
+                       origin='lower', 
+                       extent=[sizes.min(), sizes.max(), omegas.min(), omegas.max()])
+
+
+        ax.axvline(get_threshold(delta), color='k', linestyle='--', linewidth=2)
+
+        # Axis labels
+        ax.set_xlabel(r'$\lambda / t$', weight='bold')
+        ax.set_ylabel(r'$\omega / t$', weight='bold')
+
+        # Adjust colorbar size
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust size and spacing
+
+        # Create smaller colorbar
+        cbar = plt.colorbar(im, cax=cax, label=r'$p_+ - p_-$ (a.u.)')
+        cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
+        cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
+        cbar.update_ticks()
+
+        # Save and close
+        plt.savefig("size_sweep.pdf", bbox_inches='tight')
+        plt.close()        
+    
         
 if __name__ == '__main__':
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
     # plot_energy_localization() # DONE
-    plot_selectivity_sweep()
+    # plot_selectivity_sweep() # DONE
+    plot_size_sweep() # DONE
     
     # APPENDIX
     # plot_dipole_moments_p_j() # ensure gauge invariant jj results match pp results
