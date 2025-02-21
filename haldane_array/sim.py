@@ -511,7 +511,7 @@ def plot_dipole_moments():
 
 def plot_dipole_moments_sweep():
     """plots p_+ - p_- in colormap"""
-    shape = Triangle(20, armchair = False)
+    shape = Triangle(10, armchair = False)
     
     delta = 1.0
     t_nn = 1.0
@@ -546,19 +546,19 @@ def plot_dipole_moments_sweep():
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
 
-        plt.matshow(res,
-                    aspect='auto', 
-                    cmap='coolwarm', 
-                    origin='lower', 
-                    extent=[ts.min(), ts.max(), omegas.min(), omegas.max()]
-                    )
+        im = plt.matshow(res,
+                         aspect='auto', 
+                         cmap='coolwarm', 
+                         origin='lower', 
+                        extent=[ts.min(), ts.max(), omegas.min(), omegas.max()]
+                         )
         
         # Axis labels
         plt.xlabel(r'$\lambda / t$', weight='bold')
         plt.ylabel(r'$\omega / t$', weight='bold')
 
         # Create colorbar with horizontal orientation
-        cbar = plt.colorbar(im, cax=cax, label = r'$p_+ - p_-$')
+        cbar = plt.colorbar(im, label = r'$p_+ - p_-$')
 
         plt.legend()
         plt.savefig("p_sweep.pdf")
