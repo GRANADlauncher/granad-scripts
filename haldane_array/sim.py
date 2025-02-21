@@ -561,7 +561,7 @@ def plot_flake_ip_cd():
         
 def plot_selectivity_sweep():
     """plots selectivity in colormap"""
-    shape = Rhomboid(20, 20, armchair = False)
+    shape = Rhomboid(40, 40, armchair = False)
     
     delta = 1.0
     t_nn = 1.0
@@ -697,9 +697,7 @@ if __name__ == '__main__':
     # plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
     # plot_energy_localization() # DONE
-
-    plot_flake_cd()
-    # plot_flake_ip_cd() # selectivity measure
-
+    plot_selectivity_sweep()
+    
     # APPENDIX
     # plot_dipole_moments_p_j() # ensure gauge invariant jj results match pp results
