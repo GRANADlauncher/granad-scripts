@@ -614,13 +614,76 @@ def plot_flake_cd():
         plt.legend()
         plt.savefig("cd.pdf")
         plt.close()
+
+def plot_energy_localization():
+    from matplotlib.ticker import MaxNLocator
+    shape = Rhomboid(20, 20, armchair = False)
+    ts = [0.05, 0.3]
+    
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 33,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
+        "legend.fontsize": 9*2,
+        "pdf.fonttype": 42
+    }
+
+    scale = 1
+
+    with mpl.rc_context(rc=custom_params):
+
+        fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey = True)  # Shared y-axis for alignment
+
+        # Second loop for plotting with consistent color scale
+        for i, ax in enumerate(axs):
+            flake = get_haldane_graphene(1., -1j * ts[i], 1.).cut_flake(shape)
+            
+            e_max = flake.energies.max()
+            e_min = flake.energies.min()
+            widening = (e_max - e_min) * 0.01  # 1% margin
+            e_max += widening
+            e_min -= widening
+            
+            energies_filtered_idxs = jnp.argwhere(
+                jnp.logical_and(flake.energies <= e_max, flake.energies >= e_min)
+            )
+            state_numbers = energies_filtered_idxs[:, 0]
+            energies_filtered = flake.energies[energies_filtered_idxs]
+            
+            scatter = ax.scatter(
+                state_numbers,
+                energies_filtered,
+                c=localization(flake),
+                vmin=0, vmax=1,  # Ensure shared color scale
+            )
+
+            ax.set_xlabel("State Index")
+            if i == 0:
+                ax.set_ylabel(r"$E / t$")
+            ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+            ax.set_ylim(e_min, e_max)
+
+        # Add shared colorbar on top
+        cax = fig.add_axes([0.15, 0.93, 0.7, 0.02])  # [left, bottom, width, height]
+        colorbar = fig.colorbar(scatter, cax=cax, orientation='horizontal')
+
+        # Move the label to the top
+        colorbar.ax.xaxis.set_label_position('top')  
+        colorbar.ax.set_xlabel(r"$\mathcal{L}_{edge}$")
+        
+        plt.savefig("energy_localization.pdf")
+        plt.close()
         
 if __name__ == '__main__':
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
-    plot_dipole_moments_sweep() # DONE
+    # plot_dipole_moments_sweep() # DONE
 
-    # plot_dipole_moments_topological_vs_total() 
+    plot_energy_localization()
 
     # plot_flake_cd()
     # plot_flake_ip_cd() # selectivity measure
