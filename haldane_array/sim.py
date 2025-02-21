@@ -30,14 +30,6 @@ def localization(flake):
 
     return l
 
-def uniform_localization(flake):
-    """Compute edge localization corresponding to uniform distribution aka # atoms edge / # atoms"""
-    positions, states, energies = flake.positions, flake.eigenvectors, flake.energies 
-    distances = jnp.round(jnp.linalg.norm(positions - positions[:, None], axis = -1), 4)
-    nnn = jnp.unique(distances)[2]
-    mask = (distances == nnn).sum(axis=0) < 6
-    return mask.nonzero()[0].size / mask.size    
-
 def get_threshold(delta):
     """threshold for topological nontriviality for lambda"""
     return delta / (3 * jnp.sqrt(3) )
@@ -55,95 +47,6 @@ def to_helicity(mat):
     return jnp.einsum('ij,jmk,ml->ilk', trafo.conj().T, mat, trafo)
 
 ### MATERIAL ###
-def sample_brillouin_zone(num_kpoints=100):
-    """
-    Samples the hexagonal Brillouin zone along the high-symmetry path Γ-K-M-K'-Γ.
-    
-    Parameters:
-    num_kpoints : int
-        Number of k-points to sample along the path.
-    
-    Returns:
-    kx, ky : ndarray
-        Arrays of kx and ky values along the high-symmetry path.
-    """
-    # High-symmetry points in the hexagonal Brillouin zone
-    Gamma = np.array([0, 0])
-    K = np.array([4*np.pi/3, 0])
-    M = np.array([2*np.pi/3, 2*np.pi/3*np.sqrt(3)])
-    Kp = np.array([-4*np.pi/3, 0])
-    
-    # Define path segments
-    segments = [Gamma, K, M, Kp, Gamma]
-    
-    # Generate k-point path
-    kx, ky = [], []
-    for i in range(len(segments)-1):
-        k_start, k_end = segments[i], segments[i+1]
-        k_linspace = np.linspace(k_start, k_end, num_kpoints // (len(segments)-1))
-        kx.extend(k_linspace[:, 0])
-        ky.extend(k_linspace[:, 1])
-    
-    return np.array(kx), np.array(ky)
-
-# def haldane_hamiltonian(k, t1=1.0, t2=0.0, phi=jnp.pi/2, M=0.0):
-# def haldane_hamiltonian(k, t1=1.0, t2=0.2/(jnp.sqrt(3)*3), phi=jnp.pi/2, M=0.2):
-def haldane_hamiltonian(k, t1=1.0, t2=-0.1, phi=jnp.pi/2, M=0.2):
-    """
-    Computes the Haldane model Hamiltonian in momentum space.
-    
-    Parameters:
-    k : array-like
-        momentum in the Brillouin zone.
-    t1 : float
-        Nearest-neighbor hopping amplitude.
-    t2 : float
-        Next-nearest-neighbor hopping amplitude.
-    phi : float
-        Phase associated with the complex hopping (breaks time-reversal symmetry).
-    M : float
-        Sublattice potential term (breaks inversion symmetry).
-    
-    Returns:
-    H : ndarray
-        Hamiltonian matrix of shape (2, 2, len(kx))
-    """    
-    sigma_0 = jnp.eye(2)
-    sigma_x = jnp.array( [ [0, 1], [1, 0] ] )
-    sigma_y = 1j * jnp.array( [ [0, 1], [-1, 0] ] )
-    sigma_z = jnp.array( [ [1, 0], [0, -1] ] )
-
-    # nearest-neighbor vectors
-    a_vecs = jnp.array( [
-        [1, 0],
-        [-1/2, jnp.sqrt(3)/2],
-        [-1/2, -jnp.sqrt(3)/2]        
-        ]
-    )
-    
-    # Next-nearest-neighbor vectors
-    b_vecs = jnp.array([
-        [0, jnp.sqrt(3)],
-        [-3/2, -jnp.sqrt(3)/2],
-        [3/2, -jnp.sqrt(3)/2]
-        ]
-    )
-
-    # wave numbers
-    ka = a_vecs @ k 
-    kb = b_vecs @ k
-
-    # Hamiltonian components
-    A0 = 2 * t2 * jnp.cos(phi) * jnp.cos(kb).sum()
-    A1 = t1 * jnp.cos(ka).sum()
-    A2 = t1 * jnp.sin(ka).sum()
-    A3 = -2 * t2 * jnp.sin(phi) * jnp.sin(kb).sum() + M
-
-    # hamiltonian matrix
-    H = A0 * sigma_0 + A1 * sigma_x + A2 * sigma_y + A3 * sigma_z
-    
-    return H
-
 def get_haldane_graphene(t1, t2, delta):
     """Constructs a graphene model with onsite hopping difference between sublattice A and B, nn hopping, nnn hopping = delta, t1, t2
 
@@ -235,8 +138,7 @@ def ip_response(flake, omegas, relaxation_rate = 0.05, os1 = None, os2 = None, r
 
     if topology == True:
         l = localization(flake)
-        uniform = 1.5 * uniform_localization(flake)
-        trivial = l < uniform        
+        trivial = jnp.argsort(l)[:-10] # keep only largest 10        
         print("topological states", len(flake) - trivial.sum())
         mask = jnp.logical_and(trivial[:, None], trivial)        
         corr["topological"] = get_correlator(flake, omegas, os1, os2, relaxation_rate = relaxation_rate, mask = mask)
@@ -391,52 +293,6 @@ def plot_projected_polarization():
                         
     plt.tight_layout()
     plt.savefig("projected_polarizations.pdf")
-
-
-def plot_phase_shift():
-    """plots phase between E_x and E_y"""
-    shape = Triangle(20, armchair = False)
-    
-    delta = 1.0
-    t_nn = -2.66
-    
-    ts = [0, 0.15, 0.4]
-    
-    # omegas
-    omegas = jnp.linspace(-0.0, 2, 100)
-
-    
-    # Define custom settings for this plot only
-    custom_params = {
-        "text.usetex": True,
-        "font.family": "serif",
-        "font.size": 33,
-        "axes.labelsize": 33,
-        "xtick.labelsize": 8*3,
-        "ytick.labelsize": 8*3,
-        "legend.fontsize": 9*2,
-        "pdf.fonttype": 42
-    }
-
-    # Apply settings only for this block
-    with mpl.rc_context(rc=custom_params):
-
-        f_dip = lambda xx : xx.sum(axis=1)
-
-        for t in ts:
-            flake = get_haldane_graphene(t_nn, -1j*t, delta).cut_flake(shape)  
-            alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]        
-
-            dip = f_dip(alpha_cart)
-
-            ls = '-' if t > get_threshold(delta) else '--'
-
-            plt.plot(omegas, jnp.angle(dip[0] / dip[1]), label = rf'$p_+$ {t:.2f}')
-
-
-        plt.legend()
-        plt.savefig("phase.pdf")
-        plt.close()
         
 def find_peaks(arr):
     # Create boolean masks for peak conditions
@@ -590,59 +446,6 @@ def plot_dipole_moments_sweep():
         # Save and close
         plt.savefig("p_sweep.pdf", bbox_inches='tight')
         plt.close()        
-
-def plot_dipole_moments_topological_vs_total():
-    """plots p_+ -  p_- for topological and total"""
-    shape = Triangle(30, armchair = False)
-    
-    delta = 1.0
-    t_nn = 1.0
-    
-    ts = [0, 0.15, 0.4]
-    ts = [0.4]
-    
-    # omegas
-    omegas = jnp.linspace(0., 0.8, 300)    
-
-    # Define custom settings for this plot only
-    custom_params = {
-        "text.usetex": True,
-        "font.family": "serif",
-        "font.size": 22,
-        "axes.labelsize": 22,
-        "xtick.labelsize": 8*2,
-        "ytick.labelsize": 8*2,
-        "legend.fontsize": 9*1.2,
-        "pdf.fonttype": 42
-    }
-    
-    # Apply settings only for this block
-    with mpl.rc_context(rc=custom_params):
-
-        trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
-        f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )
-
-        for t in ts:
-            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
-            res = ip_response(flake, omegas, relaxation_rate = 1e-3, topology = True)
-            alpha_cart_tot = res["total"]            
-            dip_tot = f_dip(alpha_cart_tot)
-            diff_tot = dip_tot[0] - dip_tot[1]
-            
-            alpha_cart_top = res["topological"]            
-            dip_top = f_dip(alpha_cart_top)            
-            diff_top = dip_top[0] - dip_top[1]
-                        
-            # plt.plot(omegas, diff_tot, label = r'$\Delta p_{tot}$')
-            plt.plot(omegas, diff_top, label = r'$\Delta p_{top}$', ls = '--')
-
-            plt.xlabel(r'$\omega / t$')
-            plt.ylabel(r'$\Delta p$ (a.u.)')
-
-        plt.legend()
-        plt.savefig("p_top_tot.pdf")
-        plt.close()
-
         
 def plot_dipole_moments_p_j():
     """plots p_+, p_- computed from xpp and xjj"""
