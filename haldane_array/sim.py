@@ -672,7 +672,7 @@ def plot_size_sweep():
     trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
     f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )    
     res = []
-    sizes = jnp.arange(20, 110, 10)
+    sizes = jnp.arange(20, 50, 10)
     for s in sizes:
         shape = Rhomboid(s, s, armchair = False)
         flake = get_haldane_graphene(t_nn, 1j*0.5, delta).cut_flake(shape)  
@@ -723,7 +723,7 @@ def plot_rpa_sweep():
     t_nn = 1.0
     
     # omegas
-    omegas = jnp.linspace(0., 0.5, 300)    
+    omegas = jnp.linspace(0., 2, 300)    
 
     # Define custom settings for this plot only
     custom_params = {
@@ -845,7 +845,7 @@ if __name__ == '__main__':
     # plot_dipole_moments_sweep() # DONE
     # plot_energy_localization() # DONE
     # plot_selectivity_sweep() # DONE
-    # plot_size_sweep() # DONE
+    plot_size_sweep() # DONE
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
