@@ -508,18 +508,17 @@ def plot_dipole_moments():
         plt.savefig("p.pdf")
         plt.close()
 
-
 def plot_dipole_moments_sweep():
     """plots p_+ - p_- in colormap"""
-    shape = Triangle(10, armchair = False)
+    shape = Triangle(30, armchair = False)
     
     delta = 1.0
     t_nn = 1.0
     
-    ts = jnp.linspace(0, 0.4, 10)
+    ts = jnp.linspace(0, 0.4, 40)
     
     # omegas
-    omegas = jnp.linspace(0., 0.8, 300)    
+    omegas = jnp.linspace(0., 0.5, 300)    
 
     # Define custom settings for this plot only
     custom_params = {
@@ -542,28 +541,35 @@ def plot_dipole_moments_sweep():
         dip = f_dip(alpha_cart)
         res.append(dip[0] - dip[1])
     res = jnp.array(res)
-    
+
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
+        fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
 
-        im = plt.matshow(res,
-                         aspect='auto', 
-                         cmap='coolwarm', 
-                         origin='lower', 
-                        extent=[ts.min(), ts.max(), omegas.min(), omegas.max()]
-                         )
-        
+        # Create the main plot
+        im = ax.imshow(res.T, 
+                       aspect='equal', 
+                       cmap='coolwarm', 
+                       origin='lower', 
+                       extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
+
         # Axis labels
-        plt.xlabel(r'$\lambda / t$', weight='bold')
-        plt.ylabel(r'$\omega / t$', weight='bold')
+        ax.set_xlabel(r'$\lambda / t$', weight='bold')
+        ax.set_ylabel(r'$\omega / t$', weight='bold')
 
-        # Create colorbar with horizontal orientation
-        cbar = plt.colorbar(im, label = r'$p_+ - p_-$')
+        # Adjust colorbar size
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust size and spacing
 
-        plt.legend()
-        plt.savefig("p_sweep.pdf")
-        plt.close()
-        
+        # Create smaller colorbar
+        cbar = plt.colorbar(im, cax=cax, label=r'$p_+ - p_-$ (a.u.)')
+        cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
+        cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
+        cbar.update_ticks()
+
+        # Save and close
+        plt.savefig("p_sweep.pdf", bbox_inches='tight')
+        plt.close()        
 
 def plot_dipole_moments_topological_vs_trivial():
     """plots p_+, p_- for topological and trivial contributions"""
