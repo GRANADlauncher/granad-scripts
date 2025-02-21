@@ -429,6 +429,9 @@ def plot_dipole_moments_sweep():
                        origin='lower', 
                        extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
 
+
+        ax.axvline(get_threshold(delta), color='k', linestyle='--', linewidth=2)
+
         # Axis labels
         ax.set_xlabel(r'$\lambda / t$', weight='bold')
         ax.set_ylabel(r'$\omega / t$', weight='bold')
