@@ -15,11 +15,28 @@ from granad import *
 
 
 ### UTILITIES ###
-def load_data(results_file, keys):
-    with jnp.load(results_file) as data:
-        data = dict(data)
-        omegas = data.pop("omegas")
-    return omegas, data, data.keys() if keys is None else keys    
+def localization(flake):
+    """Compute eigenstates edge localization"""
+    # edges => neighboring unit cells are incomplete => all points that are not inside a "big hexagon" made up of nearest neighbors
+    positions, states, energies = flake.positions, flake.eigenvectors, flake.energies 
+
+    distances = jnp.round(jnp.linalg.norm(positions - positions[:, None], axis = -1), 4)
+    nnn = jnp.unique(distances)[2]
+    mask = (distances == nnn).sum(axis=0) < 6
+
+
+    # localization => how much eingenstate 
+    l = (jnp.abs(states[mask, :])**2).sum(axis = 0) # vectors are normed 
+
+    return l
+
+def uniform_localization(flake):
+    """Compute edge localization corresponding to uniform distribution aka # atoms edge / # atoms"""
+    positions, states, energies = flake.positions, flake.eigenvectors, flake.energies 
+    distances = jnp.round(jnp.linalg.norm(positions - positions[:, None], axis = -1), 4)
+    nnn = jnp.unique(distances)[2]
+    mask = (distances == nnn).sum(axis=0) < 6
+    return mask.nonzero()[0].size / mask.size    
 
 def get_threshold(delta):
     """threshold for topological nontriviality for lambda"""
@@ -209,7 +226,7 @@ def get_correlator(flake, omegas, os1, os2, relaxation_rate, mask = None):
                      )
 
 def ip_response(flake, omegas, relaxation_rate = 0.05, os1 = None, os2 = None, results_file = None, topology = False):
-    """computes Wx3x3 IP polarizability according to usual lehman representation"""
+    """computes Wx3x3 IP polarizability according to usual lehmann representation"""
     corr = {}
     os1 = os1 if os1 is not None else flake.dipole_operator_e[:2]
     os2 = os2 if os2 is not None else flake.dipole_operator_e[:2]
@@ -217,7 +234,10 @@ def ip_response(flake, omegas, relaxation_rate = 0.05, os1 = None, os2 = None, r
     corr["total"] =  get_correlator(flake, omegas, os1, os2, relaxation_rate = relaxation_rate)
 
     if topology == True:
-        trivial = jnp.abs(flake.energies) > 0.1
+        l = localization(flake)
+        uniform = 1.5 * uniform_localization(flake)
+        trivial = l < uniform        
+        print("topological states", len(flake) - trivial.sum())
         mask = jnp.logical_and(trivial[:, None], trivial)        
         corr["topological"] = get_correlator(flake, omegas, os1, os2, relaxation_rate = relaxation_rate, mask = mask)
 
@@ -313,7 +333,7 @@ def get_projection(dip):
 
 def plot_projected_polarization():
     """Plots projection of polarization operator matrix elements onto circular basis."""
-    shape = Triangle(20, armchair=False)
+    shape = Rhomboid(20, 20, armchair = False)
     
     delta = 1.0
     t_nn = 1.0
@@ -439,13 +459,13 @@ def get_closest_transition(flake, omega):
     
 def plot_dipole_moments():
     """plots p_+, p_-"""
-    shape = Triangle(30, armchair = False)
+    shape = Rhomboid(20, 20, armchair = False)
     
     delta = 1.0
     t_nn = 1.0
     
     ts = [0, 0.15, 0.4]
-    ts = [0.4]
+    ts = [0.5]
     
     # omegas
     omegas = jnp.linspace(0., 0.8, 300)    
@@ -510,7 +530,7 @@ def plot_dipole_moments():
 
 def plot_dipole_moments_sweep():
     """plots p_+ - p_- in colormap"""
-    shape = Triangle(30, armchair = False)
+    shape = Rhomboid(40, 40, armchair = False)
     
     delta = 1.0
     t_nn = 1.0
@@ -571,30 +591,31 @@ def plot_dipole_moments_sweep():
         plt.savefig("p_sweep.pdf", bbox_inches='tight')
         plt.close()        
 
-def plot_dipole_moments_topological_vs_trivial():
-    """plots p_+, p_- for topological and trivial contributions"""
+def plot_dipole_moments_topological_vs_total():
+    """plots p_+ -  p_- for topological and total"""
     shape = Triangle(30, armchair = False)
     
     delta = 1.0
-    t_nn = -2.66
+    t_nn = 1.0
     
     ts = [0, 0.15, 0.4]
+    ts = [0.4]
     
     # omegas
-    omegas = jnp.linspace(0., 2, 200)    
+    omegas = jnp.linspace(0., 0.8, 300)    
 
     # Define custom settings for this plot only
     custom_params = {
         "text.usetex": True,
         "font.family": "serif",
-        "font.size": 33,
-        "axes.labelsize": 33,
-        "xtick.labelsize": 8*3,
-        "ytick.labelsize": 8*3,
-        "legend.fontsize": 9*2,
+        "font.size": 22,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
+        "legend.fontsize": 9*1.2,
         "pdf.fonttype": 42
     }
-
+    
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
 
@@ -602,23 +623,24 @@ def plot_dipole_moments_topological_vs_trivial():
         f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )
 
         for t in ts:
-            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
-            alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
-            dip = f_dip(alpha_cart)
-
-            proj = get_projection(flake.velocity_operator_e[:2])
-            diff = dip[0] - dip[1]
+            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
+            res = ip_response(flake, omegas, relaxation_rate = 1e-3, topology = True)
+            alpha_cart_tot = res["total"]            
+            dip_tot = f_dip(alpha_cart_tot)
+            diff_tot = dip_tot[0] - dip_tot[1]
             
-            plt.plot(omegas, diff, label = rf'$\lambda$ = {t:.2f}')
+            alpha_cart_top = res["topological"]            
+            dip_top = f_dip(alpha_cart_top)            
+            diff_top = dip_top[0] - dip_top[1]
+                        
+            # plt.plot(omegas, diff_tot, label = r'$\Delta p_{tot}$')
+            plt.plot(omegas, diff_top, label = r'$\Delta p_{top}$', ls = '--')
 
-            plt.xlabel(r'$\omega$ (eV)')
+            plt.xlabel(r'$\omega / t$')
             plt.ylabel(r'$\Delta p$ (a.u.)')
 
-            # plt.plot(omegas, dip[0], label = rf'$p_+$ {t:.2f}')
-            # plt.plot(omegas, dip[1], label = rf'$p_-$ {t:.2f}', ls = '--')
-
         plt.legend()
-        plt.savefig("p.pdf")
+        plt.savefig("p_top_tot.pdf")
         plt.close()
 
         
@@ -729,9 +751,6 @@ def plot_flake_ip_cd():
             ls = '-' if t > get_threshold(delta) else '--'
             plt.plot(omegas, cd, label = f'{t:.2f}', ls = ls)
 
-            # import pdb; pdb.set_trace()
-
-
         plt.legend()
         plt.savefig("ip_cd.pdf")
         plt.close()
@@ -780,7 +799,6 @@ def plot_flake_cd():
             # f_cd = lambda xx : jnp.trace(xx).imag * omegas
             cd = f_cd(alpha_circ)
             # cd = f_cd(jj)
-            # import pdb; pdb.set_trace()
             print((jnp.diagonal(alpha_circ.imag) > 0).sum())
 
             ls = '-' if t > get_threshold(delta) else '--'
@@ -794,10 +812,12 @@ def plot_flake_cd():
 if __name__ == '__main__':
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
-    plot_dipole_moments_sweep() 
+    plot_dipole_moments_sweep() # DONE
+
+    # plot_dipole_moments_topological_vs_total() 
 
     # plot_flake_cd()
     # plot_flake_ip_cd() # selectivity measure
 
     # APPENDIX
-    # plot_dipole_moments_p_j() # ensure gauge invariant jj results match pp results    
+    # plot_dipole_moments_p_j() # ensure gauge invariant jj results match pp results
