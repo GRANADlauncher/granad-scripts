@@ -696,7 +696,7 @@ def plot_size_sweep():
     t_nn = 1.0
     
     # omegas
-    omegas = jnp.linspace(0., 0.5, 10)    
+    omegas = jnp.linspace(0., 0.5, 300)    
 
     # Define custom settings for this plot only
     custom_params = {
