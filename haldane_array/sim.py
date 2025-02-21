@@ -445,6 +445,7 @@ def plot_dipole_moments():
     t_nn = 1.0
     
     ts = [0, 0.15, 0.4]
+    ts = [0.4]
     
     # omegas
     omegas = jnp.linspace(0., 0.8, 300)    
@@ -453,14 +454,14 @@ def plot_dipole_moments():
     custom_params = {
         "text.usetex": True,
         "font.family": "serif",
-        "font.size": 33,
-        "axes.labelsize": 33,
-        "xtick.labelsize": 8*3,
-        "ytick.labelsize": 8*3,
-        "legend.fontsize": 9*2,
+        "font.size": 22,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
+        "legend.fontsize": 9*1.2,
         "pdf.fonttype": 42
     }
-
+    
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
 
@@ -473,19 +474,96 @@ def plot_dipole_moments():
             dip = f_dip(alpha_cart)
 
             proj = get_projection(flake.velocity_operator_e[:2])
-            diff = dip[0] - dip[1]
             
-            plt.plot(omegas, diff, label = rf'$\lambda$ = {t:.2f}')
+            # diff = dip[0] - dip[1]
+            
+            plt.plot(omegas, dip[0], label = rf'$|p_+|$')
+            plt.plot(omegas, dip[1], label = rf'$|p_-|$', ls = '--')
+            plt.yscale('log')
+            plt.grid(True)
 
-            plt.xlabel(r'$\omega$ (eV)')
-            plt.ylabel(r'$\Delta p$ (a.u.)')
+            plt.xlabel(r'$\omega / t$')
+            plt.ylabel(r'$|p|$ (a.u.)')
 
-            # plt.plot(omegas, dip[0], label = rf'$p_+$ {t:.2f}')
-            # plt.plot(omegas, dip[1], label = rf'$p_-$ {t:.2f}', ls = '--')
+        pp = find_peaks(dip[0])[0]
+        pp_max, omega_p = dip[0][pp].item(), omegas[pp].item()
+        pm = find_peaks(dip[1])[0]
+        pm_max, omega_m = dip[1][pm].item(), omegas[pm].item()
+        
+        peaks = [
+            ([(omega_p, pp_max),
+              (omega_p*1.2, pp_max*1)],
+             r"$\propto$ max$(\vert J_{+} \vert^2)$" ),
+            ([(omega_m, pm_max),
+              (omega_m * 1.2, pm_max*1.3)],
+             r"$\propto$ max$(\vert J_{-} \vert^2)$" ),
+        ]
+
+            
+        for p in peaks:
+            pos, annotation = p
+            plt.annotate(annotation, xy=pos[0], xytext=pos[1], arrowprops=dict(arrowstyle="->,head_width=.15"), fontsize = 15)
 
         plt.legend()
         plt.savefig("p.pdf")
         plt.close()
+
+
+def plot_dipole_moments_sweep():
+    """plots p_+ - p_- in colormap"""
+    shape = Triangle(20, armchair = False)
+    
+    delta = 1.0
+    t_nn = 1.0
+    
+    ts = jnp.linspace(0, 0.4, 10)
+    
+    # omegas
+    omegas = jnp.linspace(0., 0.8, 300)    
+
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 22,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
+        "legend.fontsize": 9*1.2,
+        "pdf.fonttype": 42
+    }
+
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
+    f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )    
+    res = []    
+    for t in ts:
+        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
+        alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
+        dip = f_dip(alpha_cart)
+        res.append(dip[0] - dip[1])
+    res = jnp.array(res)
+    
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
+
+        plt.matshow(res,
+                    aspect='auto', 
+                    cmap='coolwarm', 
+                    origin='lower', 
+                    extent=[ts.min(), ts.max(), omegas.min(), omegas.max()]
+                    )
+        
+        # Axis labels
+        plt.xlabel(r'$\lambda / t$', weight='bold')
+        plt.ylabel(r'$\omega / t$', weight='bold')
+
+        # Create colorbar with horizontal orientation
+        cbar = plt.colorbar(im, cax=cax, label = r'$p_+ - p_-$')
+
+        plt.legend()
+        plt.savefig("p_sweep.pdf")
+        plt.close()
+        
 
 def plot_dipole_moments_topological_vs_trivial():
     """plots p_+, p_- for topological and trivial contributions"""
@@ -709,7 +787,9 @@ def plot_flake_cd():
         
 if __name__ == '__main__':
     # plot_projected_polarization() # DONE
-    plot_dipole_moments() 
+    # plot_dipole_moments() # DONE
+    plot_dipole_moments_sweep() 
+
     # plot_flake_cd()
     # plot_flake_ip_cd() # selectivity measure
 
