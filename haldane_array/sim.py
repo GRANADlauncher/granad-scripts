@@ -173,7 +173,7 @@ def rpa_polarizability(flake, omegas, cs, relaxation_rate = 0.05, results_file =
     pol = []    
     for c in cs:
         # sus is sandwiched like x * sus * x
-        sus = rpa_susceptibility(flake, c, relaxation_rate = 0.05)
+        sus = rpa_susceptibility(flake, c, omegas, relaxation_rate = 0.05)
         
         p = flake.positions.T
         ref = jnp.einsum('Ii,wij,Jj->IJw', p, sus, p)
@@ -184,7 +184,7 @@ def rpa_polarizability(flake, omegas, cs, relaxation_rate = 0.05, results_file =
     if results_file is not None:
         jnp.savez(results_file, pol = pol, omegas = omegas, cs = cs)
         
-    return res
+    return pol
 
 ### PLOTTING ###    
 def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 1e3, title = None, mode = None, indicate_atoms = False, grid = False):
@@ -743,7 +743,7 @@ def plot_rpa_sweep():
     cs = jnp.linspace(0, 1, 10)    
     for c in cs:
         flake = get_haldane_graphene(t_nn, 1j*0.5, delta).cut_flake(shape)  
-        alpha_cart = rpa_susceptibility(flake, c, omegas, relaxation_rate = 1e-3)
+        alpha_cart = rpa_polarizability(flake, omegas, [c], relaxation_rate = 1e-3)[0][:2, :2]
         dip = f_dip(alpha_cart)
         res.append(dip[0] - dip[1])
     res = jnp.array(res)
