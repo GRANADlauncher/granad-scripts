@@ -743,7 +743,7 @@ def plot_rpa_sweep():
     cs = jnp.linspace(0, 1, 10)    
     for c in cs:
         flake = get_haldane_graphene(t_nn, 1j*0.5, delta).cut_flake(shape)  
-        alpha_cart = rpa_susceptibility(flake, c, omegas, relaxation_rate = 1e-3)["total"]
+        alpha_cart = rpa_susceptibility(flake, c, omegas, relaxation_rate = 1e-3)
         dip = f_dip(alpha_cart)
         res.append(dip[0] - dip[1])
     res = jnp.array(res)
@@ -837,9 +837,7 @@ def plot_dipole_moments_p_j():
         
         plt.legend()
         plt.savefig("p_trk.pdf")
-        plt.close()
-        
-    
+        plt.close()           
         
 if __name__ == '__main__':
     # plot_projected_polarization() # DONE
