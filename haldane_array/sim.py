@@ -539,9 +539,7 @@ def plot_flake_ip_cd():
     with mpl.rc_context(rc=custom_params):
     
         f_cd = lambda pph: (pph[0, 0].imag - pph[1, 1].imag) / ((pph[0, 0].imag + pph[1, 1].imag))
-        f_cd = lambda pph: (jnp.abs(pph[0, 0].imag) - jnp.abs(pph[1, 1].imag)) / ((jnp.abs(pph[0, 0].imag) + jnp.abs(pph[1, 1].imag)))
-        
-
+        f_cd = lambda pph: (jnp.abs(pph[0, 0].imag) - jnp.abs(pph[1, 1].imag)) / ((jnp.abs(pph[0, 0].imag) + jnp.abs(pph[1, 1].imag)))        
 
         for t in ts:
             flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
@@ -560,61 +558,77 @@ def plot_flake_ip_cd():
         plt.legend()
         plt.savefig("ip_cd.pdf")
         plt.close()
+        
+def plot_selectivity_sweep():
+    """plots selectivity in colormap"""
+    shape = Rhomboid(20, 20, armchair = False)
     
-def plot_flake_cd():
-    # vary shape?
-    shape = Triangle(20, armchair = False)
-    
-    # vary?    
     delta = 1.0
-    t_nn = -2.66
+    t_nn = 1.0
     
-    ts = [0, 1e-5, 0.4]
+    ts = jnp.linspace(0, 0.4, 40)
     
     # omegas
-    omegas = jnp.linspace(0.01, 8, 100)    
+    omegas = jnp.linspace(0., 0.5, 300)    
 
     # Define custom settings for this plot only
     custom_params = {
         "text.usetex": True,
         "font.family": "serif",
-        "font.size": 33,
-        "axes.labelsize": 33,
-        "xtick.labelsize": 8*3,
-        "ytick.labelsize": 8*3,
-        "legend.fontsize": 9*2,
+        "font.size": 22,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
+        "legend.fontsize": 9*1.2,
         "pdf.fonttype": 42
     }
 
+    # f_cd = lambda pph: (pph[0, 0].imag - pph[1, 1].imag) / ((pph[0, 0].imag + pph[1, 1].imag))
+    f_cd = lambda pph: (jnp.abs(pph[0, 0].imag) - jnp.abs(pph[1, 1].imag)) / ((jnp.abs(pph[0, 0].imag) + jnp.abs(pph[1, 1].imag)))
+
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
+    f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )    
+    res = []    
+    for t in ts:
+        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
+        alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
+        alpha_circ = to_helicity(alpha_cart)
+        cd = f_cd(alpha_circ)                    
+        res.append(cd)
+    res = jnp.array(res)
+
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
+        fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
+
+        # Create the main plot
+        im = ax.imshow(res.T, 
+                       aspect='equal', 
+                       cmap='coolwarm', 
+                       origin='lower', 
+                       extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
+
+
+        ax.axvline(get_threshold(delta), color='k', linestyle='--', linewidth=2)
+
+        # Axis labels
+        ax.set_xlabel(r'$\lambda / t$', weight='bold')
+        ax.set_ylabel(r'$\omega / t$', weight='bold')
+
+        # Adjust colorbar size
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust size and spacing
+
+        # Create smaller colorbar
+        cbar = plt.colorbar(im, cax=cax, label=r'$p_+ - p_-$ (a.u.)')
+        cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
+        cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
+        cbar.update_ticks()
+
+        # Save and close
+        plt.savefig("selectivity_sweep.pdf", bbox_inches='tight')
+        plt.close()        
     
-        f_cd = lambda pph: (pph[0, 0].imag - pph[1, 1].imag) / ((pph[0, 0].imag + pph[1, 1].imag))
-        f_cd = lambda pph: (jnp.abs(pph[0, 0].imag) - jnp.abs(pph[1, 1].imag)) / ((jnp.abs(pph[0, 0].imag) + jnp.abs(pph[1, 1].imag)))
-
-        for t in ts:
-            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)        
-            alpha_cart = ip_response(flake, omegas, relaxation_rate = 0.01)["total"]
-            alpha_circ = to_helicity(alpha_cart)
-            # alpha_cart_j = ip_response(flake, omegas, os1 = flake.velocity_operator_e[:2], os2 = flake.velocity_operator_e[:2], relaxation_rate = 0.01)["total"]
-            # alpha_cart_j = (alpha_cart_j - alpha_cart_j[..., 0][:, :, None]) / omegas**2
-            # alpha_circ_j = to_helicity(alpha_cart_j)
-
-            alpha_circ = to_helicity(alpha_cart)
-            # f_cd = lambda xx : jnp.abs(xx.sum(axis=1)).T[:, 0] - jnp.abs(xx.sum(axis=1)).T[:, 1]
-            # f_cd = lambda xx : jnp.trace(xx).imag * omegas
-            cd = f_cd(alpha_circ)
-            # cd = f_cd(jj)
-            print((jnp.diagonal(alpha_circ.imag) > 0).sum())
-
-            ls = '-' if t > get_threshold(delta) else '--'
-            plt.plot(omegas, cd, label = f'{t:.2f}', ls = ls)
-
-
-        plt.legend()
-        plt.savefig("cd.pdf")
-        plt.close()
-
 def plot_energy_localization():
     from matplotlib.ticker import MaxNLocator
     shape = Rhomboid(20, 20, armchair = False)
@@ -682,10 +696,9 @@ if __name__ == '__main__':
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
+    # plot_energy_localization() # DONE
 
-    plot_energy_localization()
-
-    # plot_flake_cd()
+    plot_flake_cd()
     # plot_flake_ip_cd() # selectivity measure
 
     # APPENDIX
