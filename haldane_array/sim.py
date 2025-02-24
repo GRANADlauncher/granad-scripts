@@ -678,7 +678,7 @@ def plot_size_sweep():
         flake = get_haldane_graphene(t_nn, 1j*0.5, delta).cut_flake(shape)  
         alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
         dip = f_dip(alpha_cart)
-        res.append(dip[0] - dip[1])
+        res.append( (dip[0] - dip[1]) / len(flake) )
     res = jnp.array(res)
 
     # Apply settings only for this block
@@ -702,7 +702,7 @@ def plot_size_sweep():
         cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust size and spacing
 
         # Create smaller colorbar
-        cbar = plt.colorbar(im, cax=cax, label=r'$p_+ - p_-$ (a.u.)')
+        cbar = plt.colorbar(im, cax=cax, label=r'$(p_+ - p_-) / N$ (a.u.)')
         cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
         cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
         cbar.update_ticks()
