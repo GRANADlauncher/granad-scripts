@@ -187,7 +187,7 @@ def rpa_polarizability(flake, omegas, cs, relaxation_rate = 0.05, results_file =
     return pol
 
 ### PLOTTING ###    
-def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = False, cmap = None, circle_scale : float = 1e3, title = None, mode = None, indicate_atoms = False, grid = False):
+def plot_2d_geometry(show_tags=None, show_index=False, scale = False, cmap = None, circle_scale : float = 1e3, title = None, mode = None, indicate_atoms = False, grid = False):
 
     # decider whether to take abs val and normalize 
     def scale_vals( vals ):
@@ -207,17 +207,23 @@ def show_2d(orbs, show_tags=None, show_index=False, display = None, scale = Fals
     }
 
     scale = 1
-
+    
+    shape = Rhomboid(40, 40, armchair = False)
+    orbs = get_haldane_graphene(1.0, 1j*0.3, 1.0).cut_flake(shape)
+    l = localization(orbs)
+    display = jnp.abs(orbs.eigenvectors[:, l.argsort()[-4]])**2
+    
+    
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
 
         # Create plot
         fig, ax = plt.subplots()
         cmap = plt.cm.bwr if cmap is None else cmap
-        colors = scale_vals(display)            
-        scatter = ax.scatter([orb.position[0] * scale for orb in orbs], [orb.position[1]  * scale for orb in orbs], c=colors, edgecolor='none', cmap=cmap, s = circle_scale*jnp.abs(display) )
+        colors = scale_vals(display)
+        scatter = ax.scatter([orb.position[0] * scale for orb in orbs], [orb.position[1]  * scale for orb in orbs], c=colors, edgecolor='none', cmap=cmap, s = circle_scale*jnp.abs(display) * 5)
         ax.scatter([orb.position[0] * scale  for orb in orbs], [orb.position[1]  * scale  for orb in orbs], color='black', s=5, marker='o')            
-        cbar = fig.colorbar(scatter, ax=ax)
+        cbar = fig.colorbar(scatter, ax=ax, label = r'$|\Psi|^2$')
 
         # Finalize plot settings
         if title is not None:
@@ -424,7 +430,7 @@ def plot_dipole_moments_sweep():
 
         # Create the main plot
         im = ax.imshow(res.T, 
-                       aspect='equal', 
+                       aspect='auto', 
                        cmap='coolwarm', 
                        origin='lower', 
                        extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
@@ -838,15 +844,91 @@ def plot_dipole_moments_p_j():
         plt.legend()
         plt.savefig("p_trk.pdf")
         plt.close()           
+
+
+def plot_dipole_moments_broken_symmetry():
+    """plots p_+, p_-"""
+    shape = Triangle(20, armchair = False)
+    
+    delta = 1.0
+    t_nn = 1.0
+    
+    ts = [0, 0.15, 0.4]
+    ts = [0.5]
+    
+    # omegas
+    omegas = jnp.linspace(0., 0.8, 300)    
+
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 22,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
+        "legend.fontsize": 9*1.2,
+        "pdf.fonttype": 42
+    }
+    
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
+
+        trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
+        f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )
+
+        for t in ts:
+            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
+            alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
+            dip = f_dip(alpha_cart)
+
+            proj = get_projection(flake.velocity_operator_e[:2])
+            
+            # diff = dip[0] - dip[1]
+            
+            plt.plot(omegas, dip[0], label = rf'$|p_+|$')
+            plt.plot(omegas, dip[1], label = rf'$|p_-|$', ls = '--')
+            plt.yscale('log')
+            plt.grid(True)
+
+            plt.xlabel(r'$\omega / t$')
+            plt.ylabel(r'$|p|$ (a.u.)')
+
+        pp = find_peaks(dip[0])[0]
+        pp_max, omega_p = dip[0][pp].item(), omegas[pp].item()
+        pm = find_peaks(dip[1])[0]
+        pm_max, omega_m = dip[1][pm].item(), omegas[pm].item()
+        
+        peaks = [
+            ([(omega_p, pp_max),
+              (omega_p*1.2, pp_max*1)],
+             r"$\propto$ max$(\vert J_{+} \vert^2)$" ),
+            ([(omega_m, pm_max),
+              (omega_m * 1.2, pm_max*1.3)],
+             r"$\propto$ max$(\vert J_{-} \vert^2)$" ),
+        ]
+
+            
+        for p in peaks:
+            pos, annotation = p
+            plt.annotate(annotation, xy=pos[0], xytext=pos[1], arrowprops=dict(arrowstyle="->,head_width=.15"), fontsize = 15)
+
+        plt.legend()
+        plt.savefig("p_broken.pdf")
+        plt.close()
+
         
 if __name__ == '__main__':
+    # plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
     # plot_energy_localization() # DONE
     # plot_selectivity_sweep() # DONE
-    plot_size_sweep() # DONE
+    # plot_size_sweep() 
+
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    plot_rpa_sweep()
+    # plot_rpa_sweep()
+    plot_dipole_moments_broken_symmetry()
