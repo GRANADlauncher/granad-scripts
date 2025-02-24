@@ -696,7 +696,7 @@ def plot_size_sweep():
 
 
         # Axis labels
-        ax.set_xlabel(r'$\lambda / t$', weight='bold')
+        ax.set_xlabel(r'$N$', weight='bold')
         ax.set_ylabel(r'$\omega / t$', weight='bold')
 
         # Adjust colorbar size
@@ -762,7 +762,7 @@ def plot_rpa_sweep():
 
 
         # Axis labels
-        ax.set_xlabel(r'$c / t$', weight='bold')
+        ax.set_xlabel(r'$Coulomb strength c$', weight='bold')
         ax.set_ylabel(r'$\omega / t$', weight='bold')
 
         # Adjust colorbar size
