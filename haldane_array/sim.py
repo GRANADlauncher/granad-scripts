@@ -431,7 +431,7 @@ def plot_dipole_moments_sweep():
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='auto', 
-                       cmap='coolwarm', 
+                       cmap="twilight_r", 
                        origin='lower', 
                        extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
 
@@ -569,7 +569,7 @@ def plot_selectivity_sweep():
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='equal', 
-                       cmap='coolwarm', 
+                       cmap="twilight_r",
                        origin='lower', 
                        extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
 
@@ -696,7 +696,7 @@ def plot_size_sweep():
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='auto', 
-                       cmap='coolwarm', 
+                       cmap="twilight_r", 
                        origin='lower',
                        extent=[plot_sizes.min(), plot_sizes.max(), omegas.min(), omegas.max()])
 
@@ -761,7 +761,7 @@ def plot_rpa_sweep():
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='equal', 
-                       cmap='coolwarm', 
+                       cmap="twilight_r",
                        origin='lower',
                        norm=mpl.colors.LogNorm(),
                        extent=[cs.min(), cs.max(), omegas.min(), omegas.max()])
@@ -924,11 +924,11 @@ if __name__ == '__main__':
     # plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
     # plot_energy_localization() # DONE
-    # plot_selectivity_sweep() # DONE
-    # plot_size_sweep() 
+    plot_selectivity_sweep() # DONE
+    plot_size_sweep() 
 
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    # plot_rpa_sweep()
-    plot_dipole_moments_broken_symmetry()
+    plot_rpa_sweep()
+    # plot_dipole_moments_broken_symmetry()
