@@ -271,7 +271,7 @@ def plot_projected_polarization():
             projection = get_projection(dip)
             
             norm = None #LogNorm()
-            im = axes[i].matshow(jnp.abs(projection[0])**2, norm=norm, cmap = "twilight_r")
+            im = axes[i].matshow(jnp.abs(projection[0])**2, norm=norm, cmap = "coolwarm")
 
             # Move x-ticks below the plot
             axes[i].xaxis.set_ticks_position("bottom")
@@ -321,16 +321,16 @@ def get_closest_transition(flake, omega):
     
 def plot_dipole_moments():
     """plots p_+, p_-"""
-    shape = Rhomboid(20, 20, armchair = False)
+    shape = Rhomboid(40, 40, armchair = False)
     
     delta = 1.0
     t_nn = 1.0
     
     ts = [0, 0.15, 0.4]
-    ts = [0.5]
+    ts = [0.1]
     
     # omegas
-    omegas = jnp.linspace(0., 0.8, 300)    
+    omegas = jnp.linspace(0., 0.5, 300)    
 
     # Define custom settings for this plot only
     custom_params = {
@@ -431,7 +431,7 @@ def plot_dipole_moments_sweep():
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='auto', 
-                       cmap="twilight_r", 
+                       cmap="coolwarm", 
                        origin='lower', 
                        extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
 
@@ -569,7 +569,7 @@ def plot_selectivity_sweep():
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='equal', 
-                       cmap="twilight_r",
+                       cmap="coolwarm",
                        origin='lower', 
                        extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
 
@@ -696,7 +696,7 @@ def plot_size_sweep():
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='auto', 
-                       cmap="twilight_r", 
+                       cmap="coolwarm", 
                        origin='lower',
                        extent=[plot_sizes.min(), plot_sizes.max(), omegas.min(), omegas.max()])
 
@@ -761,7 +761,7 @@ def plot_rpa_sweep():
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='equal', 
-                       cmap="twilight_r",
+                       cmap="coolwarm",
                        origin='lower',
                        norm=mpl.colors.LogNorm(),
                        extent=[cs.min(), cs.max(), omegas.min(), omegas.max()])
@@ -922,13 +922,13 @@ if __name__ == '__main__':
     # plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
-    # plot_dipole_moments_sweep() # DONE
+    plot_dipole_moments_sweep() # DONE
     # plot_energy_localization() # DONE
-    plot_selectivity_sweep() # DONE
-    plot_size_sweep() 
+    # plot_selectivity_sweep() # DONE
+    # plot_size_sweep() 
 
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    plot_rpa_sweep()
+    # plot_rpa_sweep()
     # plot_dipole_moments_broken_symmetry()
