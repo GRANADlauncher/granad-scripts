@@ -672,7 +672,7 @@ def plot_size_sweep():
     trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
     f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )    
     res = []
-    sizes = jnp.arange(20, 50, 10)
+    sizes = jnp.arange(20, 100, 10)
     for s in sizes:
         shape = Rhomboid(s, s, armchair = False)
         flake = get_haldane_graphene(t_nn, 1j*0.5, delta).cut_flake(shape)  
