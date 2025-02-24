@@ -746,7 +746,7 @@ def plot_rpa_sweep():
         alpha_cart = rpa_polarizability(flake, omegas, [c], relaxation_rate = 1e-3)[0][:2, :2]
         dip = f_dip(alpha_cart)
         res.append(dip[0] - dip[1])
-    res = jnp.array(res)
+    res = jnp.abs(jnp.array(res))
 
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
@@ -756,7 +756,8 @@ def plot_rpa_sweep():
         im = ax.imshow(res.T, 
                        aspect='equal', 
                        cmap='coolwarm', 
-                       origin='lower', 
+                       origin='lower',
+                       norm=mpl.colors.LogNorm(),
                        extent=[cs.min(), cs.max(), omegas.min(), omegas.max()])
 
 
@@ -771,9 +772,10 @@ def plot_rpa_sweep():
         cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust size and spacing
 
         # Create smaller colorbar
-        cbar = plt.colorbar(im, cax=cax, label=r'$p_+ - p_-$ (a.u.)')
-        cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
-        cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
+        cbar = plt.colorbar(im, cax=cax, label=r'$|p_+ - p_-|$ (a.u.)')
+        # cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
+        # cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
+        cbar.formatter = mpl.ticker.LogFormatter()  # Use logarithmic tick formatting
         cbar.update_ticks()
 
         # Save and close
@@ -849,4 +851,4 @@ if __name__ == '__main__':
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    plot_rpa_sweep()
+    # plot_rpa_sweep()
