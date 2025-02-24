@@ -687,13 +687,11 @@ def plot_size_sweep():
 
         # Create the main plot
         im = ax.imshow(res.T, 
-                       aspect='equal', 
+                       aspect='auto', 
                        cmap='coolwarm', 
                        origin='lower', 
                        extent=[sizes.min(), sizes.max(), omegas.min(), omegas.max()])
 
-
-        ax.axvline(get_threshold(delta), color='k', linestyle='--', linewidth=2)
 
         # Axis labels
         ax.set_xlabel(r'$\lambda / t$', weight='bold')
