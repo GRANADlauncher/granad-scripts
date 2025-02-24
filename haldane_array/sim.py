@@ -849,4 +849,4 @@ if __name__ == '__main__':
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    # plot_rpa_sweep()
+    plot_rpa_sweep()
