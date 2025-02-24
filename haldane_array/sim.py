@@ -671,15 +671,17 @@ def plot_size_sweep():
 
     trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
     f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )    
-    res = []
-    sizes = jnp.arange(20, 100, 10)
+    res, plot_sizes = [], []
+    sizes = jnp.arange(20, 100, 2)
     for s in sizes:
         shape = Rhomboid(s, s, armchair = False)
         flake = get_haldane_graphene(t_nn, 1j*0.5, delta).cut_flake(shape)  
         alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
         dip = f_dip(alpha_cart)
         res.append( (dip[0] - dip[1]) / len(flake) )
+        plot_sizes.append(len(flake))
     res = jnp.array(res)
+    plot_sizes = jnp.array(plot_sizes)
 
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
@@ -689,8 +691,8 @@ def plot_size_sweep():
         im = ax.imshow(res.T, 
                        aspect='auto', 
                        cmap='coolwarm', 
-                       origin='lower', 
-                       extent=[sizes.min(), sizes.max(), omegas.min(), omegas.max()])
+                       origin='lower',
+                       extent=[plot_sizes.min(), plot_sizes.max(), omegas.min(), omegas.max()])
 
 
         # Axis labels
@@ -759,10 +761,8 @@ def plot_rpa_sweep():
                        extent=[cs.min(), cs.max(), omegas.min(), omegas.max()])
 
 
-        ax.axvline(get_threshold(delta), color='k', linestyle='--', linewidth=2)
-
         # Axis labels
-        ax.set_xlabel(r'$\lambda / t$', weight='bold')
+        ax.set_xlabel(r'$c / t$', weight='bold')
         ax.set_ylabel(r'$\omega / t$', weight='bold')
 
         # Adjust colorbar size
