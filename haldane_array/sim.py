@@ -231,8 +231,8 @@ def plot_2d_geometry(show_tags=None, show_index=False, scale = False, cmap = Non
             
         plt.xlabel('X (Å)')
         plt.ylabel('Y (Å)')    
-        ax.grid(True)
         ax.axis('equal')
+        plt.tight_layout()
         plt.savefig('geometry.pdf')
 
 def get_projection(dip):
@@ -358,7 +358,7 @@ def plot_dipole_moments():
         f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )
 
         for t in ts:
-            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
+            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
             alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
             dip = f_dip(alpha_cart)
 
@@ -715,7 +715,7 @@ def plot_size_sweep():
     with mpl.rc_context(rc=custom_params):
         fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
 
-        # Create the main plot
+         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='auto', 
                        cmap="coolwarm", 
@@ -782,7 +782,7 @@ def plot_rpa_sweep():
 
         # Create the main plot
         im = ax.imshow(res.T, 
-                       aspect='equal', 
+                       aspect='auto', 
                        cmap="coolwarm",
                        origin='lower',
                        norm=mpl.colors.LogNorm(),
@@ -819,7 +819,7 @@ def plot_dipole_moments_p_j():
     ts = [0, 0.15, 0.4]
     
     # omegas
-    omegas = jnp.linspace(0., 1, 300)    
+    omegas = jnp.linspace(0., 0.5, 300)    
 
     trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
     f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )
@@ -861,9 +861,10 @@ def plot_dipole_moments_p_j():
             plt.plot(omegas, diff2, label = rf'$\lambda / t =$ {t:.2f}', ls = '--')
 
         plt.xlabel(r'$\omega / t$')
-        plt.ylabel(r'$p_+ - p_-$ (a.u.)')
+        plt.ylabel(r'$|p_+| - |p_-|$ (a.u.)')
         
         plt.legend()
+        plt.tight_layout()
         plt.savefig("p_trk.pdf")
         plt.close()           
 
@@ -933,12 +934,12 @@ if __name__ == '__main__':
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
-    plot_energy_localization() # DONE
+    # plot_energy_localization() # DONE
     # plot_selectivity_sweep() # DONE
     # plot_size_sweep()  # DONE
 
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    # plot_rpa_sweep() # DONE
+    plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
