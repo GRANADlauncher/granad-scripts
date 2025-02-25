@@ -621,6 +621,8 @@ def plot_energy_localization():
     with mpl.rc_context(rc=custom_params):
 
         fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey = True)  # Shared y-axis for alignment
+        
+        labels = ["(a)", "(b)", "(c)"]  # Define labels for each subplot
 
         # Second loop for plotting with consistent color scale
         for i, ax in enumerate(axs):
@@ -646,6 +648,12 @@ def plot_energy_localization():
             )
 
             ax.set_xlabel("State Index")
+
+            ax.annotate(
+                labels[i], xy=(-0.25, 1.), xycoords="axes fraction",
+                fontsize=22, fontweight="bold", ha="left", va="top"                
+            )
+            
             if i == 0:
                 ax.set_ylabel(r"$E / t$")
 
@@ -654,15 +662,17 @@ def plot_energy_localization():
             ax.xaxis.set_major_locator(MaxNLocator(integer=True))
             ax.set_ylim(e_min, e_max)
 
-        # Add shared colorbar on top
-        cax = fig.add_axes([0.15, 0.92, 0.7, 0.01])  # [left, bottom, width, height]
-        colorbar = fig.colorbar(scatter, cax=cax, orientation='horizontal')
 
-        # Move the label to the top
-        colorbar.ax.xaxis.set_label_position('top')  
-        colorbar.ax.set_xlabel(r"$\mathcal{L}$")
+            # Create a divider for the existing axis
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes("right", size="5%", pad=0.05)  # "right" places the colorbar on the right
+
+            # Create a colorbar for each subplot
+            colorbar = plt.colorbar(scatter, cax=cax)
+            colorbar.ax.set_ylabel(r"$\mathcal{L}$", rotation=270, labelpad=15)  # Rotate and space the
         
-        fig.subplots_adjust(top=0.85)  # Moves subplots down slightly
+        plt.tight_layout()
+        # fig.subplots_adjust(top=0.85)  # Moves subplots down slightly
         plt.savefig("energy_localization.pdf")
         plt.close()
 
@@ -922,13 +932,13 @@ if __name__ == '__main__':
     # plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
-    plot_dipole_moments_sweep() # DONE
-    # plot_energy_localization() # DONE
-    plot_selectivity_sweep() # DONE
+    # plot_dipole_moments_sweep() # DONE
+    plot_energy_localization() # DONE
+    # plot_selectivity_sweep() # DONE
     # plot_size_sweep()  # DONE
 
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    plot_rpa_sweep() # DONE
+    # plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
