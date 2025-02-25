@@ -251,13 +251,15 @@ def plot_projected_polarization():
     custom_params = {
         "text.usetex": True,
         "font.family": "serif",
-        "font.size": 33,
+        "font.size": 20,
         "axes.labelsize": 33,
         "xtick.labelsize": 8*3,
         "ytick.labelsize": 8*3,
         "legend.fontsize": 9*2,
         "pdf.fonttype": 42
     }
+
+    labels = ["(a)", "(b)", "(c)"]  # Define labels for each subplot
     
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
@@ -271,7 +273,7 @@ def plot_projected_polarization():
             projection = get_projection(dip)
             
             norm = None #LogNorm()
-            im = axes[i].matshow(jnp.abs(projection[0])**2, norm=norm, cmap = "coolwarm")
+            im = axes[i].matshow(jnp.abs(projection[0])**2, norm=norm, cmap = "gist_heat_r")
 
             # Move x-ticks below the plot
             axes[i].xaxis.set_ticks_position("bottom")
@@ -285,7 +287,12 @@ def plot_projected_polarization():
 
             # Set label above the colorbar
             cax.xaxis.set_ticks_position("top")  # Move ticks to the top
-            axes[i].set_title(rf"$\lambda / t$ = {t:.2f}", pad = 110)
+            # axes[i].set_title(rf"$\lambda / t$ = {t:.2f}", pad = 110)
+            
+            axes[i].annotate(
+                labels[i], xy=(-0.3, 1.5), xycoords="axes fraction",
+                fontsize=22, fontweight="bold", ha="left", va="top"                
+            )
             
             if i != 0:
                 axes[i].set_xticks([])
@@ -295,7 +302,7 @@ def plot_projected_polarization():
                 axes[i].set_ylabel(r"$n$")
 
             if i == 1:
-                cbar.set_label(r"$\vert J_+ \vert^2$ (a.u.)", fontsize=25, labelpad=-70)
+                cbar.set_label(r"$\vert J_+ \vert^2$ (a.u.)", fontsize=20, labelpad=-85)
                         
     plt.tight_layout()
     plt.savefig("projected_polarizations.pdf")
@@ -327,7 +334,7 @@ def plot_dipole_moments():
     t_nn = 1.0
     
     ts = [0, 0.15, 0.4]
-    ts = [0.1]
+    ts = [0.4]
     
     # omegas
     omegas = jnp.linspace(0., 0.5, 300)    
@@ -369,16 +376,16 @@ def plot_dipole_moments():
 
         pp = find_peaks(dip[0])[0]
         pp_max, omega_p = dip[0][pp].item(), omegas[pp].item()
-        pm = find_peaks(dip[1])[0]
+        pm = find_peaks(dip[1])[2]
         pm_max, omega_m = dip[1][pm].item(), omegas[pm].item()
         
         peaks = [
             ([(omega_p, pp_max),
               (omega_p*1.2, pp_max*1)],
-             r"$\propto$ max$(\vert J_{+} \vert^2)$" ),
+             r"$\vert J_{+} \vert > \vert J_{-} \vert$" ),            
             ([(omega_m, pm_max),
               (omega_m * 1.2, pm_max*1.3)],
-             r"$\propto$ max$(\vert J_{-} \vert^2)$" ),
+             r"$\vert J_{-} \vert > \vert J_{+} \vert$" ),            
         ]
 
             
@@ -387,6 +394,7 @@ def plot_dipole_moments():
             plt.annotate(annotation, xy=pos[0], xytext=pos[1], arrowprops=dict(arrowstyle="->,head_width=.15"), fontsize = 15)
 
         plt.legend()
+        plt.tight_layout()
         plt.savefig("p.pdf")
         plt.close()
 
@@ -447,7 +455,7 @@ def plot_dipole_moments_sweep():
         cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust size and spacing
 
         # Create smaller colorbar
-        cbar = plt.colorbar(im, cax=cax, label=r'$p_+ - p_-$ (a.u.)')
+        cbar = plt.colorbar(im, cax=cax, label=r'$|p_+| - |p_-|$ (a.u.)')
         cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
         cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
         cbar.update_ticks()
@@ -640,17 +648,21 @@ def plot_energy_localization():
             ax.set_xlabel("State Index")
             if i == 0:
                 ax.set_ylabel(r"$E / t$")
+
+            ax.axhline((e_max + e_min) / 2, color="grey", linestyle="--", alpha=0.5)
+            
             ax.xaxis.set_major_locator(MaxNLocator(integer=True))
             ax.set_ylim(e_min, e_max)
 
         # Add shared colorbar on top
-        cax = fig.add_axes([0.15, 0.93, 0.7, 0.02])  # [left, bottom, width, height]
+        cax = fig.add_axes([0.15, 0.92, 0.7, 0.01])  # [left, bottom, width, height]
         colorbar = fig.colorbar(scatter, cax=cax, orientation='horizontal')
 
         # Move the label to the top
         colorbar.ax.xaxis.set_label_position('top')  
-        colorbar.ax.set_xlabel(r"$\mathcal{L}_{edge}$")
+        colorbar.ax.set_xlabel(r"$\mathcal{L}$")
         
+        fig.subplots_adjust(top=0.85)  # Moves subplots down slightly
         plt.savefig("energy_localization.pdf")
         plt.close()
 
@@ -710,7 +722,7 @@ def plot_size_sweep():
         cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust size and spacing
 
         # Create smaller colorbar
-        cbar = plt.colorbar(im, cax=cax, label=r'$(p_+ - p_-) / N$ (a.u.)')
+        cbar = plt.colorbar(im, cax=cax, label=r'$(|p_+| - |p_-|) / N$ (a.u.)')
         cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
         cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
         cbar.update_ticks()
@@ -768,7 +780,7 @@ def plot_rpa_sweep():
 
 
         # Axis labels
-        ax.set_xlabel(r'$Coulomb strength c$', weight='bold')
+        ax.set_xlabel(r'Coulomb strength $c$', weight='bold')
         ax.set_ylabel(r'$\omega / t$', weight='bold')
 
         # Adjust colorbar size
@@ -863,7 +875,7 @@ def plot_dipole_moments_broken_symmetry():
     custom_params = {
         "text.usetex": True,
         "font.family": "serif",
-        "font.size": 22,
+        "font.size": 20,
         "axes.labelsize": 22,
         "xtick.labelsize": 8*2,
         "ytick.labelsize": 8*2,
@@ -899,21 +911,9 @@ def plot_dipole_moments_broken_symmetry():
         pm = find_peaks(dip[1])[0]
         pm_max, omega_m = dip[1][pm].item(), omegas[pm].item()
         
-        peaks = [
-            ([(omega_p, pp_max),
-              (omega_p*1.2, pp_max*1)],
-             r"$\propto$ max$(\vert J_{+} \vert^2)$" ),
-            ([(omega_m, pm_max),
-              (omega_m * 1.2, pm_max*1.3)],
-             r"$\propto$ max$(\vert J_{-} \vert^2)$" ),
-        ]
-
             
-        for p in peaks:
-            pos, annotation = p
-            plt.annotate(annotation, xy=pos[0], xytext=pos[1], arrowprops=dict(arrowstyle="->,head_width=.15"), fontsize = 15)
-
         plt.legend()
+        plt.tight_layout()
         plt.savefig("p_broken.pdf")
         plt.close()
 
@@ -922,7 +922,7 @@ if __name__ == '__main__':
     # plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
-    # plot_dipole_moments_sweep() # DONE
+    plot_dipole_moments_sweep() # DONE
     # plot_energy_localization() # DONE
     plot_selectivity_sweep() # DONE
     # plot_size_sweep()  # DONE
@@ -930,5 +930,5 @@ if __name__ == '__main__':
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    # plot_rpa_sweep() # DONE
+    plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
