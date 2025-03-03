@@ -459,7 +459,111 @@ def plot_dipole_moments_sweep():
         # Save and close
         plt.savefig("p_sweep.pdf", bbox_inches='tight')
         plt.close()
+        
 
+def plot_disorder_dipole_moments_sweep():
+    """plots p_+ - p_- in colormap"""
+
+    import jax
+    import jax.numpy as jnp
+
+    def _transform_basis(observable, vectors):
+        dims_einsum_strings = {2: "ij,jk,lk->il", 3: "ij,mjk,lk->mil"}
+        einsum_string = dims_einsum_strings[(observable.ndim)]
+        return jnp.einsum(einsum_string, vectors, observable, vectors.conj())
+
+    # self._eigenvectors.conj().T
+    
+    def _get_ip_green_function(dip, energies, occupations, omegas, relaxation_rate):
+
+        def inner(omega):
+            return jnp.trace( (delta_occ / (omega + delta_e + 1j*relaxation_rate)) @ operator_product)
+
+        print("Computing Greens function. Remember we default to site basis")
+
+        dipole_e
+        operator_product =  A.T * B
+        occupations = orbs.initial_density_matrix_e.diagonal() * orbs.electrons if occupations is None else occupations
+        energies = orbs.energies if energies is None else energies        
+        delta_occ = (occupations[:, None] - occupations)
+        if mask is not None:        
+            delta_occ = delta_occ.at[mask].set(0) 
+        delta_e = energies[:, None] - energies
+
+        return jax.lax.map(jax.jit(inner), omegas)
+
+    def _get_correlator(flake):
+        return jnp.array([[ _get_ip_green_function(flake) for o1 in os1 ] for o2 in os2])
+
+    def single_plot(noise):
+        shape = Rhomboid(40, 40, armchair = False)
+
+        delta = 1.0
+        t_nn = 1.0
+
+        ts = jnp.linspace(0, 0.4, 40)
+
+        # omegas
+        omegas = jnp.linspace(0., 0.5, 300)    
+
+        # Define custom settings for this plot only
+        custom_params = {
+            "text.usetex": True,
+            "font.family": "serif",
+            "font.size": 22,
+            "axes.labelsize": 22,
+            "xtick.labelsize": 8*2,
+            "ytick.labelsize": 8*2,
+            "legend.fontsize": 9*1.2,
+            "pdf.fonttype": 42
+        }
+
+        trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
+        f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )    
+        res = []    
+        for t in ts:
+            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
+            alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
+            dip = f_dip(alpha_cart)
+            res.append(dip[0] - dip[1])
+        res = jnp.array(res)
+
+        # Apply settings only for this block
+        with mpl.rc_context(rc=custom_params):
+            fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
+
+            norm = SymLogNorm(linthresh=1, linscale=1.0, base=10)
+
+            # Create the main plot
+            im = ax.imshow(res.T, 
+                           aspect='auto', 
+                           cmap="coolwarm", 
+                           origin='lower',
+                           norm = norm,
+                           extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
+
+
+            ax.axvline(get_threshold(delta), color='k', linestyle='--', linewidth=2)
+
+            # Axis labels
+            ax.set_xlabel(r'$\lambda / t$', weight='bold')
+            ax.set_ylabel(r'$\omega / t$', weight='bold')
+
+            # Adjust colorbar size
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust size and spacing
+
+            # Create smaller colorbar
+            cbar = plt.colorbar(im, cax=cax, label=r'$|p_+| - |p_-|$ (a.u.)')
+
+            # Save and close
+            plt.savefig(f"p_sweep_{noise}.pdf", bbox_inches='tight')
+            plt.close()
+
+    for n in [20, 30, 40, 50, 60]:
+        single_plot(n)
+
+        
 def plot_dipole_moments_sweep_size_sweep():
     """plots p_+ - p_- in colormap"""
     
@@ -913,12 +1017,14 @@ def plot_rpa_sweep():
     with mpl.rc_context(rc=custom_params):
         fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
         
+        norm = SymLogNorm(linthresh=1, linscale=1.0, base=10)
+
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='auto', 
                        cmap="coolwarm",
                        origin='lower',
-                       norm=mpl.colors.LogNorm(),
+                       norm=norm,
                        extent=[cs.min(), cs.max(), omegas.min(), omegas.max()])
 
 
@@ -1067,9 +1173,9 @@ if __name__ == '__main__':
     # plot_selectivity_sweep() # DONE
     # plot_size_sweep()  # DONE
     # plot_armchair_dipole_moments_sweep()
-    plot_dipole_moments_sweep_size_sweep()
+    # plot_dipole_moments_sweep_size_sweep()
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    # plot_rpa_sweep() # DONE
+    plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
