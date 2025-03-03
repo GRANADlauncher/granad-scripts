@@ -168,12 +168,12 @@ def rpa_susceptibility(flake, c, omegas, relaxation_rate):
     
     return jax.lax.map(jax.jit(inner), omegas)
 
-def rpa_polarizability(flake, omegas, cs, relaxation_rate = 0.05, results_file = None):
+def rpa_polarizability(flake, omegas, cs, relaxation_rate, results_file = None):
     """computes RPA polarizability, following https://pubs.acs.org/doi/10.1021/nn204780e"""
     pol = []    
     for c in cs:
         # sus is sandwiched like x * sus * x
-        sus = rpa_susceptibility(flake, c, omegas, relaxation_rate = 0.05)
+        sus = rpa_susceptibility(flake, c, omegas, relaxation_rate)
         
         p = flake.positions.T
         ref = jnp.einsum('Ii,wij,Jj->IJw', p, sus, p)
