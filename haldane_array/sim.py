@@ -865,7 +865,7 @@ def plot_rpa_sweep():
     t_nn = 1.0
     
     # omegas
-    omegas = jnp.linspace(0., 0.5, 100)    
+    omegas = jnp.linspace(0., 2, 100)    
 
     # Define custom settings for this plot only
     custom_params = {
