@@ -500,6 +500,10 @@ def plot_noise_dipole_moments_sweep():
         hamiltonian = flake.hamiltonian + scale * noise
         energies, vecs = jnp.linalg.eigh(hamiltonian)
         vecs = vecs.conj().T
+
+        plt.plot(jnp.arange(len(flake)), energies, 'o'); plt.show()
+        import pdb; pdb.set_trace()
+
         
         dipole_operator = jnp.einsum("ij,mjk,lk->mil", vecs, dipole_operator, vecs.conj())[:2]
 
@@ -513,7 +517,7 @@ def plot_noise_dipole_moments_sweep():
         delta = 1.0
         t_nn = 1.0
 
-        ts = jnp.linspace(0, 0.4, 20)
+        ts = jnp.linspace(0, 0.4, 20)[18:]
 
         # omegas
         omegas = jnp.linspace(0., 0.5, 100)    
@@ -534,7 +538,9 @@ def plot_noise_dipole_moments_sweep():
         f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )    
         res = []    
         for t in ts:
-            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
+            flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
+            import pdb; pdb.set_trace()
+
             alpha_cart = _get_correlator(flake, noise, omegas)
             dip = f_dip(alpha_cart)
             res.append(dip[0] - dip[1])
@@ -572,7 +578,7 @@ def plot_noise_dipole_moments_sweep():
             plt.savefig(f"p_sweep_{noise}.pdf", bbox_inches='tight')
             plt.close()
 
-    for noise in jnp.linspace(0, 0.1, 3):
+    for noise in jnp.linspace(0, 0.1, 3)[1:]:
         single_plot(noise)
 
 
@@ -886,7 +892,7 @@ def plot_rpa_sweep():
         alpha_cart = rpa_polarizability(flake, omegas, [c], relaxation_rate = 1e-3)[0][:2, :2]
         dip = f_dip(alpha_cart)
         res.append(dip[0] - dip[1])
-    res = jnp.abs(jnp.array(res))
+    res = jnp.array(res)
 
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
@@ -1040,7 +1046,7 @@ def plot_dipole_moments_broken_symmetry():
 
         
 if __name__ == '__main__':
-    plot_noise_dipole_moments_sweep()
+    # plot_noise_dipole_moments_sweep()
     # plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
@@ -1053,5 +1059,5 @@ if __name__ == '__main__':
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    # plot_rpa_sweep() # DONE
+    plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
