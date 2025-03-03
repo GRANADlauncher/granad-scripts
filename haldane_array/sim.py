@@ -455,9 +455,6 @@ def plot_dipole_moments_sweep():
 
         # Create smaller colorbar
         cbar = plt.colorbar(im, cax=cax, label=r'$|p_+| - |p_-|$ (a.u.)')
-        cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
-        cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
-        cbar.update_ticks()
 
         # Save and close
         plt.savefig("p_sweep.pdf", bbox_inches='tight')
@@ -524,9 +521,6 @@ def plot_armchair_dipole_moments_sweep():
 
         # Create smaller colorbar
         cbar = plt.colorbar(im, cax=cax, label=r'$|p_+| - |p_-|$ (a.u.)')
-        cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
-        cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
-        cbar.update_ticks()
 
         # Save and close
         plt.savefig("p_sweep_ac.pdf", bbox_inches='tight')
@@ -804,9 +798,6 @@ def plot_size_sweep():
 
         # Create smaller colorbar
         cbar = plt.colorbar(im, cax=cax, label=r'$|p_+| - |p_-|$ (a.u.)')
-        cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
-        cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
-        cbar.update_ticks()
 
         # Save and close
         plt.savefig("size_sweep.pdf", bbox_inches='tight')
@@ -870,10 +861,6 @@ def plot_rpa_sweep():
 
         # Create smaller colorbar
         cbar = plt.colorbar(im, cax=cax, label=r'$|p_+| - |p_-|$ (a.u.)')
-        # cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
-        # cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
-        cbar.formatter = mpl.ticker.LogFormatter()  # Use logarithmic tick formatting
-        cbar.update_ticks()
 
         # Save and close
         plt.savefig("rpa_sweep.pdf", bbox_inches='tight')
