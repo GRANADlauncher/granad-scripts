@@ -432,7 +432,7 @@ def plot_dipole_moments_sweep():
     with mpl.rc_context(rc=custom_params):
         fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
 
-        norm = SymLogNorm(linthresh=0.01, linscale=1.0, vmin=-1, vmax=1, base=10)
+        norm = SymLogNorm(linthresh=1, linscale=1.0, base=10)
         
         # Create the main plot
         im = ax.imshow(res.T, 
@@ -501,7 +501,7 @@ def plot_armchair_dipole_moments_sweep():
     with mpl.rc_context(rc=custom_params):
         fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
 
-        norm = SymLogNorm(linthresh=0.01, linscale=1.0, vmin=-1, vmax=1, base=10)
+        norm = SymLogNorm(linthresh=1, linscale=1.0, base=10)
         
         # Create the main plot
         im = ax.imshow(res.T, 
@@ -783,7 +783,7 @@ def plot_size_sweep():
     with mpl.rc_context(rc=custom_params):
         fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
         
-        norm = SymLogNorm(linthresh=0.01, linscale=1.0, vmin=-1, vmax=1, base=10)
+        norm = SymLogNorm(linthresh=1, linscale=1.0, base=10)
 
          # Create the main plot
         im = ax.imshow(res.T, 
