@@ -9,7 +9,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm, SymLogNorm
 
 from granad import *
 
@@ -432,11 +432,14 @@ def plot_dipole_moments_sweep():
     with mpl.rc_context(rc=custom_params):
         fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
 
+        norm = SymLogNorm(linthresh=0.01, linscale=1.0, vmin=-1, vmax=1, base=10)
+        
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='auto', 
                        cmap="coolwarm", 
-                       origin='lower', 
+                       origin='lower',
+                       norm = norm,
                        extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
 
 
@@ -570,11 +573,15 @@ def plot_selectivity_sweep():
     with mpl.rc_context(rc=custom_params):
         fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
 
+        norm = SymLogNorm(linthresh=0.01, linscale=1.0, vmin=-1, vmax=1, base=10)
+
+
         # Create the main plot
         im = ax.imshow(res.T, 
-                       aspect='equal', 
+                       aspect='auto', 
                        cmap="coolwarm",
-                       origin='lower', 
+                       origin='lower',
+                       norm = norm,
                        extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
 
 
@@ -710,12 +717,15 @@ def plot_size_sweep():
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
         fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
+        
+        norm = SymLogNorm(linthresh=0.01, linscale=1.0, vmin=-1, vmax=1, base=10)
 
          # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='auto', 
                        cmap="coolwarm", 
                        origin='lower',
+                       norm = norm,
                        extent=[plot_sizes.min(), plot_sizes.max(), omegas.min(), omegas.max()])
 
 
@@ -728,7 +738,7 @@ def plot_size_sweep():
         cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust size and spacing
 
         # Create smaller colorbar
-        cbar = plt.colorbar(im, cax=cax, label=r'$(|p_+| - |p_-|) / N$ (a.u.)')
+        cbar = plt.colorbar(im, cax=cax, label=r'$|p_+| - |p_-|$ (a.u.)')
         cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
         cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
         cbar.update_ticks()
@@ -775,13 +785,15 @@ def plot_rpa_sweep():
     # Apply settings only for this block
     with mpl.rc_context(rc=custom_params):
         fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
+        
+        norm = SymLogNorm(linthresh=0.01, linscale=1.0, vmin=-1, vmax=1, base=10)
 
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='auto', 
                        cmap="coolwarm",
                        origin='lower',
-                       norm=mpl.colors.LogNorm(),
+                       norm=norm,
                        extent=[cs.min(), cs.max(), omegas.min(), omegas.max()])
 
 
@@ -794,7 +806,7 @@ def plot_rpa_sweep():
         cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust size and spacing
 
         # Create smaller colorbar
-        cbar = plt.colorbar(im, cax=cax, label=r'$|p_+ - p_-|$ (a.u.)')
+        cbar = plt.colorbar(im, cax=cax, label=r'$|p_+| - |p_-|$ (a.u.)')
         # cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
         # cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
         cbar.formatter = mpl.ticker.LogFormatter()  # Use logarithmic tick formatting
@@ -930,12 +942,12 @@ if __name__ == '__main__':
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
-    plot_energy_localization() # DONE
-    # plot_selectivity_sweep() # DONE
-    # plot_size_sweep()  # DONE
+    # plot_energy_localization() # DONE
+    plot_selectivity_sweep() # DONE
+    plot_size_sweep()  # DONE
 
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    # plot_rpa_sweep() # DONE
+    plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
