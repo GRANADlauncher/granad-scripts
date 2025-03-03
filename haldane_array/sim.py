@@ -575,7 +575,7 @@ def plot_noise_dipole_moments_sweep():
             cbar = plt.colorbar(im, cax=cax, label=r'$|p_+| - |p_-|$ (a.u.)')
 
             # Save and close
-            plt.savefig(f"p_sweep_noise_{1}.pdf", bbox_inches='tight')
+            plt.savefig(f"p_sweep_noise_{noise}.pdf", bbox_inches='tight')
             plt.close()
 
     for noise in [0, 1]:
