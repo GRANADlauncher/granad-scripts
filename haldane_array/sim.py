@@ -219,9 +219,8 @@ def plot_2d_geometry(show_tags=None, show_index=False, scale = False, cmap = Non
 
         # Create plot
         fig, ax = plt.subplots()
-        cmap = plt.cm.bwr if cmap is None else cmap
         colors = scale_vals(display)
-        scatter = ax.scatter([orb.position[0] * scale for orb in orbs], [orb.position[1]  * scale for orb in orbs], c=colors, edgecolor='none', cmap=cmap, s = circle_scale*jnp.abs(display) * 5)
+        scatter = ax.scatter([orb.position[0] * scale for orb in orbs], [orb.position[1]  * scale for orb in orbs], c=colors, edgecolor='none', cmap='magma', s = circle_scale*jnp.abs(display) * 5)
         ax.scatter([orb.position[0] * scale  for orb in orbs], [orb.position[1]  * scale  for orb in orbs], color='black', s=5, marker='o')            
         cbar = fig.colorbar(scatter, ax=ax, label = r'$|\Psi|^2$')
 
@@ -364,8 +363,6 @@ def plot_dipole_moments():
 
             proj = get_projection(flake.velocity_operator_e[:2])
             
-            # diff = dip[0] - dip[1]
-            
             plt.plot(omegas, dip[0], label = rf'$|p_+|$')
             plt.plot(omegas, dip[1], label = rf'$|p_-|$', ls = '--')
             plt.yscale('log')
@@ -384,7 +381,7 @@ def plot_dipole_moments():
               (omega_p*1.2, pp_max*1)],
              r"$\vert J_{+} \vert > \vert J_{-} \vert$" ),            
             ([(omega_m, pm_max),
-              (omega_m * 1.2, pm_max*1.3)],
+              (omega_m * 1.1, pm_max*1.3)],
              r"$\vert J_{-} \vert > \vert J_{+} \vert$" ),            
         ]
 
@@ -930,7 +927,7 @@ def plot_dipole_moments_broken_symmetry():
 
         
 if __name__ == '__main__':
-    # plot_2d_geometry() # DONE
+    plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
@@ -941,5 +938,5 @@ if __name__ == '__main__':
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    plot_rpa_sweep() # DONE
+    # plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
