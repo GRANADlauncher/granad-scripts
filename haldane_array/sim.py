@@ -251,10 +251,10 @@ def plot_projected_polarization():
         "text.usetex": True,
         "font.family": "serif",
         "font.size": 20,
-        "axes.labelsize": 33,
-        "xtick.labelsize": 8*3,
-        "ytick.labelsize": 8*3,
-        "legend.fontsize": 9*2,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
+        "legend.fontsize": 8*2,
         "pdf.fonttype": 42
     }
 
@@ -279,17 +279,16 @@ def plot_projected_polarization():
 
             # Attach a colorbar on top of the matshow plot
             divider = make_axes_locatable(axes[i])
-            cax = divider.append_axes("top", size="5%", pad=0.3)  # "top" places it above
+            cax = divider.append_axes("top", size="5%", pad=0.1)  # "top" places it above
 
             # Create colorbar with horizontal orientation
             cbar = plt.colorbar(im, cax=cax, orientation="horizontal")
 
             # Set label above the colorbar
             cax.xaxis.set_ticks_position("top")  # Move ticks to the top
-            # axes[i].set_title(rf"$\lambda / t$ = {t:.2f}", pad = 110)
             
             axes[i].annotate(
-                labels[i], xy=(-0.3, 1.5), xycoords="axes fraction",
+                labels[i], xy=(-0.3, 1.3), xycoords="axes fraction",
                 fontsize=22, fontweight="bold", ha="left", va="top"                
             )
             
@@ -301,7 +300,7 @@ def plot_projected_polarization():
                 axes[i].set_ylabel(r"$n$")
 
             if i == 1:
-                cbar.set_label(r"$\vert J_+ \vert^2$ (a.u.)", fontsize=20, labelpad=-85)
+                cbar.set_label(r"$\vert J_+ \vert^2$ (a.u.)", fontsize=20, labelpad=-70)
                         
     plt.tight_layout()
     plt.savefig("projected_polarizations.pdf")
@@ -617,7 +616,7 @@ def plot_energy_localization():
 
     with mpl.rc_context(rc=custom_params):
 
-        fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey = True)  # Shared y-axis for alignment
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5), sharey=True, gridspec_kw={'wspace': 0.3})
         
         labels = ["(a)", "(b)", "(c)"]  # Define labels for each subplot
 
@@ -647,7 +646,7 @@ def plot_energy_localization():
             ax.set_xlabel("State Index")
 
             ax.annotate(
-                labels[i], xy=(-0.25, 1.), xycoords="axes fraction",
+                labels[i], xy=(-0.18, 1.22), xycoords="axes fraction",
                 fontsize=22, fontweight="bold", ha="left", va="top"                
             )
             
@@ -662,13 +661,13 @@ def plot_energy_localization():
 
             # Create a divider for the existing axis
             divider = make_axes_locatable(ax)
-            cax = divider.append_axes("right", size="5%", pad=0.05)  # "right" places the colorbar on the right
+            cax = divider.append_axes("top", size="5%", pad=0.1) 
 
             # Create a colorbar for each subplot
-            colorbar = plt.colorbar(scatter, cax=cax)
-            colorbar.ax.set_ylabel(r"$\mathcal{L}$", rotation=270, labelpad=15)  # Rotate and space the
+            colorbar = plt.colorbar(scatter, cax=cax, orientation = "horizontal")
+            cax.xaxis.set_ticks_position("top")  # Move ticks to the top
+            colorbar.set_label(r"$\mathcal{L}$", labelpad=-50)
         
-        plt.tight_layout()
         # fig.subplots_adjust(top=0.85)  # Moves subplots down slightly
         plt.savefig("energy_localization.pdf")
         plt.close()
@@ -927,11 +926,11 @@ def plot_dipole_moments_broken_symmetry():
 
         
 if __name__ == '__main__':
-    plot_2d_geometry() # DONE
+    # plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
-    # plot_energy_localization() # DONE
+    plot_energy_localization() # DONE
     # plot_selectivity_sweep() # DONE
     # plot_size_sweep()  # DONE
 
