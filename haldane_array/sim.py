@@ -515,10 +515,10 @@ def plot_noise_dipole_moments_sweep():
         delta = 1.0
         t_nn = 1.0
 
-        ts = jnp.linspace(0, 0.4, 20)
+        ts = jnp.linspace(0, 0.4, 40)
 
         # omegas
-        omegas = jnp.linspace(0., 0.5, 100)    
+        omegas = jnp.linspace(0., 0.5, 300)    
 
         # Define custom settings for this plot only
         custom_params = {
@@ -571,10 +571,10 @@ def plot_noise_dipole_moments_sweep():
             cbar = plt.colorbar(im, cax=cax, label=r'$|p_+| - |p_-|$ (a.u.)')
 
             # Save and close
-            plt.savefig(f"p_sweep_{noise}.pdf", bbox_inches='tight')
+            plt.savefig(f"p_sweep_noise_{1}.pdf", bbox_inches='tight')
             plt.close()
 
-    for noise in jnp.linspace(0, 0.1, 3)[1:]:
+    for noise in [1]:
         single_plot(noise)
 
 
@@ -1050,7 +1050,7 @@ if __name__ == '__main__':
     # plot_selectivity_sweep() # DONE
     # plot_size_sweep()  # DONE
     
-    plot_noise_dipole_moments_sweep()
+    plot_noise_dipole_moments_sweep() # DONE
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
