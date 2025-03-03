@@ -461,39 +461,51 @@ def plot_dipole_moments_sweep():
         plt.close()
         
 
-def plot_disorder_dipole_moments_sweep():
+def plot_noise_dipole_moments_sweep():
     """plots p_+ - p_- in colormap"""
 
     import jax
     import jax.numpy as jnp
+    import jax.random as random
 
-    def _transform_basis(observable, vectors):
-        dims_einsum_strings = {2: "ij,jk,lk->il", 3: "ij,mjk,lk->mil"}
-        einsum_string = dims_einsum_strings[(observable.ndim)]
-        return jnp.einsum(einsum_string, vectors, observable, vectors.conj())
-
-    # self._eigenvectors.conj().T
-    
-    def _get_ip_green_function(dip, energies, occupations, omegas, relaxation_rate):
+    def _get_ip_green_function(A, B, energies, occupations, omegas, relaxation_rate):
 
         def inner(omega):
             return jnp.trace( (delta_occ / (omega + delta_e + 1j*relaxation_rate)) @ operator_product)
 
         print("Computing Greens function. Remember we default to site basis")
-
-        dipole_e
+        
         operator_product =  A.T * B
-        occupations = orbs.initial_density_matrix_e.diagonal() * orbs.electrons if occupations is None else occupations
-        energies = orbs.energies if energies is None else energies        
         delta_occ = (occupations[:, None] - occupations)
-        if mask is not None:        
-            delta_occ = delta_occ.at[mask].set(0) 
         delta_e = energies[:, None] - energies
 
         return jax.lax.map(jax.jit(inner), omegas)
 
-    def _get_correlator(flake):
-        return jnp.array([[ _get_ip_green_function(flake) for o1 in os1 ] for o2 in os2])
+    def _get_correlator(flake, scale, omegas):
+        occupations = jnp.ones(len(flake)) * ( jnp.arange(len(flake)) < len(flake) // 2)
+        
+        N = flake.positions.shape[0]
+        dipole_operator = jnp.zeros((3, N, N)).astype(complex)
+        for i in range(3):
+            dipole_operator = dipole_operator.at[i, :, :].set(
+                jnp.diag(flake.positions[:, i] / 2)
+            )
+        dipole_operator = dipole_operator + jnp.transpose(dipole_operator, (0, 2, 1)).conj()
+        key = random.PRNGKey(42)  # Seed for reproducibility
+        
+        N = len(flake)  # Example size
+        noise = random.normal(key, shape=(N, N))  # Gaussian noise (mean=0, std=1)
+        noise = 0.5 * (noise + noise.T)
+        
+        hamiltonian = flake.hamiltonian + scale * noise
+        energies, vecs = jnp.linalg.eigh(hamiltonian)
+        vecs = vecs.conj().T
+        
+        dipole_operator = jnp.einsum("ij,mjk,lk->mil", vecs, dipole_operator, vecs.conj())[:2]
+
+        relaxation_rate = 1e-3
+        
+        return jnp.array([[_get_ip_green_function(o1, o2, energies, occupations, omegas, relaxation_rate) for o1 in dipole_operator] for o2 in dipole_operator])
 
     def single_plot(noise):
         shape = Rhomboid(40, 40, armchair = False)
@@ -501,10 +513,10 @@ def plot_disorder_dipole_moments_sweep():
         delta = 1.0
         t_nn = 1.0
 
-        ts = jnp.linspace(0, 0.4, 40)
+        ts = jnp.linspace(0, 0.4, 20)
 
         # omegas
-        omegas = jnp.linspace(0., 0.5, 300)    
+        omegas = jnp.linspace(0., 0.5, 100)    
 
         # Define custom settings for this plot only
         custom_params = {
@@ -523,7 +535,7 @@ def plot_disorder_dipole_moments_sweep():
         res = []    
         for t in ts:
             flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
-            alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
+            alpha_cart = _get_correlator(flake, noise, omegas)
             dip = f_dip(alpha_cart)
             res.append(dip[0] - dip[1])
         res = jnp.array(res)
@@ -560,8 +572,8 @@ def plot_disorder_dipole_moments_sweep():
             plt.savefig(f"p_sweep_{noise}.pdf", bbox_inches='tight')
             plt.close()
 
-    for n in [20, 30, 40, 50, 60]:
-        single_plot(n)
+    for noise in jnp.linspace(0, 1, 3):
+        single_plot(noise)
 
         
 def plot_dipole_moments_sweep_size_sweep():
@@ -1164,7 +1176,8 @@ def plot_dipole_moments_broken_symmetry():
         plt.close()
 
         
-if __name__ == '__main__':    
+if __name__ == '__main__':
+    plot_noise_dipole_moments_sweep()
     # plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
@@ -1177,5 +1190,5 @@ if __name__ == '__main__':
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    plot_rpa_sweep() # DONE
+    # plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
