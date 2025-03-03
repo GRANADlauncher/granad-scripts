@@ -865,7 +865,7 @@ def plot_rpa_sweep():
     t_nn = 1.0
     
     # omegas
-    omegas = jnp.linspace(0., 0.5, 300)    
+    omegas = jnp.linspace(0., 0.5, 100)    
 
     # Define custom settings for this plot only
     custom_params = {
@@ -882,7 +882,7 @@ def plot_rpa_sweep():
     trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
     f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )    
     res = []
-    cs = jnp.linspace(0, 1, 10)    
+    cs = jnp.linspace(0, 1, 40)    
     for c in cs:
         flake = get_haldane_graphene(t_nn, 1j*0.4, delta).cut_flake(shape)  
         alpha_cart = rpa_polarizability(flake, omegas, [c], relaxation_rate = 1e-3)[0][:2, :2]
