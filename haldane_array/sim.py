@@ -528,8 +528,8 @@ def plot_dipole_moments_sweep_size_sweep():
             plt.savefig(f"p_sweep_{n}.pdf", bbox_inches='tight')
             plt.close()
 
-        for n in [20, 30, 40, 50, 60]:
-            single_plot(n)
+    for n in [20, 30, 40, 50, 60]:
+        single_plot(n)
         
 def plot_armchair_dipole_moments_sweep():
     """plots p_+ - p_- in colormap for armchair edge"""
