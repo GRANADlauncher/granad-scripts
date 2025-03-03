@@ -1004,13 +1004,13 @@ if __name__ == '__main__':
     # plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
-    # plot_dipole_moments_sweep() # DONE
+    plot_dipole_moments_sweep() # DONE
     # plot_energy_localization() # DONE
-    # plot_selectivity_sweep() # DONE
-    # plot_size_sweep()  # DONE
-    plot_armchair_dipole_moments_sweep()
+    plot_selectivity_sweep() # DONE
+    plot_size_sweep()  # DONE
+    # plot_armchair_dipole_moments_sweep()
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    # plot_rpa_sweep() # DONE
+    plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
