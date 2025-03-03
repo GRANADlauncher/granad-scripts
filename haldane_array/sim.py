@@ -461,7 +461,76 @@ def plot_dipole_moments_sweep():
 
         # Save and close
         plt.savefig("p_sweep.pdf", bbox_inches='tight')
-        plt.close()            
+        plt.close()
+        
+def plot_armchair_dipole_moments_sweep():
+    """plots p_+ - p_- in colormap for armchair edge"""
+    shape = Rhomboid(60, 60, armchair = True)
+    
+    delta = 1.0
+    t_nn = 1.0
+    
+    ts = jnp.linspace(0, 0.4, 40)
+    
+    # omegas
+    omegas = jnp.linspace(0., 0.5, 300)    
+
+    # Define custom settings for this plot only
+    custom_params = {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.size": 22,
+        "axes.labelsize": 22,
+        "xtick.labelsize": 8*2,
+        "ytick.labelsize": 8*2,
+        "legend.fontsize": 9*1.2,
+        "pdf.fonttype": 42
+    }
+
+    trafo = 1 / jnp.sqrt(2) * jnp.array([ [1, -1j], [1, 1j] ])
+    f_dip = lambda xx : jnp.abs(  jnp.einsum('ij, jk -> ik', trafo, xx.sum(axis=1)) )    
+    res = []    
+    for t in ts:
+        flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)  
+        alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
+        dip = f_dip(alpha_cart)
+        res.append(dip[0] - dip[1])
+    res = jnp.array(res)
+
+    # Apply settings only for this block
+    with mpl.rc_context(rc=custom_params):
+        fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
+
+        norm = SymLogNorm(linthresh=0.01, linscale=1.0, vmin=-1, vmax=1, base=10)
+        
+        # Create the main plot
+        im = ax.imshow(res.T, 
+                       aspect='auto', 
+                       cmap="coolwarm", 
+                       origin='lower',
+                       norm = norm,
+                       extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
+
+
+        ax.axvline(get_threshold(delta), color='k', linestyle='--', linewidth=2)
+
+        # Axis labels
+        ax.set_xlabel(r'$\lambda / t$', weight='bold')
+        ax.set_ylabel(r'$\omega / t$', weight='bold')
+
+        # Adjust colorbar size
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust size and spacing
+
+        # Create smaller colorbar
+        cbar = plt.colorbar(im, cax=cax, label=r'$|p_+| - |p_-|$ (a.u.)')
+        cbar.formatter = mpl.ticker.ScalarFormatter(useMathText=True)
+        cbar.formatter.set_powerlimits((0, 0))  # Forces scientific notation when needed
+        cbar.update_ticks()
+
+        # Save and close
+        plt.savefig("p_sweep_ac.pdf", bbox_inches='tight')
+        plt.close()                    
 
 def get_ip_abs(flake, omegas, comp, relaxation_rate = 1e-2):
 
@@ -573,15 +642,11 @@ def plot_selectivity_sweep():
     with mpl.rc_context(rc=custom_params):
         fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
 
-        norm = SymLogNorm(linthresh=0.01, linscale=1.0, vmin=-1, vmax=1, base=10)
-
-
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='auto', 
                        cmap="coolwarm",
                        origin='lower',
-                       norm = norm,
                        extent=[ts.min(), ts.max(), omegas.min(), omegas.max()])
 
 
@@ -600,7 +665,7 @@ def plot_selectivity_sweep():
 
         # Save and close
         plt.savefig("selectivity_sweep.pdf", bbox_inches='tight')
-        plt.close()        
+        plt.close()
     
 def plot_energy_localization():
     from matplotlib.ticker import MaxNLocator
@@ -706,10 +771,10 @@ def plot_size_sweep():
     sizes = jnp.arange(20, 100, 2)
     for s in sizes:
         shape = Rhomboid(s, s, armchair = False)
-        flake = get_haldane_graphene(t_nn, 1j*0.5, delta).cut_flake(shape)  
+        flake = get_haldane_graphene(t_nn, 1j*0.4, delta).cut_flake(shape)  
         alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
         dip = f_dip(alpha_cart)
-        res.append( (dip[0] - dip[1]) / len(flake) )
+        res.append( dip[0] - dip[1] )
         plot_sizes.append(len(flake))
     res = jnp.array(res)
     plot_sizes = jnp.array(plot_sizes)
@@ -776,7 +841,7 @@ def plot_rpa_sweep():
     res = []
     cs = jnp.linspace(0, 1, 10)    
     for c in cs:
-        flake = get_haldane_graphene(t_nn, 1j*0.5, delta).cut_flake(shape)  
+        flake = get_haldane_graphene(t_nn, 1j*0.4, delta).cut_flake(shape)  
         alpha_cart = rpa_polarizability(flake, omegas, [c], relaxation_rate = 1e-3)[0][:2, :2]
         dip = f_dip(alpha_cart)
         res.append(dip[0] - dip[1])
@@ -786,14 +851,12 @@ def plot_rpa_sweep():
     with mpl.rc_context(rc=custom_params):
         fig, ax = plt.subplots(figsize=(6, 6))  # Ensure the figure is square
         
-        norm = SymLogNorm(linthresh=0.01, linscale=1.0, vmin=-1, vmax=1, base=10)
-
         # Create the main plot
         im = ax.imshow(res.T, 
                        aspect='auto', 
                        cmap="coolwarm",
                        origin='lower',
-                       norm=norm,
+                       norm=mpl.colors.LogNorm(),
                        extent=[cs.min(), cs.max(), omegas.min(), omegas.max()])
 
 
@@ -943,11 +1006,11 @@ if __name__ == '__main__':
     # plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
     # plot_energy_localization() # DONE
-    plot_selectivity_sweep() # DONE
-    plot_size_sweep()  # DONE
-
+    # plot_selectivity_sweep() # DONE
+    # plot_size_sweep()  # DONE
+    plot_armchair_dipole_moments_sweep()
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    plot_rpa_sweep() # DONE
+    # plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
