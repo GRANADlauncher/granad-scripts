@@ -491,19 +491,17 @@ def plot_noise_dipole_moments_sweep():
                 jnp.diag(flake.positions[:, i] / 2)
             )
         dipole_operator = dipole_operator + jnp.transpose(dipole_operator, (0, 2, 1)).conj()
-        key = random.PRNGKey(42)  # Seed for reproducibility
         
+        key = random.PRNGKey(42)  # Seed for reproducibility        
         N = len(flake)  # Example size
         noise = random.normal(key, shape=(N, N))  # Gaussian noise (mean=0, std=1)
-        noise = 0.5 * (noise + noise.T)
+        noise = jnp.diag(jnp.diag(noise))
         
         hamiltonian = flake.hamiltonian + scale * noise
         energies, vecs = jnp.linalg.eigh(hamiltonian)
         vecs = vecs.conj().T
 
-        plt.plot(jnp.arange(len(flake)), energies, 'o'); plt.show()
-        import pdb; pdb.set_trace()
-
+        # plt.plot(jnp.arange(len(flake)), energies, 'o'); plt.show()
         
         dipole_operator = jnp.einsum("ij,mjk,lk->mil", vecs, dipole_operator, vecs.conj())[:2]
 
@@ -517,7 +515,7 @@ def plot_noise_dipole_moments_sweep():
         delta = 1.0
         t_nn = 1.0
 
-        ts = jnp.linspace(0, 0.4, 20)[18:]
+        ts = jnp.linspace(0, 0.4, 20)
 
         # omegas
         omegas = jnp.linspace(0., 0.5, 100)    
@@ -539,8 +537,6 @@ def plot_noise_dipole_moments_sweep():
         res = []    
         for t in ts:
             flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
-            import pdb; pdb.set_trace()
-
             alpha_cart = _get_correlator(flake, noise, omegas)
             dip = f_dip(alpha_cart)
             res.append(dip[0] - dip[1])
@@ -1046,7 +1042,6 @@ def plot_dipole_moments_broken_symmetry():
 
         
 if __name__ == '__main__':
-    # plot_noise_dipole_moments_sweep()
     # plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
@@ -1054,10 +1049,10 @@ if __name__ == '__main__':
     # plot_energy_localization() # DONE
     # plot_selectivity_sweep() # DONE
     # plot_size_sweep()  # DONE
-    # plot_armchair_dipole_moments_sweep()
-    # plot_dipole_moments_sweep_size_sweep()
+    
+    plot_noise_dipole_moments_sweep()
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    plot_rpa_sweep() # DONE
+    # plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
