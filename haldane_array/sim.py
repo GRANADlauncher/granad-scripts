@@ -574,7 +574,7 @@ def plot_noise_dipole_moments_sweep():
             plt.savefig(f"p_sweep_noise_{1}.pdf", bbox_inches='tight')
             plt.close()
 
-    for noise in [1]:
+    for noise in [0, 1]:
         single_plot(noise)
 
 
@@ -865,7 +865,7 @@ def plot_rpa_sweep():
     t_nn = 1.0
     
     # omegas
-    omegas = jnp.linspace(0., 2, 300)    
+    omegas = jnp.linspace(0., 0.5, 300)    
 
     # Define custom settings for this plot only
     custom_params = {
