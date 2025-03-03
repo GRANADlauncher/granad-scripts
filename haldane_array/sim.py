@@ -572,7 +572,7 @@ def plot_noise_dipole_moments_sweep():
             plt.savefig(f"p_sweep_{noise}.pdf", bbox_inches='tight')
             plt.close()
 
-    for noise in jnp.linspace(0, 1, 3):
+    for noise in jnp.linspace(0, 0.1, 3):
         single_plot(noise)
 
 
