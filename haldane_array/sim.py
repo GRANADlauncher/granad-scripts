@@ -401,10 +401,10 @@ def plot_dipole_moments_sweep():
     delta = 1.0
     t_nn = 1.0
     
-    ts = jnp.linspace(0, 0.4, 10)
+    ts = jnp.linspace(0, 0.4, 40)
     
     # omegas
-    omegas = jnp.linspace(0., 0.5, 100)    
+    omegas = jnp.linspace(0., 0.5, 300)    
 
     # Define custom settings for this plot only
     custom_params = {
@@ -423,11 +423,7 @@ def plot_dipole_moments_sweep():
     res = []    
     for t in ts:
         flake = get_haldane_graphene(t_nn, 1j*t, delta).cut_flake(shape)
-        
-        # debug check
-        alpha_cart = rpa_polarizability(flake, omegas, [0], relaxation_rate = 1e-3)[0][:2, :2]
-        # alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]
-        
+        alpha_cart = ip_response(flake, omegas, relaxation_rate = 1e-3)["total"]        
         dip = f_dip(alpha_cart)
         res.append(dip[0] - dip[1])
     res = jnp.array(res)
@@ -1049,7 +1045,7 @@ if __name__ == '__main__':
     # plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
-    plot_dipole_moments_sweep() # DONE
+    # plot_dipole_moments_sweep() # DONE
     # plot_energy_localization() # DONE
     # plot_selectivity_sweep() # DONE
     # plot_size_sweep()  # DONE
@@ -1058,5 +1054,5 @@ if __name__ == '__main__':
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    # plot_rpa_sweep() # DONE
+    plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
