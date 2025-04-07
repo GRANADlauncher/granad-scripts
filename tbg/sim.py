@@ -187,10 +187,10 @@ def plot_rpa_sim(names):
 
 if __name__ == '__main__':
         
-    shape = Hexagon(20, armchair = True)
+    shape = Triangle(15, armchair = True)
     angles = twist_angles(shape)
     omega = jnp.linspace(0, 10, 300)
     print("angles ", 180 / jnp.pi * angles)
-    doping = jnp.arange(21)
+    doping = jnp.array([10])
     names = rpa_sim(shape, angles, doping, omega, "sym")
     plot_rpa_sim(names)
