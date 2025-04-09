@@ -188,7 +188,7 @@ def plot_rpa_sim(names):
 if __name__ == '__main__':
         
     shape = Hexagon(20, armchair = True)
-    angles = [0]
+    angles = jnp.array([0])
     omega = jnp.linspace(0, 10, 100)
     print("angles ", 180 / jnp.pi * angles)
     doping = jnp.arange(10)
