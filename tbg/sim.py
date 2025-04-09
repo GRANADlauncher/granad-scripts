@@ -189,7 +189,7 @@ if __name__ == '__main__':
         
     shape = Hexagon(10, armchair = True)
     angles = jnp.array([0])
-    omega = jnp.linspace(0, 10, 100)
+    omega = jnp.linspace(0, 2, 100)
     print("angles ", 180 / jnp.pi * angles)
     doping = jnp.arange(10)
     names = rpa_sim(shape, angles, doping, omega, "sym")
