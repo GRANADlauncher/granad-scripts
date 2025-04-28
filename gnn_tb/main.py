@@ -3,6 +3,8 @@ import jax
 import jax.numpy as jnp
 from typing import Sequence, Optional
 import optax
+from flax.serialization import to_state_dict, from_state_dict
+import pickle
 
 import matplotlib.pyplot as plt
 
@@ -16,12 +18,21 @@ def hist(flake):
     return jnp.histogram(flake.energies, bins = DOS_BINS, range = (-ENERGY_LIMIT, ENERGY_LIMIT), density = True)
     
 def plot_dos(flake):
-    plt.hist(flake.energies, bins = DOS_BINS, density = True)
+    plt.hist(flake.energies, bins = DOS_BINS, density = True)    
     plt.savefig("hist.pdf")
 
+def plot_dos_range():
+    for size_x in range(2, 4):
+        for size_y in range(2, size_x):
+            flake = generate_flake(size_x, size_y, 1)
+            plt.hist(flake.energies, bins = DOS_BINS, density = True)    
+    plt.savefig(f"hist_{size_x}_{size_y}.pdf")
+    plt.close()
+    
+
 # generates the full system    
-def generate_flake(size, t):
-    shape = Rectangle(size, size)
+def generate_flake(size_x, size_y, t):
+    shape = Rectangle(size_x, size_y)
     
     metal = (
         Material("metal")
@@ -55,7 +66,7 @@ def generate_cell(t):
 def generate_batch(
         rng,
         batch_size: int,
-        min_size: int = 3,
+        min_size: int = 2,
         max_size: int = 5,
         t_bounds: tuple = (1.0, 3.0)
 ):
@@ -88,8 +99,9 @@ def generate_batch(
         t = jax.random.uniform(rng_t, (), minval=t_bounds[0], maxval=t_bounds[1])
         
         ## global flake ##
-        size = int(jax.random.randint(rng_size, (), minval=min_size, maxval=max_size + 1))
-        flake = generate_flake(size, t)
+        sizes = jax.random.uniform(rng_size, (2,), minval=min_size, maxval=max_size + 1)
+        size_x, size_y = float(sizes[0]), float(sizes[1])
+        flake = generate_flake(size_x, size_y, t)
         dim_x, dim_y = jnp.abs(flake.positions[:, 0].min()-flake.positions[:, 0].max()), jnp.abs(flake.positions[:, 1].min()-flake.positions[:, 1].max())
         global_feats_list.append(jnp.array([dim_x, dim_y]))
         dos, _ = hist(flake)
@@ -179,9 +191,9 @@ def train():
         return new_params, opt_state, loss
     
     # Hyperparameters
-    batch_size = 20
+    batch_size = 10
     lr = 1e-3
-    num_epochs = 500    
+    num_epochs = 100
     
     # Model
     rng = jax.random.PRNGKey(42)    
@@ -193,7 +205,7 @@ def train():
     mlp_dim = cell_dim + glob_dim
     model = GCNRegressor(hidden_dims=[cell_dim, cell_dim], mlp_dims=[mlp_dim, mlp_dim], dos_bins = dos_dim)    
     params = model.init(rng, dummy_batch[0][0], dummy_batch[1][0], dummy_batch[2][0])    
-
+    
     # Optimizer
     optimizer = optax.adam(lr)
     opt_state = optimizer.init(params)
@@ -205,8 +217,12 @@ def train():
         if epoch % 50 == 0:
             print(f"Epoch {epoch}: Loss = {loss:.4f}")
 
+    with open('final_params.pkl', 'wb') as f:
+        pickle.dump(params, f)
+            
     return model, params
 
 
 if __name__ == '__main__':
+    plot_dos_range()
     train()
