@@ -723,7 +723,7 @@ def plot_energy_localization():
         "text.usetex": True,
         "font.family": "serif",
         "font.size": 33,
-        "axes.labelsize": 22,
+        "axes.labelsize": 20,
         "xtick.labelsize": 8*2,
         "ytick.labelsize": 8*2,
         "legend.fontsize": 9*2,
@@ -787,6 +787,7 @@ def plot_energy_localization():
             colorbar.set_label(r"$\mathcal{L}$", labelpad=-50)
         
         # fig.subplots_adjust(top=0.85)  # Moves subplots down slightly
+        plt.tight_layout()
         plt.savefig("energy_localization.pdf")
         plt.close()
 
@@ -1046,7 +1047,7 @@ if __name__ == '__main__':
     # plot_projected_polarization() # DONE
     # plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
-    # plot_energy_localization() # DONE
+    plot_energy_localization() # DONE
     # plot_selectivity_sweep() # DONE
     # plot_size_sweep()  # DONE
     
@@ -1054,5 +1055,5 @@ if __name__ == '__main__':
     
     # APPENDIX
     # plot_dipole_moments_p_j() # DONE
-    plot_rpa_sweep() # DONE
+    # plot_rpa_sweep() # DONE
     # plot_dipole_moments_broken_symmetry() # DONE
