@@ -191,7 +191,7 @@ def train():
         return new_params, opt_state, loss
     
     # Hyperparameters
-    batch_size = 10
+    batch_size = 2
     lr = 1e-3
     num_epochs = 100
     
@@ -239,7 +239,7 @@ def test():
         params = pickle.load(f)
 
     # new batch of larger dims
-    rng, batch = generate_batch(rng, batch_size, min_size = 6, max_size = 8)
+    rng, batch = generate_batch(rng, 2, min_size = 6, max_size = 8)
     nodes, adj, glob, targets = batch
     preds = model.apply(params, nodes, adj, glob)
     loss = jnp.mean((preds - targets) ** 2)
@@ -250,3 +250,4 @@ def test():
 if __name__ == '__main__':
     plot_dos_range()
     train()
+    test()
