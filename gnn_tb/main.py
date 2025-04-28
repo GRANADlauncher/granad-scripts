@@ -173,7 +173,7 @@ class GCNRegressor(nn.Module):
             x = nn.relu(x)
         output = nn.Dense(self.dos_bins)(x)
         return output
-
+    
 def train():
     @jax.jit
     def loss_fn(params, batch):
@@ -221,6 +221,30 @@ def train():
         pickle.dump(params, f)
             
     return model, params
+
+def test():
+        
+    # Model
+    rng = jax.random.PRNGKey(42)    
+    rng, dummy_batch = generate_batch(rng, batch_size = 1)
+    node_feats, adj, glob_feats, dos = dummy_batch
+    dos_dim = dos.shape[-1]
+    cell_dim = adj.shape[-1]
+    glob_dim = glob_feats.shape[-1]
+    mlp_dim = cell_dim + glob_dim
+    model = GCNRegressor(hidden_dims=[cell_dim, cell_dim], mlp_dims=[mlp_dim, mlp_dim], dos_bins = dos_dim)    
+    model.init(rng, dummy_batch[0][0], dummy_batch[1][0], dummy_batch[2][0])
+
+    with open('final_params.pkl', 'rb') as f:        
+        params = pickle.load(f)
+
+    # new batch of larger dims
+    rng, batch = generate_batch(rng, batch_size, min_size = 6, max_size = 8)
+    nodes, adj, glob, targets = batch
+    preds = model.apply(params, nodes, adj, glob)
+    loss = jnp.mean((preds - targets) ** 2)
+    
+    print(loss)
 
 
 if __name__ == '__main__':
