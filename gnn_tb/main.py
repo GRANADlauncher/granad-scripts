@@ -172,7 +172,10 @@ class GCNRegressor(nn.Module):
             x = nn.Dense(dim)(x)
             x = nn.relu(x)
         output = nn.Dense(self.dos_bins)(x)
-        output = nn.softmax(output)
+
+        # softmax over last axis
+        output = nn.softmax(output, axis = -1)
+        
         return output
     
 def train():
@@ -192,7 +195,7 @@ def train():
         return new_params, opt_state, loss
     
     # Hyperparameters
-    batch_size = 2
+    batch_size = 1
     lr = 1e-3
     num_epochs = 200
     
