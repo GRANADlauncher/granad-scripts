@@ -172,6 +172,7 @@ class GCNRegressor(nn.Module):
             x = nn.Dense(dim)(x)
             x = nn.relu(x)
         output = nn.Dense(self.dos_bins)(x)
+        output = nn.softmax(output)
         return output
     
 def train():
@@ -193,7 +194,7 @@ def train():
     # Hyperparameters
     batch_size = 2
     lr = 1e-3
-    num_epochs = 100
+    num_epochs = 200
     
     # Model
     rng = jax.random.PRNGKey(42)    
@@ -245,6 +246,11 @@ def test():
     loss = jnp.mean((preds - targets) ** 2)
     
     print(loss)
+
+    for i, t in enumerate(targets):
+        plt.plot(jnp.arange(t.size), t)
+        plt.plot(jnp.arange(t.size), preds[i])
+        plt.savefig(f"pred_{i}.pdf")
 
 
 if __name__ == '__main__':
