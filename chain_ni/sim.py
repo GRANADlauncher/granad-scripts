@@ -1,7 +1,7 @@
 from granad import *
 import jax.numpy as jnp
 
-def potential(r):
+def potential_s(r):
     # cf. https://journals.aps.org/prb/abstract/10.1103/PhysRevB.79.014109
     # sigma = -2.319
     # pi = 1.306
@@ -11,6 +11,23 @@ def potential(r):
 
     q = 3.2
     c = -2.319
+    r0 = 1.88
+    
+    r = jnp.linalg.norm(r)
+    
+    return c * jnp.exp(-q * (r / r0 - 1) )
+
+
+def potential_p(r):
+    # cf. https://journals.aps.org/prb/abstract/10.1103/PhysRevB.79.014109
+    # sigma = -2.319
+    # pi = 1.306
+    # r0 = 1.88 A
+    # q = 3.2
+    # cutoff at 3.20 A
+
+    q = 3.2
+    c = 1.306
     r0 = 1.88
     
     r = jnp.linalg.norm(r)
@@ -45,7 +62,7 @@ if __name__ == '__main__':
     flake = get_system([ni1, ni2], [[1,0,0], [-1, 0, 0]])
 
     # coupling
-    flake.set_hamiltonian_groups(ni1, flake[0], potential)    
-    flake.set_hamiltonian_groups(ni2, flake[0], potential)
+    flake.set_hamiltonian_groups("s", flake[0], potential_s)
+    flake.set_hamiltonian_groups("p", flake[0], potential_p)    
 
     flake.show_2d()
