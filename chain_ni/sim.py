@@ -1,3 +1,8 @@
+# MAIN TAKEAWAYS:
+# 1. the PRB coupling `potential_s` induces a strong energy shift between the eigenstate most localized on Ni1 and the eigenstate most localized on Ni2
+# 2. large dissipation rates kill the Rabi oscillations
+# 3. with large fields and low dissipation rates, Rabi oscillations set in
+
 from granad import *
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -63,39 +68,37 @@ if __name__ == '__main__':
     # carbon flake and ni atoms
     flake = get_system([ni1, ni2], [[1,0,0], [-1.5, 0, 0]], size = 10)
     flake.show_2d()
+    
     # coupling
     flake.set_hamiltonian_groups("s", flake[0], potential_s)
-    # flake.set_hamiltonian_groups("p", flake[0], potential_p)    
-    # flake.set_hamiltonian_groups("s", "s", lambda x : 0j)
-    # flake.set_hamiltonian_groups("p", "p", lambda x : 3 + 0j)
 
     flake.set_hamiltonian_element(ni1, ni1, 0j)
     flake.set_hamiltonian_element(ni2, ni2, 1 + 0j)
 
-    # flake.show_energies()
     flake.show_2d(name = "7-acene.pdf")
-    # flake.show_2d(display = flake.eigenvectors[:, flake.homo])
-    # flake.show_2d(display = flake.eigenvectors[:, flake.homo+1])
-    level1 = int(jnp.argmax(jnp.abs(flake.eigenvectors[-2])))
-    level2 = int(jnp.argmax(jnp.abs(flake.eigenvectors[-1])))
-    # level1 = flake.homo - 1
-    # level2 = flake.homo + 3
     
-    # plt.matshow(jnp.abs(flake.dipole_operator_e).sum(axis = 0))
-    # plt.colorbar()
-    # plt.show()    
-    print(jnp.abs(flake.dipole_operator_e).sum(axis = 0)[level1, level2])
-    print(jnp.mean(jnp.abs(flake.dipole_operator_e)))    
+    # eigenstate index most localized on Ni1
+    level1 = int(jnp.argmax(jnp.abs(flake.eigenvectors[-2])))
+    
+    # eigenstate index most localized on Ni2
+    level2 = int(jnp.argmax(jnp.abs(flake.eigenvectors[-1])))
 
-    flake.show_2d(display = flake.eigenvectors[:, level1])
-    flake.show_2d(display = flake.eigenvectors[:, level2])
+    ## uncomment to visualize the dipole operator
+    # plt.matshow(jnp.abs(flake.dipole_operator_e).sum(axis = 0)) # sum modulus of all cartesian components
+    # plt.colorbar()
+    # plt.show()
+
+    print("Transition dipole moment (modulus) between states most localized on Ni1, Ni2 ", jnp.abs(flake.dipole_operator_e).sum(axis = 0)[level1, level2])
+    print("Average transition dipole moment (modulus) ", jnp.mean(jnp.abs(flake.dipole_operator_e)))    
+
+    # # uncomment to visualize localized states
+    # flake.show_2d(display = flake.eigenvectors[:, level1])
+    # flake.show_2d(display = flake.eigenvectors[:, level2])
 
     # cf. https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.109.267209, referenced by referee prb
-    # pulse = Pulse(
-    #     amplitudes=[1, 0, 0], frequency=2, peak=1, fwhm=1
-    # )
     freq = flake.energies[level1] - flake.energies[level2]
-    print(freq)
+    print("Driving frequency = Transition frequency between localized states ", freq)
+    
     pulse = Wave(
         amplitudes=[1, 0, 0], frequency=freq,
     )
@@ -104,20 +107,20 @@ if __name__ == '__main__':
         grid = 10,
         relaxation_rate = 1e-4,
         illumination = pulse,
-        density_matrix = ["occ_x"],
+        density_matrix = ["occ_x"], 
         end_time = 80,
         coulomb_strength = 0,
     )    
     occ_x = result.output[0]
     
-    # plt.plot(result.time_axis, occ_x[:, -4:-2], '-.')
-    # plt.plot(result.time_axis, occ_x[:, -2:])
-
     n_steady = 0
+    
+    # real space occupation plot on Ni1, Ni2
     plt.plot(result.time_axis[n_steady:], occ_x[n_steady:, -2], '-.')
     plt.plot(result.time_axis[n_steady:], occ_x[n_steady:, -1])
+
+    # energy space plot of level 1 and level 2
     # plt.plot(result.time_axis[n_steady:], occ_x[n_steady:, level1], '-.')
     # plt.plot(result.time_axis[n_steady:], occ_x[n_steady:, level2])
     
     plt.show()
-    # plt.savefig("doped-oligoacene-steady-state.pdf")
