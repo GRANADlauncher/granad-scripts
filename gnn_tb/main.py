@@ -1,3 +1,7 @@
+# so, this does not work
+# why? because we may suffer from the same problems plaguing wilsons nrg. the white-solution suggests reformulating in terms of density matrix
+# equivariance important?
+
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
@@ -14,6 +18,46 @@ from granad import *
 DOS_BINS = 20
 ENERGY_LIMIT = 4
 
+## targets ##
+def gs_chain(n, electrons, ts):
+    """simple metal chain ground state energy
+
+    n : length
+    electrons : total number of electrons put in the system
+    ts : hoppings [onsite, nn, nnn, nnnn, ...]
+    """
+
+    def adjacency(delta_p, i):
+        return jnp.abs(delta_p - i) < 0.1
+    
+    # hamiltonian from adjacency matrix of chain
+    pos = jnp.arange(n)
+
+    # initialize
+    hamiltonian = jnp.zeros((n, n))
+
+    # sum over neighborhoods in square lattice
+    delta_p = jnp.abs(pos[:, None] - pos)
+    for i, t in enumerate(ts):        
+        hamiltonian += adjacency(delta_p, i) * t
+        
+    energies, _ = jnp.linalg.eigh(hamiltonian)
+
+    # fill energies
+    even = 2 * energies[:electrons//2].sum()
+    
+    # only at remaining electron for uneven number of electrons
+    odd = energies[(electrons // 2) + (electrons % 2)] * (electrons % 2)
+
+    return {
+        "ground_state" : even + odd,
+        "energies" : energies,
+        "hamiltonian" : hamiltonian,
+        "adjacency" : adjacency(delta_p, 1)
+    }
+
+res = gs_chain(10, 10, [0, 1])
+               
 def hist(flake):
     return jnp.histogram(flake.energies, bins = DOS_BINS, range = (-ENERGY_LIMIT, ENERGY_LIMIT), density = True)
     
