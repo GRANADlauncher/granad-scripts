@@ -56,57 +56,6 @@ def gs_chain(n, electrons, ts):
         "adjacency" : adjacency(delta_p, 1)
     }
 
-res = gs_chain(10, 10, [0, 1])
-               
-def hist(flake):
-    return jnp.histogram(flake.energies, bins = DOS_BINS, range = (-ENERGY_LIMIT, ENERGY_LIMIT), density = True)
-    
-def plot_dos(flake):
-    plt.hist(flake.energies, bins = DOS_BINS, density = True)    
-    plt.savefig("hist.pdf")
-
-def plot_dos_range():
-    for size_x in range(2, 4):
-        for size_y in range(2, size_x):
-            flake = generate_flake(size_x, size_y, 1)
-            plt.hist(flake.energies, bins = DOS_BINS, density = True)    
-    plt.savefig(f"hist_{size_x}_{size_y}.pdf")
-    plt.close()
-    
-
-# generates the full system    
-def generate_flake(size_x, size_y, t):
-    shape = Rectangle(size_x, size_y)
-    
-    metal = (
-        Material("metal")
-        .lattice_constant(1.0)
-        .lattice_basis([[1, 0, 0], [0, 1, 0]])
-        .add_orbital_species("orb")
-        .add_orbital(position=(0, 0), species="orb")
-        .add_interaction("hamiltonian", participants=("orb", "orb"), parameters=[0.0, float(t)])
-    )
-
-    flake = metal.cut_flake(shape)
-    return flake
-
-# generates a zoomed-in environment to capture local correlations
-def generate_cell(t):
-    # supercell for capturing local correlation
-    shape = Rectangle(2, 5)
-    
-    metal = (
-        Material("metal")
-        .lattice_constant(1.0)
-        .lattice_basis([[1, 0, 0], [0, 1, 0]])
-        .add_orbital_species("orb")
-        .add_orbital(position=(0, 0), species="orb")
-        .add_interaction("hamiltonian", participants=("orb", "orb"), parameters=[0.0, float(t)])
-    )
-
-    flake = metal.cut_flake(shape)
-    return flake
-    
 def generate_batch(
         rng,
         batch_size: int,
