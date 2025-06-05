@@ -14,12 +14,8 @@ import matplotlib.pyplot as plt
 
 from granad import *
 
-# GLOB like a pro
-DOS_BINS = 20
-ENERGY_LIMIT = 4
-
 ## targets ##
-def gs_chain(n, electrons, ts):
+def chain(n, electrons, ts):
     """simple metal chain ground state energy
 
     n : length
@@ -46,14 +42,18 @@ def gs_chain(n, electrons, ts):
     # fill energies
     even = 2 * energies[:electrons//2].sum()
     
-    # only at remaining electron for uneven number of electrons
+    #  uneven number of electrons
     odd = energies[(electrons // 2) + (electrons % 2)] * (electrons % 2)
+
+    # each node is characterized by list of hopping rates
+    node_features = jnp.array([ts for i in range(n)])
 
     return {
         "ground_state" : even + odd,
         "energies" : energies,
         "hamiltonian" : hamiltonian,
-        "adjacency" : adjacency(delta_p, 1)
+        "adjacency" : adjacency(delta_p, 1),
+        "node_features" : node_features
     }
 
 def generate_batch(
@@ -64,19 +64,7 @@ def generate_batch(
         t_bounds: tuple = (1.0, 3.0)
 ):
     """
-    Generate a batch of flake systems of randomly dimensioned rectangular geometry and hopping strength together with their corresponding local environments.
-
-    Args:
-        rng: random key for hopping rates and sizes
-        min_size, max_size : min and max extent of the flake
-        t_bounds : bounds for hopping rate
-
-    Returns:
-        rng : new random key for book keeping
-        node_feats: list of [num_nodes, 1], just corresponds to hopping rates for a local environment supercell
-        adj: list of [num_nodes, num_nodes] adjaceny matrices for a local environment supercell
-        glob: list of 2-dim arrays capturing x,y extent of the actual flake
-        dos: list of 100-dim arrays capturing a binned dos (within an energetic range) of the actual flake
+    Generate a batch of chains.    
     """
 
     node_feats_list = []
@@ -111,16 +99,32 @@ def generate_batch(
 
 # GCN Layer
 class GCNLayer(nn.Module):
-    c_out: int
-
+    n_nodes : int
+    n_feats : int
+    n_batch : int
+    
     @nn.compact
-    def __call__(self, node_feats, adj_matrix):
-        num_neighbours = adj_matrix.sum(axis=-1, keepdims=True) + 1e-8
-        node_feats = nn.Dense(features=self.c_out)(node_feats)
-        node_feats = jax.lax.batch_matmul(adj_matrix, node_feats)
-        node_feats = node_feats / num_neighbours
-        node_feats = nn.relu(node_feats)
-        return node_feats
+    def __call__(self, node_feats, edge_tensor):
+        """
+        
+        node_feats: n_samples x n_nodes x n_features tensor
+        edge_tensor: n_samples x 2 x n_nodes x n_nodes tensor
+        """
+        # flatten tensor with edge weights
+        edge_tensor = jnp.reshape(edge_tensor, (-1, self.n_nodes**2 * 2))  # shape: (batch, m)
+
+        # learned matrix for messaging: M is of dim n_samples x n_nodes x n_feats x n_feats
+        projector = nn.Dense(self.n_nodes * self.n_feats**2)(edge_tensor) 
+        projector = jnp.reshape(projector, self.n_batch + (self.n_nodes, self.n_feats, self.n_feats)) 
+        projector = nn.relu(projector)
+        
+        # messages => n_samples x n_nodes x n_features
+        message = jax.lax.batch_matmul(projector, node_feats)
+
+        # recurrent update 
+        update = node_feats + nn.Dense(features=self.n_features) @ message
+
+        return nn.relu(update)
 
 # Encoder
 class GCNEncoder(nn.Module):
