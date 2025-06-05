@@ -52,7 +52,7 @@ flake = graphene_spinful.cut_flake(shape)
 flake.set_open_shell()
 flake.set_electrons(len(flake)//2)
 flake.show_energies()
-flake.set_mean_field( coulomb_strength = 0.01, mix = 0.01, iterations = 800)
+flake.set_mean_field( coulomb_strength = 0.5 * 1/6, mix = 0.001, iterations = 4000, accuracy = 1e-6)
 flake.show_energies()
 
 occs = jnp.diagonal(flake.initial_density_matrix)
