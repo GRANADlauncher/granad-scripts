@@ -74,7 +74,7 @@ def get_haldane_graphene(t1, t2, delta):
             participants=("pz1", "pz1"),            
             # a bit overcomplicated
             parameters=[                
-                [0, 0, 0, delta], # onsite                
+                [0, 0, 0, delta/2], # onsite                
                 # clockwise hoppings
                 [-2.46, 0, 0, t2], 
                 [2.46, 0, 0, jnp.conj(t2)],
@@ -88,7 +88,7 @@ def get_haldane_graphene(t1, t2, delta):
             "hamiltonian",
             participants=("pz2", "pz2"),
             parameters=[                
-                [0, 0, 0, 0], # onsite                
+                [0, 0, 0, -delta/2], # onsite                
                 # clockwise hoppings
                 [-2.46, 0, 0, jnp.conj(t2)], 
                 [2.46, 0, 0, t2],
@@ -716,7 +716,7 @@ def plot_selectivity_sweep():
 def plot_energy_localization():
     from matplotlib.ticker import MaxNLocator
     shape = Rhomboid(20, 20, armchair = False)
-    ts = [0.05, 0.3]
+    ts = [0.05, 0.4]
     
     # Define custom settings for this plot only
     custom_params = {
@@ -741,7 +741,10 @@ def plot_energy_localization():
         # Second loop for plotting with consistent color scale
         for i, ax in enumerate(axs):
             flake = get_haldane_graphene(1., 1j * ts[i], 1.).cut_flake(shape)
-            
+
+            print(flake.energies[flake.lumo] -  flake.energies[flake.homo])
+            print(2* jnp.abs(0.5 - jnp.sqrt(3)**3*ts[i]))
+
             e_max = flake.energies.max()
             e_min = flake.energies.min()
             widening = (e_max - e_min) * 0.01  # 1% margin
@@ -1045,9 +1048,9 @@ def plot_dipole_moments_broken_symmetry():
 if __name__ == '__main__':
     # plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
-    # plot_dipole_moments() # DONE
+    plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
-    plot_energy_localization() # DONE
+    # plot_energy_localization() # DONE
     # plot_selectivity_sweep() # DONE
     # plot_size_sweep()  # DONE
     
