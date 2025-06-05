@@ -29,13 +29,13 @@ graphene_spinful = (
     .add_interaction(
         "coulomb",
         participants=("pz+", "pz+"),
-        parameters=[16.522, 8.64, 5.333],
+        parameters=[0, 8.64, 5.333],
         expression=lambda r : 1/r + 0j
     )
     .add_interaction(
         "coulomb",
         participants=("pz-", "pz-"),
-        parameters=[16.522, 8.64, 5.333],
+        parameters=[0, 8.64, 5.333],
         expression=lambda r : 1/r + 0j
     )
     .add_interaction(
