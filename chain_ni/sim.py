@@ -128,9 +128,9 @@ if __name__ == '__main__':
     occ_e = result.output[0]
     occ_x = result.output[1]
     
-    n_steady = jnp.argmin((occ_x[n_steady:, -2] - occ_x[n_steady:, -1]).real)
+    n_steady = jnp.argmin((occ_x[:, -2] - occ_x[:, -1]).real)
     
-        # real space occupation plot on Ni1, Ni2
+    # real space occupation plot on Ni1, Ni2
     plt.plot(result.time_axis[:n_steady], occ_x[:n_steady, -2], '-.')
     plt.plot(result.time_axis[:n_steady], occ_x[:n_steady, -1])
     # plt.plot(result.time_axis[:n_steady], jnp.abs(occ_x[:n_steady, -2] - occ_x[:n_steady, -1]), '.')    
