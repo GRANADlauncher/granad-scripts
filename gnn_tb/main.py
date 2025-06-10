@@ -2,6 +2,8 @@
 # why? because we may suffer from the same problems plaguing wilsons nrg. the white-solution suggests reformulating in terms of density matrix
 # equivariance important?
 
+# sth like this may make more sense https://chatgpt.com/c/6842ab72-2a58-8009-87dc-877a5b24a6c9
+
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
@@ -16,17 +18,13 @@ from granad import *
 
 ## targets ##
 def chain(n, electrons, ts):
-    """simple metal chain ground state energy
+    """features of simple metal chain 
 
     n : length
     electrons : total number of electrons put in the system
     ts : hoppings [onsite, nn, nnn, nnnn, ...]
     """
-
-    def adjacency(delta_p, i):
-        return jnp.abs(delta_p - i) < 0.1
     
-    # hamiltonian from adjacency matrix of chain
     pos = jnp.arange(n)
 
     # initialize
@@ -34,8 +32,8 @@ def chain(n, electrons, ts):
 
     # sum over neighborhoods in square lattice
     delta_p = jnp.abs(pos[:, None] - pos)
-    for i, t in enumerate(ts):        
-        hamiltonian += adjacency(delta_p, i) * t
+    for i, t in enumerate(ts):
+        hamiltonian += (jnp.abs(delta_p - i) < 0.1) * t
         
     energies, _ = jnp.linalg.eigh(hamiltonian)
 
@@ -45,89 +43,85 @@ def chain(n, electrons, ts):
     #  uneven number of electrons
     odd = energies[(electrons // 2) + (electrons % 2)] * (electrons % 2)
 
-    # each node is characterized by list of hopping rates
-    node_features = jnp.array([ts for i in range(n)])
+    # each node is characterized by its atom kind
+    node_features = jnp.array([1 for i in range(n)])
 
     return {
         "ground_state" : even + odd,
         "energies" : energies,
         "hamiltonian" : hamiltonian,
-        "adjacency" : adjacency(delta_p, 1),
         "node_features" : node_features
     }
 
-def generate_batch(
-        rng,
-        batch_size: int,
-        min_size: int = 2,
-        max_size: int = 5,
-        t_bounds: tuple = (1.0, 3.0)
-):
+def generate_batch(n_nodes, ns, ts):
+    # target: gs energies of large chain
+    energies = jnp.array([chain(n, n, ts[i])["ground_state"] for i, n in enumerate(ns)])
+
+    # microscopic info: features and hamiltonian of smaller chains
+    f_chains_train = lambda t: chain(n_nodes, n_nodes, t)
+    chains_train = jax.vmap(f_chains_train, in_axes = 0, out_axes = 0)(ts)
+
+    return chains_train | {"ground_state" : energies, "length" : ns}            
+
+# GGNN
+class GGNNLayer(nn.Module):
+    """Gated Graph Neural Network.
+
+    Each orbital is defined by a feature list. This layer takes the list n^{t} at t and returns list at t+1 according to
+
+    m^{t+1}_i = F[H] \cdot n^{t}
+    n^{t+1}_i = G(n^{t}, m^{t+1})
+
+    where F = id, and G is a Gated Recurrent Unit.
+    
+    TODO: gain anything from making F MLP? where F = \sigma(W H + B) with W, B regression tensors. G is a Gated Recurrent Unit.
+    TODO: generalize edge_tensor to more feats
     """
-    Generate a batch of chains.    
-    """
-
-    node_feats_list = []
-    adj_list = []
-    dos_list = []
-    global_feats_list = []
-
-    for i in range(batch_size):
-        # random stuff
-        rng, rng_size, rng_t = jax.random.split(rng, 3)
-        
-        # hopping        
-        t = jax.random.uniform(rng_t, (), minval=t_bounds[0], maxval=t_bounds[1])
-        
-        ## global flake ##
-        sizes = jax.random.uniform(rng_size, (2,), minval=min_size, maxval=max_size + 1)
-        size_x, size_y = float(sizes[0]), float(sizes[1])
-        flake = generate_flake(size_x, size_y, t)
-        dim_x, dim_y = jnp.abs(flake.positions[:, 0].min()-flake.positions[:, 0].max()), jnp.abs(flake.positions[:, 1].min()-flake.positions[:, 1].max())
-        global_feats_list.append(jnp.array([dim_x, dim_y]))
-        dos, _ = hist(flake)
-        dos_list.append(dos)                
-
-        ## local env ##
-        cell = generate_cell(t)
-        A = jnp.abs(cell.hamiltonian) > 1e-10  # [N, N] boolean matrix
-        adj_list.append(A)
-        node_feats = jnp.ones((len(cell), 1)) * t
-        node_feats_list.append(node_feats)
-
-    return rng, [jnp.array(node_feats_list), jnp.array(adj_list), jnp.array(global_feats_list), jnp.array(dos_list)]
-
-# GCN Layer
-class GCNLayer(nn.Module):
+    
     n_nodes : int
     n_feats : int
     n_batch : int
     
     @nn.compact
-    def __call__(self, node_feats, edge_tensor):
+    def __call__(self, node_feats, edge_tensor, rng, carry = None):
         """
         
-        node_feats: n_samples x n_nodes x n_features tensor
-        edge_tensor: n_samples x 2 x n_nodes x n_nodes tensor
+        node_feats: n_batch x n_nodes x n_feats tensor for tb orbitals
+        edge_tensor: n_batch x n_nodes x n_nodes for tb hamiltonian
+        rng: prng
+        carry: n_batch x n_nodes x n_feats tensor of previous layer
         """
-        # flatten tensor with edge weights
-        edge_tensor = jnp.reshape(edge_tensor, (-1, self.n_nodes**2 * 2))  # shape: (batch, m)
-
-        # learned matrix for messaging: M is of dim n_samples x n_nodes x n_feats x n_feats
-        projector = nn.Dense(self.n_nodes * self.n_feats**2)(edge_tensor) 
-        projector = jnp.reshape(projector, self.n_batch + (self.n_nodes, self.n_feats, self.n_feats)) 
-        projector = nn.relu(projector)
+        ## MAYBE: regression embedding of TB Hamiltonian ##
+        # edge tensor : n_batch x n_nodes x n_nodes
+        # edge_tensor = jnp.reshape(edge_tensor, (self.n_batch, -1))
         
-        # messages => n_samples x n_nodes x n_features
-        message = jax.lax.batch_matmul(projector, node_feats)
+        # projector : n_batch x n_nodes x n_nodes x n_feats  x n_feats
+        # projector = nn.Dense(self.n_nodes * self.n_feats**2)(edge_tensor)
+        # projector = jnp.reshape(projector, (self.n_batch, self.n_nodes, self.n_feats, self.n_feats))
+        # projector = nn.sigmoid(projector)
+        
+        # message = jnp.einsum('sbdnf, snf -> sbd', projector, node_feats)
 
-        # recurrent update 
-        update = node_feats + nn.Dense(features=self.n_features) @ message
+        # message : n_batch x n_nodes x n_feats
+        message = jnp.einsum('bij,bjf->bif', edge_tensor, node_feats)
 
-        return nn.relu(update)
+        # GRUCell: "All dimensions except the final are considered batch dimensions."
+        size_flat = self.n_nodes * self.n_feats
+        message = message.reshape((self.n_batch, size_flat))
+        if carry is None:
+            carry = nn.GRUCell(features = size_flat).initialize_carry(rng, (self.n_batch, size_flat) )
+        node_feats, _ = nn.GRUCell(features = size_flat)(carry, message)
 
-# Encoder
-class GCNEncoder(nn.Module):
+        return node_feats.reshape(self.n_batch, self.n_nodes, self.n_feats)
+
+class GGNNStack(nn.Module):
+    """Stack of N GGNNs. Takes in orbital feature list and extracts the final feature via    
+
+    R = \sum \sigma(F(n^{N}, n^{0})) \odot G(n^{N})
+
+    where F, G are regression layers and the sum runs over the neighbors of each node.
+    """
+    
     hidden_dims: Sequence[int]
     use_residual: bool = False
 
@@ -143,6 +137,10 @@ class GCNEncoder(nn.Module):
                 
             x = h
         return x
+
+# geometry features: CNN
+
+# fuse features: MLP
 
 # Pooling + Regression
 class GCNRegressor(nn.Module):
