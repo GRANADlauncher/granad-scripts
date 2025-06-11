@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 from granad import *
 
-## targets ##
+## GEOMETRIES ##
 def chain(n, electrons, ts):
     """features of simple metal chain 
 
@@ -47,42 +47,77 @@ def chain(n, electrons, ts):
         "node_features" : node_features
     }
 
-def generate_batch(n_nodes, ns, ts):
-    # target: gs energies of large chain
-    energies = jnp.array([chain(n, n, ts[i])["ground_state"] for i, n in enumerate(ns)])
+def generate_batch(rng, min_cells, max_cells, n_nodes, n_batch):    
+    """Generate a training batch.
 
-    # microscopic info: features and hamiltonian of smaller chains
+    Arguments:
+        rng: PRNG
+        min_cells : min_number of units cells
+        max_cells : max_number of units cells
+        n_nodes : number of nodes / atoms in supercell
+        n_batch : batch size
+       
+    Returns: Dict with keys
+       ground_state : gs energy of the structure
+       cell_arr : boolean array indicating presence / absence of supercell
+       energies : IP energies of supercell
+       hamiltonian : IP hamiltonian of supercell
+
+       array: new PRNG key
+    
+    """
+    
+    # chains up to max_cells * n_nodes atoms
+    ns = jax.random.randint(rng, (n_batch,), min_cells, max_cells)
+
+    # scale nn hopping rates array to floats
+    ts = jax.random.randint(rng, (n_batch,), 1, 100)
+    ts /= ts.max() * 4
+    ts = jnp.vstack([jnp.zeros_like(ts), ts]).T
+
+    # TARGET: metallic chain gs energies 
+    energies = jnp.array([chain(n * n_nodes, n * n_nodes, ts[i])["ground_state"] for i, n in enumerate(ns)])
+
+    # MICROSCOPIC PREDICTOR: hamiltonians and energies of supercell
     f_chains_train = lambda t: chain(n_nodes, n_nodes, t)
     chains_train = jax.vmap(f_chains_train, in_axes = 0, out_axes = 0)(ts)
 
-    return chains_train | {"ground_state" : energies, "length" : ns}
+    # MACROSCOPIC PREDICTOR: boolean array indicating presence / absence of supercells
+    cell_arr = ns[:, None] <= jnp.arange(max_cells * n_nodes)
+
+    rng, _ = jax.random.split(rng)
+    
+    # put all together in dict
+    return chains_train | {"ground_state" : energies, "cell_arr" : cell_arr}, rng
 
 ## SPECTRAL EMBEDDING ##
 class SpectralMLP(nn.Module):
     n_out : int
+    n_hidden : int
 
     @nn.compact
     def __call__(self, energies):
         x = energies
         x = x.reshape((x.shape[0], -1))
-        x = nn.Dense(128)(x)                 # create inline Flax Module submodules
+        x = nn.Dense(self.n_hidden)(x)                 # create inline Flax Module submodules
         x = nn.relu(x)
-        x = nn.Dense(128)(x)                 # create inline Flax Module submodules
+        x = nn.Dense(self.n_hidden)(x)                 # create inline Flax Module submodules
         x = nn.relu(x)
         x = nn.Dense(self.n_out)(x)       # shape inference
         return x
     
 ## GEOMETRY EMBEDING ##
-class StructureMLP(nn.Module):
+class GeometryMLP(nn.Module):
     n_out : int
+    n_hidden : int
 
     @nn.compact
     def __call__(self, cell_arr):
         x = cell_arr
         x = x.reshape((x.shape[0], -1))
-        x = nn.Dense(128)(x)                 # create inline Flax Module submodules
+        x = nn.Dense(self.n_hidden)(x)                 # create inline Flax Module submodules
         x = nn.relu(x)
-        x = nn.Dense(128)(x)                 # create inline Flax Module submodules
+        x = nn.Dense(self.n_hidden)(x)                 # create inline Flax Module submodules
         x = nn.relu(x)
         x = nn.Dense(self.n_out)(x)       # shape inference
         return x
@@ -91,12 +126,14 @@ class StructureMLP(nn.Module):
 class FusionMLP(nn.Module):
     n_out : int
     spectrum_n_out : int
+    spectrum_n_hidden : int
     geometry_n_out : int
+    geometry_n_hidden : int
 
     @nn.compact
     def __call__(self, energies, cell_arr):
-        spectrum = SpectralMLP(self.spectrum_n_out)(energies)        
-        geometry = GeometryMLP(self.geometry_n_out)(cell_arr)
+        spectrum = SpectralMLP(self.spectrum_n_out, self.spectrum_n_hidden)(energies)        
+        geometry = GeometryMLP(self.geometry_n_out, self.geometry_n_hidden)(cell_arr)
         x = jnp.concatenate([geometry, spectrum], axis = 1)        
         x = nn.Dense(10)(x)                 # create inline Flax Module submodules
         x = nn.relu(x)
@@ -153,44 +190,55 @@ class GGNNStack(nn.Module):
 
     where F, G are regression layers and the sum runs over the neighbors of each node.
     """
-
-    # 
     @nn.compact
     def __call__(self):
         return
-
     
 def train():
     @jax.jit
-    def loss_fn(params, batch):
-        nodes, adj, glob, targets = batch
-        preds = model.apply(params, nodes, adj, glob)
+    def loss_fn(params, energies, cell_arr, targets):
+        # batch is dict containing supercell energies and geometry representation
+        preds = model.apply(params, energies, cell_arr)
+        
+        # remove singleton dimension
+        preds = jnp.squeeze(preds)
+
+        # compute loss
         loss = jnp.mean((preds - targets) ** 2)
         return loss
 
     @jax.jit
-    def train_step(params, batch, opt_state):
-        grads = jax.grad(loss_fn)(params, batch)
-        updates, opt_state = optimizer.update(grads, opt_state)
+    def train_step(params, energies, cell_arr, targets, opt_state):
+        # gradients
+        grads = jax.grad(loss_fn)(params, energies, cell_arr, targets)
+        
+        # update params
+        updates, opt_state = optimizer.update(grads, opt_state)        
         new_params = optax.apply_updates(params, updates)
-        loss = loss_fn(new_params, batch)
+
+        # loss with new params
+        loss = loss_fn(new_params, energies, cell_arr, targets)
+
+        # return info
         return new_params, opt_state, loss
     
-    # Hyperparameters
-    batch_size = 1
+    # Some hyperparameters
+    n_batch = 32
+    n_nodes = 4
+    min_cells = 1
+    max_cells = 100 # 400 atoms
     lr = 1e-3
     num_epochs = 200
     
-    # Model
-    rng = jax.random.PRNGKey(42)    
-    rng, dummy_batch = generate_batch(rng, batch_size = 1)
-    node_feats, adj, glob_feats, dos = dummy_batch
-    dos_dim = dos.shape[-1]
-    cell_dim = adj.shape[-1]
-    glob_dim = glob_feats.shape[-1]
-    mlp_dim = cell_dim + glob_dim
-    model = GCNRegressor(hidden_dims=[cell_dim, cell_dim], mlp_dims=[mlp_dim, mlp_dim], dos_bins = dos_dim)    
-    params = model.init(rng, dummy_batch[0][0], dummy_batch[1][0], dummy_batch[2][0])    
+    # Model    
+    rng = jax.random.PRNGKey(42)
+    
+    # batch
+    batch, rng = generate_batch(rng, min_cells, max_cells, n_nodes, n_batch)
+
+    # setup model
+    model = FusionMLP(1, 10, 20, 10, 20)
+    params = model.init(rng, batch["energies"], batch["cell_arr"])
     
     # Optimizer
     optimizer = optax.adam(lr)
@@ -198,8 +246,9 @@ def train():
 
     # Training loop
     for epoch in range(num_epochs):
-        rng, batch = generate_batch(rng, batch_size)
-        params, opt_state, loss = train_step(params, batch, opt_state)
+        batch, rng = generate_batch(rng, min_cells, max_cells, n_nodes, n_batch)
+        energies, cell_arr, targets = batch["energies"], batch["cell_arr"], batch["ground_state"]
+        params, opt_state, loss = train_step(params, energies, cell_arr, targets, opt_state)
         if epoch % 50 == 0:
             print(f"Epoch {epoch}: Loss = {loss:.4f}")
 
@@ -208,6 +257,7 @@ def train():
             
     return model, params
 
+# TODO: adjust
 def test():
         
     # Model
@@ -239,4 +289,5 @@ def test():
 
 
 if __name__ == '__main__':
-    print("foo")
+    train()
+    
