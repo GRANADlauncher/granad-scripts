@@ -303,8 +303,8 @@ def validate():
     
     print(loss)
 
-    plt.plot(batch["cell_arr"].sum(axis = 1), targets, label = "data")
-    plt.plot(batch["cell_arr"].sum(axis = 1), preds, '--', label = "prediction")
+    plt.plot(batch["cell_arr"].sum(axis = 1), targets, 'o', label = "data")
+    plt.plot(batch["cell_arr"].sum(axis = 1), preds, 'o', label = "prediction")
     plt.xlabel("Structure Size")
     plt.ylabel("Ground State Energy")
     plt.legend()
