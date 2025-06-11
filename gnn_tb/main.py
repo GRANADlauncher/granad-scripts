@@ -55,8 +55,18 @@ def generate_batch(n_nodes, ns, ts):
     f_chains_train = lambda t: chain(n_nodes, n_nodes, t)
     chains_train = jax.vmap(f_chains_train, in_axes = 0, out_axes = 0)(ts)
 
-    return chains_train | {"ground_state" : energies, "length" : ns}            
+    return chains_train | {"ground_state" : energies, "length" : ns}
 
+## SPECTRAL EMBEDDING ##
+class SpectralMLP(nn.Module):
+    n_energies : int
+
+    @nn.compact
+    def __call__(self):
+        return 
+
+
+## STRUCTURE EMBEDDING ##
 # GGNN
 class GGNNLayer(nn.Module):
     """Gated Graph Neural Network.
@@ -99,6 +109,7 @@ class GGNNLayer(nn.Module):
 
         return node_feats.reshape(self.n_batch, self.n_nodes, self.n_feats)
 
+# TODO: implement
 class GGNNStack(nn.Module):
     """Stack of N GGNNs. Takes in orbital feature list and extracts the final feature via    
 
@@ -106,57 +117,31 @@ class GGNNStack(nn.Module):
 
     where F, G are regression layers and the sum runs over the neighbors of each node.
     """
+
+    # 
+    @nn.compact
+    def __call__(self):
+        return
+
+## GEOMETRY EMBEDING ##
+# TODO: implement
+class StructureMLP(nn.Module):
+    n_cells : int
+
+    @nn.compact
+    def __call__(self):
+        return
     
-    hidden_dims: Sequence[int]
-    use_residual: bool = False
+
+## FEATURE FUSION ##
+# TODO: implement
+class FusionMLP(nn.Module):
+    n_cells : int
 
     @nn.compact
-    def __call__(self, node_feats, adj_matrix):
-        x = node_feats
-        for dim in self.hidden_dims:
-            h = GCNLayer(c_out=dim)(x, adj_matrix)
+    def __call__(self):
+        return
 
-            # residual network
-            if self.use_residual and h.shape == x.shape:
-                h = h + x
-                
-            x = h
-        return x
-
-# geometry features: CNN
-
-# fuse features: MLP
-
-# Pooling + Regression
-class GCNRegressor(nn.Module):
-    hidden_dims: Sequence[int]
-    mlp_dims: Sequence[int]
-    dos_bins : int 
-    use_residual: bool = True
-
-    @nn.compact
-    def __call__(self, node_feats, adj_matrix, global_info=None):
-        # Local encoding
-        z = GCNEncoder(self.hidden_dims, use_residual=self.use_residual)(node_feats, adj_matrix)
-        
-        # Pooling (sum)
-        z_pool = jnp.sum(z, axis=1)  # [batch_size, latent_dim]
-
-        # Add optional global info
-        if global_info is not None:
-            z_pool = jnp.concatenate([z_pool, global_info], axis=-1)
-
-        # Regression head
-        x = z_pool
-        for dim in self.mlp_dims:
-            x = nn.Dense(dim)(x)
-            x = nn.relu(x)
-        output = nn.Dense(self.dos_bins)(x)
-
-        # softmax over last axis
-        output = nn.softmax(output, axis = -1)
-        
-        return output
     
 def train():
     @jax.jit
@@ -237,6 +222,4 @@ def test():
 
 
 if __name__ == '__main__':
-    plot_dos_range()
-    train()
-    test()
+    print("foo")
