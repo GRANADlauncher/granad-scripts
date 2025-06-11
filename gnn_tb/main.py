@@ -295,7 +295,7 @@ def validate():
 
     # new batch of larger dims
     batch, rng = generate_batch(rng, min_cells, max_cells, n_nodes, n_batch)
-    preds = fusion.apply(params, batch["energies"], batch["cell_arr"])
+    preds = model.apply(params, batch["energies"], batch["cell_arr"])
     preds = jnp.squeeze(preds)
     targets = batch["ground_state"]
     loss = jnp.mean((preds - targets) ** 2)
@@ -309,7 +309,7 @@ def validate():
 
 
 if __name__ == '__main__':
-    train()
+    # train()
     plot_loss()
     validate()
     
