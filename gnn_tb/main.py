@@ -269,7 +269,8 @@ def plot_loss(filename='loss.npz'):
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.grid(True)
-    plt.show()    
+    plt.savefig("loss")
+    plt.close()
 
 def validate():
     # Some hyperparameters
