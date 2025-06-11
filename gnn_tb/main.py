@@ -59,15 +59,54 @@ def generate_batch(n_nodes, ns, ts):
 
 ## SPECTRAL EMBEDDING ##
 class SpectralMLP(nn.Module):
-    n_energies : int
+    n_out : int
 
     @nn.compact
-    def __call__(self):
-        return 
+    def __call__(self, energies):
+        x = energies
+        x = x.reshape((x.shape[0], -1))
+        x = nn.Dense(128)(x)                 # create inline Flax Module submodules
+        x = nn.relu(x)
+        x = nn.Dense(128)(x)                 # create inline Flax Module submodules
+        x = nn.relu(x)
+        x = nn.Dense(self.n_out)(x)       # shape inference
+        return x
+    
+## GEOMETRY EMBEDING ##
+class StructureMLP(nn.Module):
+    n_out : int
 
+    @nn.compact
+    def __call__(self, cell_arr):
+        x = cell_arr
+        x = x.reshape((x.shape[0], -1))
+        x = nn.Dense(128)(x)                 # create inline Flax Module submodules
+        x = nn.relu(x)
+        x = nn.Dense(128)(x)                 # create inline Flax Module submodules
+        x = nn.relu(x)
+        x = nn.Dense(self.n_out)(x)       # shape inference
+        return x
+    
+## FEATURE FUSION ##
+class FusionMLP(nn.Module):
+    n_out : int
+
+    @nn.compact
+    def __call__(self, geometry, spectrum):
+        n_out, energies = spectrum
+        spectrum = SpectralMLP(n_out)(energies)
+
+        n_out, cell_arr = geometry
+        geometry = GeometryMLP(n_out)(energies)
+
+        x = jnp.concatenate([geometry, spectrum], axis = 1)        
+        x = nn.Dense(10)(x)                 # create inline Flax Module submodules
+        x = nn.relu(x)
+        x = nn.Dense(self.n_out)(x)       # shape inference
+        
+        return x           
 
 ## STRUCTURE EMBEDDING ##
-# GGNN
 class GGNNLayer(nn.Module):
     """Gated Graph Neural Network.
 
@@ -119,25 +158,6 @@ class GGNNStack(nn.Module):
     """
 
     # 
-    @nn.compact
-    def __call__(self):
-        return
-
-## GEOMETRY EMBEDING ##
-# TODO: implement
-class StructureMLP(nn.Module):
-    n_cells : int
-
-    @nn.compact
-    def __call__(self):
-        return
-    
-
-## FEATURE FUSION ##
-# TODO: implement
-class FusionMLP(nn.Module):
-    n_cells : int
-
     @nn.compact
     def __call__(self):
         return
