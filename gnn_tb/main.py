@@ -8,8 +8,6 @@ import pickle
 
 import matplotlib.pyplot as plt
 
-from granad import *
-
 ## GEOMETRIES ##
 def chain(n, electrons, ts):
     """features of simple metal chain 
