@@ -226,7 +226,7 @@ def train():
     min_cells = 1
     max_cells = 100 # 400 atoms
     lr = 1e-3
-    num_epochs = 500
+    num_epochs = 505
     
     # Model    
     rng = jax.random.PRNGKey(42)
