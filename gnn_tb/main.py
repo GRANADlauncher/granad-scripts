@@ -303,8 +303,8 @@ def validate():
     
     print(loss)
 
-    plt.plot(batch["cell_arr"].sum(axis = 0), targets, label = "data")
-    plt.plot(jnp.arange(targets.size), preds, label = "prediction")
+    plt.plot(batch["cell_arr"].sum(axis = 1), targets, label = "data")
+    plt.plot(batch["cell_arr"].sum(axis = 1), preds, '--', label = "prediction")
     plt.xlabel("Structure Size")
     plt.ylabel("Ground State Energy")
     plt.savefig(f"pred.pdf")
