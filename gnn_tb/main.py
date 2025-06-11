@@ -1,9 +1,3 @@
-# so, this does not work
-# why? because we may suffer from the same problems plaguing wilsons nrg. the white-solution suggests reformulating in terms of density matrix
-# equivariance important?
-
-# sth like this may make more sense https://chatgpt.com/c/6842ab72-2a58-8009-87dc-877a5b24a6c9
-
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
@@ -92,15 +86,6 @@ class GGNNLayer(nn.Module):
         carry: n_batch x n_nodes x n_feats tensor of previous layer
         """
         ## MAYBE: regression embedding of TB Hamiltonian ##
-        # edge tensor : n_batch x n_nodes x n_nodes
-        # edge_tensor = jnp.reshape(edge_tensor, (self.n_batch, -1))
-        
-        # projector : n_batch x n_nodes x n_nodes x n_feats  x n_feats
-        # projector = nn.Dense(self.n_nodes * self.n_feats**2)(edge_tensor)
-        # projector = jnp.reshape(projector, (self.n_batch, self.n_nodes, self.n_feats, self.n_feats))
-        # projector = nn.sigmoid(projector)
-        
-        # message = jnp.einsum('sbdnf, snf -> sbd', projector, node_feats)
 
         # message : n_batch x n_nodes x n_feats
         message = jnp.einsum('bij,bjf->bif', edge_tensor, node_feats)
