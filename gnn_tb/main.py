@@ -269,7 +269,7 @@ def plot_loss(filename='loss.npz'):
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.grid(True)
-    plt.savefig("loss")
+    plt.savefig("loss.pdf")
     plt.close()
 
 def validate():
@@ -303,10 +303,11 @@ def validate():
     
     print(loss)
 
-    for i, t in enumerate(targets):
-        plt.plot(jnp.arange(t.size), t)
-        plt.plot(jnp.arange(t.size), preds[i])
-        plt.savefig(f"pred_{i}.pdf")
+    plt.plot(batch["cell_arr"].sum(axis = 0), targets, label = "data")
+    plt.plot(jnp.arange(targets.size), preds, label = "prediction")
+    plt.xlabel("Structure Size")
+    plt.ylabel("Ground State Energy")
+    plt.savefig(f"pred.pdf")
 
 
 if __name__ == '__main__':
