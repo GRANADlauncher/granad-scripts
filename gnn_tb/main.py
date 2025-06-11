@@ -226,7 +226,7 @@ def train():
     min_cells = 1
     max_cells = 100 # 400 atoms
     lr = 1e-3
-    num_epochs = 200
+    num_epochs = 500
     
     # Model    
     rng = jax.random.PRNGKey(42)
@@ -243,39 +243,64 @@ def train():
     opt_state = optimizer.init(params)
 
     # Training loop
+    loss_arr = []
     for epoch in range(num_epochs):
         batch, rng = generate_batch(rng, min_cells, max_cells, n_nodes, n_batch)
         energies, cell_arr, targets = batch["energies"], batch["cell_arr"], batch["ground_state"]
         params, opt_state, loss = train_step(params, energies, cell_arr, targets, opt_state)
+        loss_arr.append(loss)
         if epoch % 50 == 0:
             print(f"Epoch {epoch}: Loss = {loss:.4f}")
 
-    with open('final_params.pkl', 'wb') as f:
+    # save params and loss
+    with open('params.pkl', 'wb') as f:
         pickle.dump(params, f)
+    jnp.savez("loss.npz", loss=jnp.array(loss_arr))
             
     return model, params
 
-# TODO: adjust
-def test():
-        
-    # Model
-    rng = jax.random.PRNGKey(42)    
-    rng, dummy_batch = generate_batch(rng, batch_size = 1)
-    node_feats, adj, glob_feats, dos = dummy_batch
-    dos_dim = dos.shape[-1]
-    cell_dim = adj.shape[-1]
-    glob_dim = glob_feats.shape[-1]
-    mlp_dim = cell_dim + glob_dim
-    model = GCNRegressor(hidden_dims=[cell_dim, cell_dim], mlp_dims=[mlp_dim, mlp_dim], dos_bins = dos_dim)    
-    model.init(rng, dummy_batch[0][0], dummy_batch[1][0], dummy_batch[2][0])
+# Plot loss
+def plot_loss(filename='loss.npz'):
+    with jnp.load(filename) as data:
+        loss = data['loss']
 
-    with open('final_params.pkl', 'rb') as f:        
+    if loss_arr is None:
+        loss_arr = load_loss(filename)
+
+    plt.plot(loss_arr)
+    plt.title('Training Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.grid(True)
+    plt.show()    
+
+def validate():
+    # Some hyperparameters
+    n_batch = 32
+    n_nodes = 4
+    min_cells = 1
+    max_cells = 100 # 400 atoms
+    lr = 1e-3
+    num_epochs = 500
+    
+    # Model    
+    rng = jax.random.PRNGKey(42)
+    
+    # batch
+    batch, rng = generate_batch(rng, min_cells, max_cells, n_nodes, n_batch)
+
+    # setup model
+    model = FusionMLP(1, 10, 20, 10, 20)
+    model.init(rng, batch["energies"], batch["cell_arr"])
+
+    with open('params.pkl', 'rb') as f:        
         params = pickle.load(f)
 
     # new batch of larger dims
-    rng, batch = generate_batch(rng, 1, min_size = 6, max_size = 8)
-    nodes, adj, glob, targets = batch
-    preds = model.apply(params, nodes, adj, glob)
+    batch, rng = generate_batch(rng, min_cells, max_cells, n_nodes, n_batch)
+    preds = fusion.apply(params, batch["energies"], batch["cell_arr"])
+    preds = jnp.squeeze(preds)
+    targets = batch["ground_state"]
     loss = jnp.mean((preds - targets) ** 2)
     
     print(loss)
@@ -288,4 +313,6 @@ def test():
 
 if __name__ == '__main__':
     train()
+    plot_loss()
+    validate()
     
