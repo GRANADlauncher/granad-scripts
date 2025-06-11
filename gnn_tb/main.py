@@ -90,20 +90,17 @@ class StructureMLP(nn.Module):
 ## FEATURE FUSION ##
 class FusionMLP(nn.Module):
     n_out : int
+    spectrum_n_out : int
+    geometry_n_out : int
 
     @nn.compact
-    def __call__(self, geometry, spectrum):
-        n_out, energies = spectrum
-        spectrum = SpectralMLP(n_out)(energies)
-
-        n_out, cell_arr = geometry
-        geometry = GeometryMLP(n_out)(energies)
-
+    def __call__(self, energies, cell_arr):
+        spectrum = SpectralMLP(self.spectrum_n_out)(energies)        
+        geometry = GeometryMLP(self.geometry_n_out)(cell_arr)
         x = jnp.concatenate([geometry, spectrum], axis = 1)        
         x = nn.Dense(10)(x)                 # create inline Flax Module submodules
         x = nn.relu(x)
         x = nn.Dense(self.n_out)(x)       # shape inference
-        
         return x           
 
 ## STRUCTURE EMBEDDING ##
