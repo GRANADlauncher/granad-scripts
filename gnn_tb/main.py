@@ -307,6 +307,7 @@ def validate():
     plt.plot(batch["cell_arr"].sum(axis = 1), preds, '--', label = "prediction")
     plt.xlabel("Structure Size")
     plt.ylabel("Ground State Energy")
+    plt.legend()
     plt.savefig(f"pred.pdf")
 
 
