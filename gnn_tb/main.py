@@ -81,7 +81,7 @@ def generate_batch(rng, min_cells, max_cells, n_nodes, n_batch):
     chains_train = jax.vmap(f_chains_train, in_axes = 0, out_axes = 0)(ts)
 
     # MACROSCOPIC PREDICTOR: boolean array indicating presence / absence of supercells
-    cell_arr = ns[:, None] <= jnp.arange(max_cells * n_nodes)
+    cell_arr = ns[:, None] >= jnp.arange(max_cells)
 
     rng, _ = jax.random.split(rng)
     
@@ -278,8 +278,6 @@ def validate():
     n_nodes = 4
     min_cells = 1
     max_cells = 100 # 400 atoms
-    lr = 1e-3
-    num_epochs = 500
     
     # Model    
     rng = jax.random.PRNGKey(42)
@@ -305,6 +303,7 @@ def validate():
 
     plt.plot(batch["cell_arr"].sum(axis = 1), targets, 'o', label = "data")
     plt.plot(batch["cell_arr"].sum(axis = 1), preds, 'o', label = "prediction")
+
     plt.xlabel("Structure Size")
     plt.ylabel("Ground State Energy")
     plt.legend()
@@ -312,7 +311,7 @@ def validate():
 
 
 if __name__ == '__main__':
-    # train()
+    train()
     plot_loss()
     validate()
     
