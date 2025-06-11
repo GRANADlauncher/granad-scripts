@@ -262,10 +262,7 @@ def train():
 # Plot loss
 def plot_loss(filename='loss.npz'):
     with jnp.load(filename) as data:
-        loss = data['loss']
-
-    if loss_arr is None:
-        loss_arr = load_loss(filename)
+        loss_arr = data['loss']
 
     plt.plot(loss_arr)
     plt.title('Training Loss')
