@@ -288,6 +288,7 @@ def validate():
     # setup model
     model = FusionMLP(1, 10, 20, 10, 20)
     model.init(rng, batch["energies"], batch["cell_arr"])
+    # print(model.tabulate(rng, (batch["energies"], batch["cell_arr"]), compute_flops=True, compute_vjp_flops=True))
 
     with open('params.pkl', 'rb') as f:        
         params = pickle.load(f)
@@ -297,18 +298,18 @@ def validate():
     preds = model.apply(params, batch["energies"], batch["cell_arr"])
     preds = jnp.squeeze(preds)
     targets = batch["ground_state"]
-    loss = jnp.mean((preds - targets) ** 2)
-    
+    loss = jnp.mean((preds - targets) ** 2)    
     print(loss)
 
     plt.plot(batch["cell_arr"].sum(axis = 1), targets, 'o', label = "data")
     plt.plot(batch["cell_arr"].sum(axis = 1), preds, 'o', label = "prediction")
-
+    
     plt.xlabel("Structure Size")
-    plt.ylabel("Ground State Energy")
+    plt.ylabel("Ground State Energy (eV)")
     plt.legend()
     plt.savefig(f"pred.pdf")
-
+    plt.close()
+    
 
 if __name__ == '__main__':
     train()
