@@ -47,7 +47,7 @@ def purity(rho):
     r2 =  rho @ rho 
     return 3 * r2 - 2 * rho @ r2
 
-def get_density_matrix_gcp(ham, mu = 0, cutoff = 1, max_steps = 100):
+def get_density_matrix_gcp(ham, mu = 0, cutoff = 1e-3, max_steps = 100):
     """obtain rho from grand canonical purification"""
 
     # auxiliary function
@@ -68,13 +68,16 @@ def get_density_matrix_gcp(ham, mu = 0, cutoff = 1, max_steps = 100):
         print(error, type(rho_1))
         rho_0 = rho_1
         rho_1 = purity(rho_1)
-        error = dist(rho_1 @ rho_1, identity)
+        # error = dist(rho_1 @ rho_1, rho_1)
+        error = dist(rho_1, rho_0)
         step += 1
-
 
     print(f"Finished after {step} / {max_steps}")
 
     return rho_1
+
+def get_density_matrix_chebyshev():
+    return
 
 
 t = time.time()
