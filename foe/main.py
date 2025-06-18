@@ -1,5 +1,6 @@
 # TODO: check numpy version shennanigans
-# TODO: port to jax perhaps (if doesnt work: how bout non-diff linear granad?)
+# TODO: more geometries
+# TODO: port to jax perhaps (if doesnt work: how bout non-diff linear granad?, need sugar-y abstractions for materials, but this should suffice for now)
 import numpy as np
 import scipy as scp
 import scipy.sparse as sp
@@ -52,13 +53,6 @@ print(time.time() - t)
 t = time.time()
 ham = get_hamiltonian(flake)
 print(time.time() - t)
-
-# def f(x):          # any 1-to-1 NumPy-aware function
-#     return x**2    # example: square every stored value
-# A = sparse.csr_matrix([...])   # any sparse matrix
-# B = A.copy()                   # keep the original if you like
-# B.data = f(B.data)             # apply to the non-zeros only
-# B.eliminate_zeros()            # drop any values that mapped to 0
 
 # basis vectors as sparse matrix (just permutation of identity lol)
 # chebyshev loop => sparse matrix R
