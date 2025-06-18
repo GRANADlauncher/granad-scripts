@@ -1,17 +1,17 @@
 # TODO: make (grand) canonical purifcation fast by keeping matrices sparse
+# TODO: remove hardcoding for flexible bounds
 # TODO: time propagation by hamiltonian: https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.expm.html
 # TODO: check numpy version shennanigans
 # TODO: more geometries
 # TODO: implement chebyshev density matrix and chebyshev expansions
 # TODO: how bout non-diff linear granad?, need sugar-y abstractions for materials, but this should suffice for now
+import time
+
 import numpy as np
+import jax.numpy as jnp
 import scipy as scp
-import scipy.sparse as sp
-from scipy.sparse.linalg import eigsh
-from scipy.fft import dct
 
 import matplotlib.pyplot as plt
-import time
 
 from granad import *
 
@@ -32,7 +32,7 @@ def get_flake(n = 10):
     orbital_positions_uc =  graphene._get_positions_in_uc()
     grid = graphene._get_grid( grid_range )
     orbital_positions = graphene._get_positions_in_lattice( orbital_positions_uc, grid )
-    orbital_positions = jnp.unique( orbital_positions, axis = 0)
+    orbital_positions = np.unique( orbital_positions, axis = 0)
     
     # no dangling atoms => nearest neighbors < 2
     flake = scp.spatial.KDTree(orbital_positions[:, :2])
@@ -58,7 +58,9 @@ def get_density_matrix_gcp(ham, mu = 0, cutoff = 1e-3, max_steps = 100):
     dist = lambda x, y : scp.sparse.linalg.norm(x - y)
 
     # parameters
-    alpha = min(0.5/(ham.max() - mu), 0.5/(mu - ham.min()))
+    ma = 5
+    mi = -15
+    alpha = min(0.5/(ma - mu), 0.5/(mu - mi))
     identity = scp.sparse.identity(ham.shape[0])
 
     # initial guesses
@@ -82,6 +84,11 @@ def get_density_matrix_gcp(ham, mu = 0, cutoff = 1e-3, max_steps = 100):
 
     return rho_1
 
+def sparsify(r):
+    r.data[np.abs(r.data) < 1e-4] = 0
+    r.eliminate_zeros()
+    return r
+
 def canonical_iteration(rho_0):
     r2 = rho_0 @ rho_0
     r3 = r2 @ rho_0
@@ -93,7 +100,7 @@ def canonical_iteration(rho_0):
     else:
         rho_1 = ((1 - 2*c) * rho_0 + (1 + c)* r2 - r3) / (1 - c)
 
-    return rho_1
+    return sparsify(rho_1)
 
 # following PhysRevB.58.12704.pdf
 def get_density_matrix_cp(ham, cutoff = 1e-6, max_steps = 100):
@@ -103,12 +110,17 @@ def get_density_matrix_cp(ham, cutoff = 1e-6, max_steps = 100):
     dist = lambda x, y : scp.sparse.linalg.norm(x - y)
     
     # parameters
-    mu = ham.trace() / ham.shape[0] // 2
-    alpha = min(0.5/(ham.max() - mu), 0.5/(mu - ham.min()))
+    mu = ham.trace() / (ham.shape[0] // 2)
+    E_max = 5
+    E_min = -15
+    # alpha = min(0.5/(ma - mu), 0.5/(mu - mi))
     identity = scp.sparse.identity(ham.shape[0])
 
+    alpha = 1.0 / (E_max - E_min)          # maps spectrum to (0,1)
+    rho_0 = (E_max*identity - ham) * alpha        #   ρ₀ = (E_max I - H)/(E_max-E_min)
+
     # initial guesses
-    rho_0 = alpha*(mu * identity - ham) + 0.5*identity
+    # rho_0 = alpha*(mu * identity - ham) + 0.5*identity
     rho_1 = canonical_iteration(rho_0)
     step = 0
     error = dist(rho_0, rho_1)
@@ -120,9 +132,8 @@ def get_density_matrix_cp(ham, cutoff = 1e-6, max_steps = 100):
         rho_0 = rho_1
         step += 1
 
-        print(rho_0.data.size, ham.shape[0]**2)
-
         if step % 10 == 0:
+            print(rho_0.data.size, ham.shape[0]**2)
             print(error, step)
 
     print(f"Finished after {step} / {max_steps} with error {error}")
@@ -184,24 +195,30 @@ def get_density_matrix_foe():
     c = precompute_coeffs(beta, mu, M)           # scalar FFT/DCT once
     return
 
+def get_rho_exact(ham):
+    energies, vecs = np.linalg.eigh(ham.toarray())
+    rho_exact_energy = np.diag(np.ones_like(energies) * (energies <= -5.0))
+    rho_exact = vecs @ rho_exact_energy @ vecs.conj().T
+    # rho_exact = vecs.conj().T @ rho_exact_energy @ vecs
+    # rho_exact_energy.diagonal() # occupations
+    # plt.plot(np.arange(ham.shape[0]), energies, 'o')
+    # plt.show()
+
+def plot_flake(flake):
+    plt.scatter(x = flake.data[:, 0], y = flake.data[:, 1])
+    plt.axis('equal')
+    plt.show()
+    plt.close()
+
 t = time.time()
-flake = get_flake(40)
+flake = get_flake(100)
 print(time.time() - t)
-# plt.scatter(x = flake.data[:, 0], y = flake.data[:, 1])
-# plt.axis('equal')
-# plt.show()
-# plt.close()
 
 t = time.time()
 ham = get_hamiltonian(flake, gap = -10)
 print(time.time() - t)
 print(ham.shape)
+rho = get_density_matrix_cp(ham, max_steps = 400)
 
-# vals, _ = np.linalg.eigh(ham.toarray())
-# plt.plot(np.arange(ham.shape[0]), vals, 'o')
-# plt.show()
-
-# rho = get_density_matrix_gcp(ham, -4)
-
-rho = get_density_matrix_cp(ham)
-
+print("idempotency error", scp.sparse.linalg.norm(rho @ rho - rho))
+print("occupation ", rho.trace(), "expected: ", rho.shape[0] // 2)
