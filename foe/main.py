@@ -1,12 +1,13 @@
+# TODO: check numpy version shennanigans
+# TODO: port to jax perhaps (if doesnt work: how bout non-diff linear granad?)
 import numpy as np
-import scipy.sparse as sp
 import scipy as scp
+import scipy.sparse as sp
 from scipy.sparse.linalg import eigsh
 from scipy.fft import dct
 
 import matplotlib.pyplot as plt
 import time
-
 
 from granad import *
 
@@ -22,7 +23,6 @@ def remove_dangling_atoms(flake, last_size = np.inf):
     
 def get_flake(n = 10):    
     """rectangular graphene flake"""
-    t = time.time()
     grid_range = [(0, n), (0,n)]
     graphene  = MaterialCatalog.get("graphene")
     orbital_positions_uc =  graphene._get_positions_in_uc()
@@ -30,24 +30,28 @@ def get_flake(n = 10):
     orbital_positions = graphene._get_positions_in_lattice( orbital_positions_uc, grid )
     orbital_positions = jnp.unique( orbital_positions, axis = 0)
     
-    print(orbital_positions.shape)
-    print(time.time() - t)
-
     # no dangling atoms => nearest neighbors < 2
     flake = scp.spatial.KDTree(orbital_positions[:, :2])
     flake  = remove_dangling_atoms(flake)
     return flake
 
+def get_hamiltonian(flake):
+    dist = flake.sparse_distance_matrix(flake, max_distance = 1.43)
+    ham = dist.tocoo()
+    ham.data = np.piecewise(ham.data, [ham.data == 0, ham.data > 0], [0, -2.7])
+    return ham
+
+t = time.time()
 flake = get_flake(200)
+print(time.time() - t)
 # plt.scatter(x = flake.data[:, 0], y = flake.data[:, 1])
 # plt.axis('equal')
 # plt.show()
 # plt.close()
 
-
-# generate graphene points somehow linearly (just translate unit cell)
-# to kdtree => sparse distance matrix D 
-# ham : D => H
+t = time.time()
+ham = get_hamiltonian(flake)
+print(time.time() - t)
 
 # def f(x):          # any 1-to-1 NumPy-aware function
 #     return x**2    # example: square every stored value
