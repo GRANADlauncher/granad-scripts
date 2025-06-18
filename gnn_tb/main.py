@@ -1,3 +1,7 @@
+# TODO: think of sensible node feats in tb model
+# TODO: global refactor of __call__ to accept batch
+# TODO: how to cleanly handly hyperparameters?
+
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
@@ -88,7 +92,30 @@ def generate_batch(rng, min_cells, max_cells, n_nodes, n_batch):
     # put all together in dict
     return chains_train | {"ground_state" : energies, "cell_arr" : cell_arr}, rng
 
-## SPECTRAL EMBEDDING ##
+
+## GEOMETRY EMBEDDING ##
+# TODO: parametric dims
+# input data with dimensions (batch, spatial_dims…, features) => (batch, N, N, 1)
+# learns representation of supercell geometry from cnns
+class CNN(nn.Module):
+  """A simple CNN model. Input: 2D boolean image indicating supercell position in structure. Output: Latent Rep."""
+
+  @nn.compact
+  def __call__(self, x):
+    x = nn.Conv(features=32, kernel_size=(3, 3))(x)
+    x = nn.relu(x)
+    x = nn.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
+    x = nn.Conv(features=64, kernel_size=(3, 3))(x)
+    x = nn.relu(x)
+    x = nn.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
+    x = x.reshape((x.shape[0], -1))  # flatten
+    x = nn.Dense(features=256)(x)
+    x = nn.relu(x)
+    x = nn.Dense(features=10)(x)
+    return x
+
+## SUPERCELL EMBEDDING ##
+# spectral
 class SpectralMLP(nn.Module):
     n_out : int
     n_hidden : int
@@ -104,41 +131,7 @@ class SpectralMLP(nn.Module):
         x = nn.Dense(self.n_out)(x)       # shape inference
         return x
     
-## GEOMETRY EMBEDING ##
-class GeometryMLP(nn.Module):
-    n_out : int
-    n_hidden : int
-
-    @nn.compact
-    def __call__(self, cell_arr):
-        x = cell_arr
-        x = x.reshape((x.shape[0], -1))
-        x = nn.Dense(self.n_hidden)(x)                 # create inline Flax Module submodules
-        x = nn.relu(x)
-        x = nn.Dense(self.n_hidden)(x)                 # create inline Flax Module submodules
-        x = nn.relu(x)
-        x = nn.Dense(self.n_out)(x)       # shape inference
-        return x
-    
-## FEATURE FUSION ##
-class FusionMLP(nn.Module):
-    n_out : int
-    spectrum_n_out : int
-    spectrum_n_hidden : int
-    geometry_n_out : int
-    geometry_n_hidden : int
-
-    @nn.compact
-    def __call__(self, energies, cell_arr):
-        spectrum = SpectralMLP(self.spectrum_n_out, self.spectrum_n_hidden)(energies)        
-        geometry = GeometryMLP(self.geometry_n_out, self.geometry_n_hidden)(cell_arr)
-        x = jnp.concatenate([geometry, spectrum], axis = 1)        
-        x = nn.Dense(10)(x)                 # create inline Flax Module submodules
-        x = nn.relu(x)
-        x = nn.Dense(self.n_out)(x)       # shape inference
-        return x           
-
-## STRUCTURE EMBEDDING ##
+# cell
 class GGNNLayer(nn.Module):
     """Gated Graph Neural Network.
 
@@ -168,6 +161,8 @@ class GGNNLayer(nn.Module):
         """
         ## MAYBE: regression embedding of TB Hamiltonian ##
 
+        rng, _ = jax.random.split(rng)
+
         # message : n_batch x n_nodes x n_feats
         message = jnp.einsum('bij,bjf->bif', edge_tensor, node_feats)
 
@@ -178,9 +173,9 @@ class GGNNLayer(nn.Module):
             carry = nn.GRUCell(features = size_flat).initialize_carry(rng, (self.n_batch, size_flat) )
         node_feats, _ = nn.GRUCell(features = size_flat)(carry, message)
 
-        return node_feats.reshape(self.n_batch, self.n_nodes, self.n_feats)
+        return node_feats.reshape(self.n_batch, self.n_nodes, self.n_feats), rng
 
-# TODO: implement
+
 class GGNNStack(nn.Module):
     """Stack of N GGNNs. Takes in orbital feature list and extracts the final feature via    
 
@@ -188,10 +183,56 @@ class GGNNStack(nn.Module):
 
     where F, G are regression layers and the sum runs over the neighbors of each node.
     """
-    @nn.compact
-    def __call__(self):
-        return
+    n_nodes : int
+    n_feats : int
+    n_batch : int
+    n_hidden_dims : int
+    n_dense_dim : int
+    use_residual : bool
     
+    @nn.compact
+    def __call__(self, batch, rng):
+        node_feats, edge_tensor = batch["node_feats"], batch["edge_tensor"]
+
+        # carry for gru
+        carry = None
+        
+        for dim in self.n_hidden_dims:
+            ggnn = GGNNLayer(self.n_nodes, self.n_feats, self.n_batch)
+            carry, rng = ggnn(node_feats, edge_tensor, rng = rng, carry = carry)
+
+            # TODO: makes sense / skip layers?
+            # TODO: second condition should always be true
+            # residual network => add old and new node_feats
+            if self.use_residual and carry.shape == node_feats.shape:
+                node_feats = node_feats + carry                
+            carry = node_feats
+
+        # readout :  R = sigma(nn(h_f, h_0)) \odot nn(h_f)
+        feats = jnp.concatenate([node_feats, batch["node_feats"]], axis = 0)
+        stage1 = nn.Dense(self.node_feats.shape[1])(feats)
+        stage2 = nn.Dense(self.node_feats.shape[1])(node_feats)
+        readout = nn.sigmoid(stage1) * stage2
+        return readout
+
+## FEATURE FUSION ##
+class FusionMLP(nn.Module):
+    n_out : int
+    spectrum_n_out : int
+    spectrum_n_hidden : int
+    geometry_n_out : int
+    geometry_n_hidden : int
+
+    @nn.compact
+    def __call__(self, energies, cell_arr):
+        spectrum = SpectralMLP(self.spectrum_n_out, self.spectrum_n_hidden)(energies)        
+        geometry = GeometryMLP(self.geometry_n_out, self.geometry_n_hidden)(cell_arr)
+        x = jnp.concatenate([geometry, spectrum], axis = 1)        
+        x = nn.Dense(10)(x)                 # create inline Flax Module submodules
+        x = nn.relu(x)
+        x = nn.Dense(self.n_out)(x)       # shape inference
+        return x           
+
 def train():
     @jax.jit
     def loss_fn(params, energies, cell_arr, targets):
