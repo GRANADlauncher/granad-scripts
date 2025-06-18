@@ -1,3 +1,5 @@
+# TODO: make (grand) canonical purifcation fast by keeping matrices sparse
+# TODO: time propagation by hamiltonian: https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.expm.html
 # TODO: check numpy version shennanigans
 # TODO: more geometries
 # TODO: implement chebyshev density matrix and chebyshev expansions
