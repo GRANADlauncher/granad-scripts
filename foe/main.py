@@ -18,7 +18,7 @@ def remove_dangling_atoms(flake, last_size = np.inf):
     flake =  scp.spatial.KDTree(flake.data[d > 2])
 
     if flake.data.size != last_size:
-        return prune(flake, flake.data.size)
+        return remove_dangling_atoms(flake, flake.data.size)
     
     return flake
     
@@ -36,14 +36,49 @@ def get_flake(n = 10):
     flake  = remove_dangling_atoms(flake)
     return flake
 
-def get_hamiltonian(flake):
+def get_hamiltonian(flake, gap = 0.):
     dist = flake.sparse_distance_matrix(flake, max_distance = 1.43)
     ham = dist.tocoo()
+    gap_term = scp.sparse.spdiags( [[gap if i % 2 else 0 for i in range(ham.shape[0])]], diags = 0)    
     ham.data = np.piecewise(ham.data, [ham.data == 0, ham.data > 0], [0, -2.7])
-    return ham
+    return ham + gap_term
+
+def purity(rho):
+    r2 =  rho @ rho 
+    return 3 * r2 - 2 * rho @ r2
+
+def get_density_matrix_gcp(ham, mu = 0, cutoff = 1, max_steps = 100):
+    """obtain rho from grand canonical purification"""
+
+    # auxiliary function
+    dist = lambda x, y : scp.sparse.linalg.norm(x - y)
+
+    # parameters
+    alpha = min(0.5/(ham.max() - mu), 0.5/(mu - ham.min()))
+    identity = scp.sparse.identity(ham.shape[0])
+
+    # initial guesses
+    rho_0 = alpha*(mu * identity - ham) + 0.5*identity
+    rho_1 = purity(rho_0)    
+    step = 0
+    error = dist(rho_0, rho_1)
+
+    # sc loop    
+    while error > cutoff and step < max_steps:
+        print(error, type(rho_1))
+        rho_0 = rho_1
+        rho_1 = purity(rho_1)
+        error = dist(rho_1 @ rho_1, identity)
+        step += 1
+
+
+    print(f"Finished after {step} / {max_steps}")
+
+    return rho_1
+
 
 t = time.time()
-flake = get_flake(200)
+flake = get_flake(20)
 print(time.time() - t)
 # plt.scatter(x = flake.data[:, 0], y = flake.data[:, 1])
 # plt.axis('equal')
@@ -51,8 +86,15 @@ print(time.time() - t)
 # plt.close()
 
 t = time.time()
-ham = get_hamiltonian(flake)
+ham = get_hamiltonian(flake, gap = -10)
 print(time.time() - t)
+print(ham.shape)
+
+vals, _ = np.linalg.eigh(ham.toarray())
+plt.plot(np.arange(ham.shape[0]), vals, 'o')
+plt.show()
+
+rho = get_density_matrix_gcp(ham, -4)
 
 # basis vectors as sparse matrix (just permutation of identity lol)
 # chebyshev loop => sparse matrix R
