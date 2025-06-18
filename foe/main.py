@@ -1,6 +1,7 @@
 # TODO: check numpy version shennanigans
 # TODO: more geometries
-# TODO: port to jax perhaps (if doesnt work: how bout non-diff linear granad?, need sugar-y abstractions for materials, but this should suffice for now)
+# TODO: implement chebyshev density matrix and chebyshev expansions
+# TODO: how bout non-diff linear granad?, need sugar-y abstractions for materials, but this should suffice for now
 import numpy as np
 import scipy as scp
 import scipy.sparse as sp
@@ -47,6 +48,7 @@ def purity(rho):
     r2 =  rho @ rho 
     return 3 * r2 - 2 * rho @ r2
 
+# following PhysRevB.58.12704.pdf
 def get_density_matrix_gcp(ham, mu = 0, cutoff = 1e-3, max_steps = 100):
     """obtain rho from grand canonical purification"""
 
@@ -65,23 +67,123 @@ def get_density_matrix_gcp(ham, mu = 0, cutoff = 1e-3, max_steps = 100):
 
     # sc loop    
     while error > cutoff and step < max_steps:
-        print(error, type(rho_1))
         rho_0 = rho_1
         rho_1 = purity(rho_1)
-        # error = dist(rho_1 @ rho_1, rho_1)
         error = dist(rho_1, rho_0)
         step += 1
 
-    print(f"Finished after {step} / {max_steps}")
+        if step % 10 == 0:
+            print(error, step)
+
+
+    print(f"Finished after {step} / {max_steps} with error {error}")
 
     return rho_1
 
-def get_density_matrix_chebyshev():
+def canonical_iteration(rho_0):
+    r2 = rho_0 @ rho_0
+    r3 = r2 @ rho_0
+
+    c = (r2 - r3).trace() / (rho_0 - r2).trace()
+
+    if c >= 0.5:
+        rho_1 = ((1 + c) * r2 - r3) / c
+    else:
+        rho_1 = ((1 - 2*c) * rho_0 + (1 + c)* r2 - r3) / (1 - c)
+
+    return rho_1
+
+# following PhysRevB.58.12704.pdf
+def get_density_matrix_cp(ham, cutoff = 1e-6, max_steps = 100):
+    """obtain rho from canonical purification"""
+
+    # auxiliary function
+    dist = lambda x, y : scp.sparse.linalg.norm(x - y)
+    
+    # parameters
+    mu = ham.trace() / ham.shape[0] // 2
+    alpha = min(0.5/(ham.max() - mu), 0.5/(mu - ham.min()))
+    identity = scp.sparse.identity(ham.shape[0])
+
+    # initial guesses
+    rho_0 = alpha*(mu * identity - ham) + 0.5*identity
+    rho_1 = canonical_iteration(rho_0)
+    step = 0
+    error = dist(rho_0, rho_1)
+
+    # sc loop    
+    while error > cutoff and step < max_steps:
+        rho_1 = canonical_iteration(rho_0)        
+        error = dist(rho_1, rho_0)
+        rho_0 = rho_1
+        step += 1
+
+        print(rho_0.data.size, ham.shape[0]**2)
+
+        if step % 10 == 0:
+            print(error, step)
+
+    print(f"Finished after {step} / {max_steps} with error {error}")
+
+    return rho_1
+
+def get_density_matrix_foe():
+    # basis vectors as sparse matrix (just permutation of identity lol)
+    # chebyshev loop => sparse matrix R
+    # density matrix = R (actually, lol)
+
+    def chebyshev_coefficients(f, N):
+        # Chebyshev points
+        x = np.cos(np.pi * np.arange(N) / (N - 1))
+        y = f(x)
+
+        # DCT type-I for Chebyshev coefficients
+        c = dct(y, type=1) / (N - 1)
+        c[0] /= 2
+        c[-1] /= 2
+        return c
+
+    # apply once per desired column/row neighbourhood
+    def chebyshev_apply(v):
+        T0, T1 = v, Hsc @ v                      # CSR SpMV
+        acc    = c[0]*T0 + c[1]*T1
+        for k in range(2, M):
+            T0, T1 = T1, 2.0 * Hsc @ T1 - T0
+            acc   += c[k] * T1
+        return acc
+
+    # Example
+    coeffs = chebyshev_coefficients(f, 10)
+    print("Chebyshev coefficients (via DCT):", coeffs)
+
+    # --- assemble sparse TB Hamiltonian (nearest–neighbour graphene) ---
+    N = 50000
+    row, col, val = ...                     # neighbour list
+    H = sp.csr_array((val, (row, col)), shape=(N, N))
+
+    # --- cheap spectral bounds ----------------
+    # Gershgorin row sums: one pass over non-zeros
+    diag  = H.diagonal()
+    R     = np.abs(H).sum(axis=1).A1 - np.abs(diag)
+    Emin  = (diag - R).min()      # safe lower bound
+    Emax  = (diag + R).max()      # safe upper bound
+
+    # optional: tighten upper bound with 20-step power iteration
+    w_max  = eigsh(H, k=1, which='LA', return_eigenvectors=False)[0]
+
+    # --- Chebyshev FOE loop (CPU) -------------
+    beta = 1/0.025
+    mu   = 0.0
+    M    = 200                                   # expansion order
+    a    = (Emax - Emin)/2
+    b    = (Emax + Emin)/2
+    Hsc  = (H - b*sp.eye(N))/a                   # scale to [-1,1]
+
+    c = precompute_coeffs(beta, mu, M)           # scalar FFT/DCT once
     return
 
-
 t = time.time()
-flake = get_flake(20)
+flake = get_flake(40)
 print(time.time() - t)
 # plt.scatter(x = flake.data[:, 0], y = flake.data[:, 1])
 # plt.axis('equal')
@@ -93,61 +195,11 @@ ham = get_hamiltonian(flake, gap = -10)
 print(time.time() - t)
 print(ham.shape)
 
-vals, _ = np.linalg.eigh(ham.toarray())
-plt.plot(np.arange(ham.shape[0]), vals, 'o')
-plt.show()
+# vals, _ = np.linalg.eigh(ham.toarray())
+# plt.plot(np.arange(ham.shape[0]), vals, 'o')
+# plt.show()
 
-rho = get_density_matrix_gcp(ham, -4)
+# rho = get_density_matrix_gcp(ham, -4)
 
-# basis vectors as sparse matrix (just permutation of identity lol)
-# chebyshev loop => sparse matrix R
-# density matrix = R (actually, lol)
+rho = get_density_matrix_cp(ham)
 
-def chebyshev_coefficients(f, N):
-    # Chebyshev points
-    x = np.cos(np.pi * np.arange(N) / (N - 1))
-    y = f(x)
-
-    # DCT type-I for Chebyshev coefficients
-    c = dct(y, type=1) / (N - 1)
-    c[0] /= 2
-    c[-1] /= 2
-    return c
-
-# apply once per desired column/row neighbourhood
-def chebyshev_apply(v):
-    T0, T1 = v, Hsc @ v                      # CSR SpMV
-    acc    = c[0]*T0 + c[1]*T1
-    for k in range(2, M):
-        T0, T1 = T1, 2.0 * Hsc @ T1 - T0
-        acc   += c[k] * T1
-    return acc
-
-# Example
-coeffs = chebyshev_coefficients(f, 10)
-print("Chebyshev coefficients (via DCT):", coeffs)
-
-# --- assemble sparse TB Hamiltonian (nearest–neighbour graphene) ---
-N = 50000
-row, col, val = ...                     # neighbour list
-H = sp.csr_array((val, (row, col)), shape=(N, N))
-
-# --- cheap spectral bounds ----------------
-# Gershgorin row sums: one pass over non-zeros
-diag  = H.diagonal()
-R     = np.abs(H).sum(axis=1).A1 - np.abs(diag)
-Emin  = (diag - R).min()      # safe lower bound
-Emax  = (diag + R).max()      # safe upper bound
-
-# optional: tighten upper bound with 20-step power iteration
-w_max  = eigsh(H, k=1, which='LA', return_eigenvectors=False)[0]
-
-# --- Chebyshev FOE loop (CPU) -------------
-beta = 1/0.025
-mu   = 0.0
-M    = 200                                   # expansion order
-a    = (Emax - Emin)/2
-b    = (Emax + Emin)/2
-Hsc  = (H - b*sp.eye(N))/a                   # scale to [-1,1]
-
-c = precompute_coeffs(beta, mu, M)           # scalar FFT/DCT once
