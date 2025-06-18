@@ -1,0 +1,7 @@
+* Idea
+  - Approximate $\rho_{ab}(H) \approx \sum_{n = 0}^M a_n T_n(H)$
+  - $\rho_{ab} = \sum_n a_n <i|T_n(H)|j>$
+  - T_n typically polynomials, so compute exponentials of H and product with basis vectors $|j>$
+  - Chebyshev:
+    $|j_{n+1} = 2 H |j_n> - |j_{n-1}>, |j_0> = |j>, |j_1> = H |j_0>$
+  - precompute coefficients, neglect for each i all j that have |r_i - r_j| > cutoff => do sparse mat vec muls
