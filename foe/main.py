@@ -61,7 +61,7 @@ def get_density_matrix_gcp(ham, mu = 0, cutoff = 1e-3, max_steps = 100):
     ma = 5
     mi = -15
     alpha = min(0.5/(ma - mu), 0.5/(mu - mi))
-    identity = scp.sparse.identity(ham.shape[0])
+    identity = scp.sparse.identity(ham.shape[0]) 
 
     # initial guesses
     rho_0 = alpha*(mu * identity - ham) + 0.5*identity
@@ -100,7 +100,7 @@ def canonical_iteration(rho_0):
     else:
         rho_1 = ((1 - 2*c) * rho_0 + (1 + c)* r2 - r3) / (1 - c)
 
-    return sparsify(rho_1)
+    return rho_1.multiply(cutoff_matrix)
 
 # following PhysRevB.58.12704.pdf
 def get_density_matrix_cp(ham, cutoff = 1e-6, max_steps = 100):
@@ -214,11 +214,17 @@ t = time.time()
 flake = get_flake(100)
 print(time.time() - t)
 
+
 t = time.time()
 ham = get_hamiltonian(flake, gap = -10)
 print(time.time() - t)
 print(ham.shape)
+
+cutoff_matrix = flake.sparse_distance_matrix(flake, max_distance = 4*1.43) != 0 + scp.sparse.identity(ham.shape[0]).astype(bool)
+
 rho = get_density_matrix_cp(ham, max_steps = 400)
+
+
 
 print("idempotency error", scp.sparse.linalg.norm(rho @ rho - rho))
 print("occupation ", rho.trace(), "expected: ", rho.shape[0] // 2)
