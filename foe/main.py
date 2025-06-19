@@ -103,42 +103,61 @@ def canonical_iteration(rho_0):
     return rho_1.multiply(cutoff_matrix)
 
 # following PhysRevB.58.12704.pdf
-def get_density_matrix_cp(ham, cutoff = 1e-6, max_steps = 100):
-    """obtain rho from canonical purification"""
+def spectral_bounds(H, tighten=20):
+    """Cheap lower/upper bounds needed for scaling."""
+    d = H.diagonal()
+    R = np.abs(H).sum(axis=1).A1 - np.abs(d)
+    Emin, Emax = (d - R).min(), (d + R).max()
+    # tighten with a few Lanczos steps
+    try:
+        from scipy.sparse.linalg import eigsh
+        Emax = max(Emax, eigsh(H, k=1, which='LA', return_eigenvectors=False)[0])
+        Emin = min(Emin, eigsh(H, k=1, which='SA', return_eigenvectors=False)[0])
+    except Exception:
+        pass
+    return Emin, Emax
 
-    # auxiliary function
-    dist = lambda x, y : scp.sparse.linalg.norm(x - y)
-    
-    # parameters
-    mu = ham.trace() / (ham.shape[0] // 2)
-    E_max = 5
-    E_min = -15
-    # alpha = min(0.5/(ma - mu), 0.5/(mu - mi))
-    identity = scp.sparse.identity(ham.shape[0])
+def prune(M, mask, tol=1e-4):
+    M = M.multiply(mask)
+    # data = M.data
+    # data[np.abs(data) < tol] = 0
+    M.eliminate_zeros()
+    return M
 
-    alpha = 1.0 / (E_max - E_min)          # maps spectrum to (0,1)
-    rho_0 = (E_max*identity - ham) * alpha        #   ρ₀ = (E_max I - H)/(E_max-E_min)
+def get_density_matrix_cp(H, cutoff=1e-6, max_steps=200):
+    N  = H.shape[0]
+    Ne = N // 2                       # half filling for graphene
+    Id = scp.sparse.identity(N, format='csr')
 
-    # initial guesses
-    # rho_0 = alpha*(mu * identity - ham) + 0.5*identity
-    rho_1 = canonical_iteration(rho_0)
-    step = 0
-    error = dist(rho_0, rho_1)
+    Emin, Emax = spectral_bounds(H)
+    alpha      = 1.0/(Emax - Emin)
+    rho        = (Emax*Id - H) * alpha
+    rho *= Ne / rho.trace()           # enforce Tr ρ = Ne
 
-    # sc loop    
-    while error > cutoff and step < max_steps:
-        rho_1 = canonical_iteration(rho_0)        
-        error = dist(rho_1, rho_0)
-        rho_0 = rho_1
+    mask = ((H != 0) + Id).astype(bool) # locality mask
+    mask = cutoff_matrix
+    rho  = prune(rho, mask)
+
+    err, step = 1.0, 0
+    while err > cutoff and step < max_steps:
+        # Palser–Manolopoulos canonical iteration
+        r2, r3 = rho @ rho, None
+        r3     = r2 @ rho
+        c      = (r2.trace() - r3.trace()) / (rho.trace() - r2.trace())
+        rho    = ((1 + c)*r2 - r3)/c if c >= 0.5 \
+                 else ((1 - 2*c)*rho + (1 + c)*r2 - r3)/(1 - c)
+        rho    = prune(rho, mask)
+
         step += 1
-
-        if step % 10 == 0:
-            print(rho_0.data.size, ham.shape[0]**2)
-            print(error, step)
-
-    print(f"Finished after {step} / {max_steps} with error {error}")
-
-    return rho_1
+        if step % 5 == 0 or err < cutoff:
+            # err = abs(rho.trace() - Ne)/Ne
+            err = scp.sparse.linalg.norm(rho@rho - rho)
+            print((rho @ ham).trace() / -2.7 / (ham.shape[0]//2))
+            print(f"step {step:3d}: ΔTrρ = {err:.2e}")
+            
+    err = scp.sparse.linalg.norm(rho@rho - rho)
+    print(f"Converged in {step} steps, idempotency error ", f"{err}")
+    return rho
 
 def get_density_matrix_foe():
     # basis vectors as sparse matrix (just permutation of identity lol)
@@ -221,15 +240,18 @@ ham = get_hamiltonian(flake, gap = -10)
 print(time.time() - t)
 print(ham.shape)
 
-cutoff_matrix = flake.sparse_distance_matrix(flake, max_distance = 4*1.43) != 0 + scp.sparse.identity(ham.shape[0]).astype(bool)
+cutoff_matrix = (flake.sparse_distance_matrix(flake, max_distance = 30*1.43) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
 
 t = time.time()
 rho = get_density_matrix_cp(ham, max_steps = 400)
 print("Canonical Purification ", time.time() - t)
 
-t = time.time()
-energies, vecs = np.linalg.eigh(ham.toarray())
-print("Exact diagonalization ", time.time() - t)
+# r = get_rho_exact(ham)
+# print(np.linalg.norm(r-rho))
 
-print("idempotency error", scp.sparse.linalg.norm(rho @ rho - rho))
-print("occupation ", rho.trace(), "expected: ", rho.shape[0] // 2)
+# t = time.time()
+# energies, vecs = np.linalg.eigh(ham.toarray())
+# print("Exact diagonalization ", time.time() - t)
+
+# print("idempotency error", scp.sparse.linalg.norm(rho @ rho - rho))
+# print("occupation ", rho.trace(), "expected: ", rho.shape[0] // 2)
