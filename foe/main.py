@@ -203,6 +203,7 @@ def get_rho_exact(ham):
     # rho_exact_energy.diagonal() # occupations
     # plt.plot(np.arange(ham.shape[0]), energies, 'o')
     # plt.show()
+    return rho_exact
 
 def plot_flake(flake):
     plt.scatter(x = flake.data[:, 0], y = flake.data[:, 1])
@@ -222,7 +223,13 @@ print(ham.shape)
 
 cutoff_matrix = flake.sparse_distance_matrix(flake, max_distance = 4*1.43) != 0 + scp.sparse.identity(ham.shape[0]).astype(bool)
 
+t = time.time()
 rho = get_density_matrix_cp(ham, max_steps = 400)
+print("Canonical Purification ", time.time() - t)
+
+t = time.time()
+energies, vecs = np.linalg.eigh(ham.toarray())
+print("Exact diagonalization ", time.time() - t)
 
 
 
