@@ -212,7 +212,7 @@ def plot_flake(flake):
     plt.close()
 
 t = time.time()
-flake = get_flake(100)
+flake = get_flake(200)
 print(time.time() - t)
 
 
@@ -230,8 +230,6 @@ print("Canonical Purification ", time.time() - t)
 t = time.time()
 energies, vecs = np.linalg.eigh(ham.toarray())
 print("Exact diagonalization ", time.time() - t)
-
-
 
 print("idempotency error", scp.sparse.linalg.norm(rho @ rho - rho))
 print("occupation ", rho.trace(), "expected: ", rho.shape[0] // 2)
