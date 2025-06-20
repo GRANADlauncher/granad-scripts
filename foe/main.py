@@ -1,3 +1,4 @@
+# TODO: this: https://github.com/flatironinstitute/sparse_dot/tree/release
 # TODO: make (grand) canonical purifcation fast by keeping matrices sparse
 # TODO: remove hardcoding for flexible bounds
 # TODO: time propagation by hamiltonian: https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.expm.html
@@ -313,11 +314,12 @@ def rk4_propagate(
 
         # RK4 stages (all sparse)
         k1 = rhs_func(t,           rho)
-        k2 = rhs_func(t + dt / 2,  rho + (dt / 2) * k1)
-        k3 = rhs_func(t + dt / 2,  rho + (dt / 2) * k2)
-        k4 = rhs_func(t + dt,      rho + dt * k3)
+        # k2 = rhs_func(t + dt / 2,  rho + (dt / 2) * k1)
+        # k3 = rhs_func(t + dt / 2,  rho + (dt / 2) * k2)
+        # k4 = rhs_func(t + dt,      rho + dt * k3)
+        # rho = prune(rho + dt / 6 * (k1 + 2*k2 + 2*k3 + k4), cutoff_matrix)
 
-        rho = prune(rho + dt / 6 * (k1 + 2*k2 + 2*k3 + k4), cutoff_matrix)
+        rho = prune(rho + dt * k1, cutoff_matrix)
 
         # collect x dipole moment
         delta_rho = rho - rho_stat
@@ -338,7 +340,7 @@ print(time.time() - t)
 print(ham.shape)
 cutoff_matrix = (flake.sparse_distance_matrix(flake, max_distance = 20*1.43) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
 t = time.time()
-rho = get_density_matrix_cp(ham, max_steps = 400, cutoff = 1e-3)
+rho = get_density_matrix_cp(ham, cutoff = 1e-3, max_steps = 400)
 print("Canonical Purification ", time.time() - t)
 r = get_rho_exact(ham)
 print(np.linalg.norm(r-rho))
