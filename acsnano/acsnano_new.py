@@ -83,6 +83,7 @@ def sim( length, hopping = -2.66, rpa = True, td = False):
             expectation_values = [ flake.dipole_operator ],
             end_time=100,
             dt = 1e-3,
+            grid = 10,
             stepsize_controller=diffrax.PIDController(atol=1e-10, rtol=1e-10),
             relaxation_rate=1/10,
             illumination=pulse,
