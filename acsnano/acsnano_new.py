@@ -72,6 +72,7 @@ def sim( length, hopping = -2.66, rpa = True, td = False):
         print(f"Simulation time: {time.time() - start_time}")
         
     if td:
+        import diffrax
         # start_time = time.time()
         # omegas_td, absorption_td = td_sim( flake, jnp.min(omegas_rpa), jnp.max(omegas_rpa) )
         # print(f"Simulation time: {time.time() - start_time}")    
