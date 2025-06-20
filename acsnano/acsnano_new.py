@@ -3,7 +3,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import matplotlib.pyplot as plt
-from granad import MaterialCatalog, Rhomboid, Pulse, get_fourier_transform
+from granad import MaterialCatalog, Rhomboid, Pulse, get_fourier_transform, TDResult, get_graphene
 import gc
 
 def load_reference_data():
@@ -52,10 +52,9 @@ def td_sim( flake, omega_min, omega_max ):
     return omegas, jnp.abs( -omegas * jnp.imag( p_omega[:,0] / pulse_omega[:,0] ) )
 
 
-def sim( length, hopping = -2.66, rpa = True, td = False):
+def sim( length, hopping = -2.66, rpa = True, td = True, reload_td = True):
     
-    graphene = MaterialCatalog.get( "graphene" )
-    graphene.add_interaction('hopping', ('pz', 'pz'), [0, hopping])
+    graphene = get_graphene(hoppings = [0, hopping])
     flake = graphene.cut_flake( Rhomboid(18, length, armchair = True), plot = False )
     plt.close()    
     print( len(flake) )
@@ -89,8 +88,13 @@ def sim( length, hopping = -2.66, rpa = True, td = False):
             relaxation_rate=1/10,
             illumination=pulse,
         )
+        result.save("res2.2")
+        
+    if reload_td:
+        result = TDResult.load("res2.2")
         omega_max = omegas_rpa.max()
         omega_min = omegas_rpa.min()
+        # omega_max += (omega_max - omega_min) / 4
         p_omega = result.ft_output( omega_max, omega_min )[0]
         omegas_td, pulse_omega = result.ft_illumination( omega_max, omega_min )
         absorption_td = jnp.abs( -omegas_td * jnp.imag( p_omega[:,0] / pulse_omega[:,0] ) )
@@ -115,7 +119,7 @@ def sim( length, hopping = -2.66, rpa = True, td = False):
     plt.figure(figsize=(10, 6))
     if rpa:
         plt.plot(omegas_rpa, absorption_rpa / jnp.max(absorption_rpa), '-', linewidth=2, label = 'RPA')
-    if td:
+    if reload_td:
         plt.plot(omegas_td, absorption_td / jnp.max(absorption_td), linewidth=2, ls = '--', label = 'TD' )
     plt.plot(omegas_rpa, ref_data, 'o', label='Reference')
     plt.xlabel(r'$\hbar\omega$', fontsize=20)
@@ -129,5 +133,5 @@ if __name__ == '__main__':
     plt.style.use('ggplot')
     plt.figure(figsize=(10, 6))    
     for length in [180]:
-        for hopping in [-2.66]:
-            sim(length, hopping = hopping, rpa = False, td = True)
+        for hopping in [-2.2]:
+            sim(length, hopping = hopping, rpa = False, td = False, reload_td = True)
