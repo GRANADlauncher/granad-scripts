@@ -6,6 +6,7 @@
 # TODO: implement chebyshev density matrix and chebyshev expansions
 # TODO: how bout non-diff linear granad?, need sugar-y abstractions for materials, but this should suffice for now
 import time
+from typing import Callable, Iterable, List, Tuple, Any
 
 import numpy as np
 import jax.numpy as jnp
@@ -117,10 +118,8 @@ def spectral_bounds(H, tighten=20):
         pass
     return Emin, Emax
 
-def prune(M, mask, tol=1e-4):
+def prune(M, mask):
     M = M.multiply(mask)
-    # data = M.data
-    # data[np.abs(data) < tol] = 0
     M.eliminate_zeros()
     return M
 
@@ -230,28 +229,130 @@ def plot_flake(flake):
     plt.show()
     plt.close()
 
+def get_pulse(
+    amplitudes: list[float],
+    frequency: float,
+    peak: float,
+    fwhm: float,
+):
+    def _field(t, real = True):
+        val = (
+            static_part
+            * np.exp(-1j * np.pi / 2 + 1j * frequency * (t - peak))
+            * np.exp(-((t - peak) ** 2) / sigma**2)
+        )
+        return val.real if real else val
+    static_part = np.array(amplitudes)
+    sigma = fwhm / (2.0 * np.sqrt(np.log(2)))
+    return _field
+    
+
+def get_rhs(ham, dip, rho_stat, field):
+    def sparse_rhs(t, rho):
+        # perturbation out of equilibrium
+        delta_rho = rho - rho_stat
+
+        f = field(t)
+        field_term = scp.sparse.spdiags([dip @ f], diags = 0)
+
+        # hermitian
+        h_total = ham + field_term
+        h_times_d = h_total @ rho
+
+        # loss
+        comm = -1j * (h_times_d  - h_times_d.conj().T)
+        diss = -delta_rho * 1/10
+        
+        return comm + diss
+    return sparse_rhs
+
+def rk4_propagate(
+        rhs_func,                
+        t_grid,
+        rho0,
+        dip,
+        cutoff_matrix
+):
+    """
+    Sparse RK4 propagator for a density matrix.
+
+    Parameters
+    ----------
+    rhs_func : callable
+        drho/dt = rhs_func(t, rho, args). Must return a **sparse** matrix.
+    t_grid : 1-D array, float
+        Monotonic time points (len ≥ 2).
+    rho0 : sparse matrix
+        Initial density matrix from canonical purification.
+        Will be converted to complex & CSR on entry.
+    args : tuple
+        Extra arguments forwarded to `rhs_func`.
+    postprocesses : iterable of callables
+        Each f(t, rho, args) → value.  Return values are collected
+        at every step and returned in a list-of-lists.
+    cutoff_matrix : float
+        Absolute tolerance below which matrix entries are discarded
+        to keep ρ sparse.
+
+    Returns
+    -------
+    rho_T : sparse matrix
+        Density matrix at t_grid[-1].
+    measurements : list
+        List of lists with post-processing outputs per time-step.
+    """    
+    # --- initialisation -----------------------------------------------------
+    rho = rho0.astype(np.complex128, copy=True).tocsr()
+    rho_stat = rho
+    out: List[List[Any]] = []
+
+    # --- main RK4 loop ------------------------------------------------------
+    for i in range(len(t_grid) - 1):        
+        t  = float(t_grid[i])
+        dt = float(t_grid[i + 1] - t)
+
+        # RK4 stages (all sparse)
+        k1 = rhs_func(t,           rho)
+        k2 = rhs_func(t + dt / 2,  rho + (dt / 2) * k1)
+        k3 = rhs_func(t + dt / 2,  rho + (dt / 2) * k2)
+        k4 = rhs_func(t + dt,      rho + dt * k3)
+
+        rho = prune(rho + dt / 6 * (k1 + 2*k2 + 2*k3 + k4), cutoff_matrix)
+
+        # collect x dipole moment
+        delta_rho = rho - rho_stat
+        out.append((delta_rho.diagonal() * dip[:, 0]).sum())
+
+        if i % 100 == 0:
+            print(f"step {i}")
+
+    return rho, out
+
+## static
 t = time.time()
-flake = get_flake(200)
+flake = get_flake(100)
 print(time.time() - t)
-
-
 t = time.time()
 ham = get_hamiltonian(flake, gap = -10)
 print(time.time() - t)
 print(ham.shape)
-
-cutoff_matrix = (flake.sparse_distance_matrix(flake, max_distance = 30*1.43) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
-
+cutoff_matrix = (flake.sparse_distance_matrix(flake, max_distance = 20*1.43) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
 t = time.time()
-rho = get_density_matrix_cp(ham, max_steps = 400)
+rho = get_density_matrix_cp(ham, max_steps = 400, cutoff = 1e-3)
 print("Canonical Purification ", time.time() - t)
+r = get_rho_exact(ham)
+print(np.linalg.norm(r-rho))
 
-# r = get_rho_exact(ham)
-# print(np.linalg.norm(r-rho))
+## dynamic
+t_points    = np.linspace(0.0, 50.0, 1001)           # 0 … 50 fs, 0.05 fs step
+pulse = get_pulse(amplitudes=[1e-5, 0], frequency=2.3, peak=2, fwhm=0.5)
+dip = flake.data
+rhs_func = get_rhs(ham, dip, rho, pulse)
 
-# t = time.time()
-# energies, vecs = np.linalg.eigh(ham.toarray())
-# print("Exact diagonalization ", time.time() - t)
-
-# print("idempotency error", scp.sparse.linalg.norm(rho @ rho - rho))
-# print("occupation ", rho.trace(), "expected: ", rho.shape[0] // 2)
+rho_final, energies = rk4_propagate(
+    rhs_func,
+    t_points,
+    rho,
+    dip,
+    cutoff_matrix    
+)
