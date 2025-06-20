@@ -346,15 +346,19 @@ r = get_rho_exact(ham)
 print(np.linalg.norm(r-rho))
 
 ## dynamic
-t_points    = np.linspace(0.0, 50.0, 1001)           # 0 … 50 fs, 0.05 fs step
+t_points    = np.linspace(0.0, 10.0, 2001)           # 0 … 50 fs, 0.05 fs step
 pulse = get_pulse(amplitudes=[1e-5, 0], frequency=2.3, peak=2, fwhm=0.5)
 dip = flake.data
 rhs_func = get_rhs(ham, dip, rho, pulse)
 
-rho_final, energies = rk4_propagate(
+rho_final, dip = rk4_propagate(
     rhs_func,
     t_points,
     rho,
     dip,
     cutoff_matrix    
 )
+
+plt.plot(t_points[1:], np.array(dip))
+plt.savefig("dip.pdf")
+plt.close()
