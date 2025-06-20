@@ -80,7 +80,9 @@ def sim( length, hopping = -2.66, rpa = True, td = False):
         )
         result = flake.master_equation(
             expectation_values = [ flake.dipole_operator ],
-            end_time=40,
+            end_time=100,
+            dt = 1e-3,
+            stepsize_controller=diffrax.PIDController(atol=1e-10, rtol=1e-10)
             relaxation_rate=1/10,
             illumination=pulse,
         )
@@ -125,4 +127,4 @@ if __name__ == '__main__':
     plt.figure(figsize=(10, 6))    
     for length in [180]:
         for hopping in [-2.66]:
-            sim(length, hopping = hopping, rpa = True, td = True)
+            sim(length, hopping = hopping, rpa = False, td = True)
