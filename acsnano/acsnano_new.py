@@ -123,6 +123,6 @@ def sim( length, hopping = -2.66, rpa = True, td = False):
 if __name__ == '__main__':
     plt.style.use('ggplot')
     plt.figure(figsize=(10, 6))    
-    for length in [10]:
-        for hopping in [2.2]:
+    for length in [180]:
+        for hopping in [-2.66]:
             sim(length, hopping = hopping, rpa = True, td = True)
