@@ -17,6 +17,24 @@ import matplotlib.pyplot as plt
 
 from granad import *
 
+def get_fourier_transform(t_linspace, function_of_time, omega_max = np.inf, omega_min = -np.inf, return_omega_axis=True):
+    # Calculate the frequency axis
+    delta_t = t_linspace[1] - t_linspace[0]  # assuming uniform spacing
+
+    # Compute the FFT along the first axis    
+    function_of_omega = np.fft.fft(function_of_time, axis=0) * delta_t
+
+    N = function_of_time.shape[0]  # number of points in t_linspace
+    omega_axis = 2 * np.pi * np.fft.fftfreq(N, d=delta_t)
+
+    mask = (omega_axis >= omega_min) & (omega_axis <= omega_max)
+    
+    if return_omega_axis:
+        return omega_axis[mask], function_of_omega[mask]
+    else:
+        return function_of_omega[mask]
+
+
 def remove_dangling_atoms(flake, last_size = np.inf):
     dist = flake.sparse_distance_matrix(flake, max_distance = 1.43)
     d = jnp.squeeze(np.sum(dist, axis = 0))
@@ -259,10 +277,10 @@ def get_rhs(ham, dip, rho_stat, field):
         # hermitian
         h_total = ham + field_term
         h_times_d = h_total @ rho
+        comm = -1j * (h_times_d  - h_times_d.conj().T)
 
         # loss
-        comm = -1j * (h_times_d  - h_times_d.conj().T)
-        diss = -delta_rho * 1/10
+        diss = -delta_rho * 1/2 * 0
         
         return comm + diss
     return sparse_rhs
@@ -332,7 +350,7 @@ def rk4_propagate(
 
 ## static
 t = time.time()
-flake = get_flake(100)
+flake = get_flake(150)
 print(time.time() - t)
 t = time.time()
 ham = get_hamiltonian(flake, gap = -10)
@@ -340,13 +358,13 @@ print(time.time() - t)
 print(ham.shape)
 cutoff_matrix = (flake.sparse_distance_matrix(flake, max_distance = 20*1.43) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
 t = time.time()
-rho = get_density_matrix_cp(ham, cutoff = 1e-3, max_steps = 400)
+rho = get_density_matrix_cp(ham, cutoff = 1e-6, max_steps = 400)
 print("Canonical Purification ", time.time() - t)
 r = get_rho_exact(ham)
 print(np.linalg.norm(r-rho))
 
 ## dynamic
-t_points    = np.linspace(0.0, 10.0, 2001)           # 0 … 50 fs, 0.05 fs step
+t_points    = np.linspace(0.0, 30.0, 10001)           # 0 … 50 fs, 0.05 fs step
 pulse = get_pulse(amplitudes=[1e-5, 0], frequency=2.3, peak=2, fwhm=0.5)
 dip = flake.data
 rhs_func = get_rhs(ham, dip, rho, pulse)
@@ -359,6 +377,20 @@ rho_final, dip = rk4_propagate(
     cutoff_matrix    
 )
 
-plt.plot(t_points[1:], np.array(dip))
+t_points = t_points[1:]
+n = 6000
+dip = np.array(dip)
+plt.plot(t_points[:n], dip[:n])
 plt.savefig("dip.pdf")
+plt.close()
+
+eta = 0.5
+dip_damped = dip * np.exp(-eta * t_points)
+plt.plot(t_points[:n], dip_damped[:n])
+plt.savefig("dip_damped.pdf")
+plt.close()
+
+omega, dip_omega = get_fourier_transform(t_points, dip_damped, omega_min = 0, omega_max = 10)
+plt.plot(omega, dip_omega)
+plt.savefig("dip_omega.pdf")
 plt.close()
