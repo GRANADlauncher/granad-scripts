@@ -289,7 +289,7 @@ def rk4_propagate(
         t_grid,
         rho0,
         dip,
-        cutoff_matrix
+        mask
 ):
     """
     Sparse RK4 propagator for a density matrix.
@@ -308,7 +308,7 @@ def rk4_propagate(
     postprocesses : iterable of callables
         Each f(t, rho, args) → value.  Return values are collected
         at every step and returned in a list-of-lists.
-    cutoff_matrix : float
+    mask : float
         Absolute tolerance below which matrix entries are discarded
         to keep ρ sparse.
 
@@ -334,9 +334,9 @@ def rk4_propagate(
         # k2 = rhs_func(t + dt / 2,  rho + (dt / 2) * k1)
         # k3 = rhs_func(t + dt / 2,  rho + (dt / 2) * k2)
         # k4 = rhs_func(t + dt,      rho + dt * k3)
-        # rho = prune(rho + dt / 6 * (k1 + 2*k2 + 2*k3 + k4), cutoff_matrix)
+        # rho = prune(rho + dt / 6 * (k1 + 2*k2 + 2*k3 + k4), mask)
 
-        rho = prune(rho + dt * k1, cutoff_matrix)
+        rho = prune(rho + dt * k1, mask)
 
         # collect x dipole moment
         delta_rho = rho - rho_stat
@@ -374,7 +374,7 @@ def sim():
         t_points,
         rho,
         dip,
-        cutoff_matrix    
+        mask
     )
 
     scp.sparse.save_npz("rho.npz",        rho)          # ρ(t = 0)
