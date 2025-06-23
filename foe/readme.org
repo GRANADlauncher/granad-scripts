@@ -1,0 +1,51 @@
+* GRANAD meets O(N) Methods
+
+** Idea
+   Exploit nearsightedness by only including a couple of neighbors.
+
+** Implementation
+   - Density Matrix purification + Time Propagation *works for gapped systems only*
+   - Spectral Methods
+
+** Density Matrix purificatioon
+
+** Spectral Series
+
+   Expand function $f(O) = \sum_n f_n P_n(O)$. O is operator with ||O|| <= 1.
+
+   $\delta(\omega - H) = \sum_n \Delta_n(\omega) \mathcal{T}_n(H) / (1 + \delta_{n,0})$
+
+   
+   $\Delta_n(\omega) = 2 T_n(\omega) / (\pi \sqrt(1 - \omega^2))$ and H has been rescaled with evs between -1 and 1.
+
+   Chebyshev polynomials
+
+   $T_0(X) = 1, T_1(X) = X, T_{n+1}(X) = 2 X T_n(X) - T_{n-1}(X)$
+
+   DOS
+
+   $N\rho(\omega) = Tr(\delta(\omega - H)) = \frac{1}{\pi \sqrt{1 - \omega^2}} \sum_n \mu_n T_n(\omega)$
+
+   Chebyshev moments
+
+   $\mu_n = (1 + \delta_{n,0})/2 Tr[T_n(H)]$
+
+   are evaluated recursively
+
+   1. SpMV for matrix polynomials T_n
+   2. Trace is evaluated stochastically
+
+   Singularity in DOS is bad, because one needs more moments, Gibbs ringing. Cure by Kernel Polynomial Method (KPM): Convolve $\mu_n$ with Lorentz kernel $g^L_n = \sinh(\lambda(1 - n / M)) / \sinh(\lambda)$, where $\lambda$ is resolution parameter s.t. delta fun gets smeared out.
+   
+
+
+   
+   
+* Idea
+  - Approximate $\rho_{ab}(H) \approx \sum_{n = 0}^M a_n T_n(H)$
+  - $\rho_{ab} = \sum_n a_n <i|T_n(H)|j>$
+  - T_n typically polynomials, so compute exponentials of H and product with basis vectors $|j>$
+  - Chebyshev:
+    $|j_{n+1} = 2 H |j_n> - |j_{n-1}>, |j_0> = |j>, |j_1> = H |j_0>$
+  - precompute coefficients, neglect for each i all j that have |r_i - r_j| > cutoff => do sparse mat vec muls
+

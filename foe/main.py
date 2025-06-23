@@ -348,49 +348,72 @@ def rk4_propagate(
 
     return rho, out
 
-## static
-t = time.time()
-flake = get_flake(150)
-print(time.time() - t)
-t = time.time()
-ham = get_hamiltonian(flake, gap = -10)
-print(time.time() - t)
-print(ham.shape)
-cutoff_matrix = (flake.sparse_distance_matrix(flake, max_distance = 20*1.43) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
-t = time.time()
-rho = get_density_matrix_cp(ham, cutoff = 1e-6, max_steps = 400)
-print("Canonical Purification ", time.time() - t)
-r = get_rho_exact(ham)
-print(np.linalg.norm(r-rho))
+def sim():
+    ## static
+    t = time.time()
+    flake = get_flake(200)
+    print(time.time() - t)
+    t = time.time()
+    ham = get_hamiltonian(flake, gap = -10)
+    print(time.time() - t)
+    print(ham.shape)
+    cutoff_matrix = (flake.sparse_distance_matrix(flake, max_distance = 20*1.43) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
+    t = time.time()
+    rho = get_density_matrix_cp(ham, cutoff = 1e-6, max_steps = 400)
+    print("Canonical Purification ", time.time() - t)
+    r = get_rho_exact(ham)
+    print(np.linalg.norm(r-rho))
 
-## dynamic
-t_points    = np.linspace(0.0, 30.0, 10001)           # 0 … 50 fs, 0.05 fs step
-pulse = get_pulse(amplitudes=[1e-5, 0], frequency=2.3, peak=2, fwhm=0.5)
-dip = flake.data
-rhs_func = get_rhs(ham, dip, rho, pulse)
+    ## dynamic
+    t_points    = np.linspace(0.0, 30.0, 10001)           # 0 … 50 fs, 0.05 fs step
+    pulse = get_pulse(amplitudes=[1e-5, 0], frequency=2.3, peak=2, fwhm=0.5)
+    dip = flake.data
+    rhs_func = get_rhs(ham, dip, rho, pulse)
 
-rho_final, dip = rk4_propagate(
-    rhs_func,
-    t_points,
-    rho,
-    dip,
-    cutoff_matrix    
-)
+    rho_final, dip = rk4_propagate(
+        rhs_func,
+        t_points,
+        rho,
+        dip,
+        cutoff_matrix    
+    )
 
-t_points = t_points[1:]
-n = 6000
-dip = np.array(dip)
-plt.plot(t_points[:n], dip[:n])
-plt.savefig("dip.pdf")
-plt.close()
+    sparse.save_npz("rho.npz",        rho)          # ρ(t = 0)
+    sparse.save_npz("rho_final.npz",  rho_final)    # ρ(t = t_final)
 
-eta = 0.5
-dip_damped = dip * np.exp(-eta * t_points)
-plt.plot(t_points[:n], dip_damped[:n])
-plt.savefig("dip_damped.pdf")
-plt.close()
+    np.savez_compressed(
+        "time_and_dip.npz",
+        t_points=t_points,            # shape (N_time,)
+        dip=dip                       # shape (N_time,) or (N_time, …)
+    )
 
-omega, dip_omega = get_fourier_transform(t_points, dip_damped, omega_min = 0, omega_max = 10)
-plt.plot(omega, dip_omega)
-plt.savefig("dip_omega.pdf")
-plt.close()
+def plot_sim():
+
+    rho        = sparse.load_npz("rho.npz")
+    rho_final  = sparse.load_npz("rho_final.npz")
+
+    data       = np.load("time_and_dip.npz")
+    t_points   = data["t_points"]
+    dip        = data["dip"]
+    
+    n = 6000
+    dip = np.array(dip)
+    plt.plot(t_points[:n], dip[:n])
+    plt.savefig("dip.pdf")
+    plt.close()
+
+    eta = 0.5
+    dip_damped = dip * np.exp(-eta * t_points)
+    plt.plot(t_points[:n], dip_damped[:n])
+    plt.savefig("dip_damped.pdf")
+    plt.close()
+
+    omega, dip_omega = get_fourier_transform(t_points, dip_damped, omega_min = 0, omega_max = 10)
+    plt.plot(omega, dip_omega)
+    plt.savefig("dip_omega.pdf")
+    plt.close()
+
+
+if __name__ == '__main__':
+    sim()
+    plot_sim()
