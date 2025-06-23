@@ -109,7 +109,7 @@ def sparsify(r):
     r.eliminate_zeros()
     return r
 
-def canonical_iteration(rho_0):
+def canonical_iteration(rho_0, mask):
     r2 = rho_0 @ rho_0
     r3 = r2 @ rho_0
 
@@ -120,7 +120,7 @@ def canonical_iteration(rho_0):
     else:
         rho_1 = ((1 - 2*c) * rho_0 + (1 + c)* r2 - r3) / (1 - c)
 
-    return rho_1.multiply(cutoff_matrix)
+    return rho_1.multiply(mask)
 
 # following PhysRevB.58.12704.pdf
 def spectral_bounds(H, tighten=20):
@@ -142,7 +142,7 @@ def prune(M, mask):
     M.eliminate_zeros()
     return M
 
-def get_density_matrix_cp(H, cutoff=1e-6, max_steps=200):
+def get_density_matrix_cp(H, mask, cutoff=1e-6, max_steps=200):
     N  = H.shape[0]
     Ne = N // 2                       # half filling for graphene
     Id = scp.sparse.identity(N, format='csr')
@@ -153,7 +153,6 @@ def get_density_matrix_cp(H, cutoff=1e-6, max_steps=200):
     rho *= Ne / rho.trace()           # enforce Tr ρ = Ne
 
     mask = ((H != 0) + Id).astype(bool) # locality mask
-    mask = cutoff_matrix
     rho  = prune(rho, mask)
 
     err, step = 1.0, 0
@@ -357,9 +356,9 @@ def sim():
     ham = get_hamiltonian(flake, gap = -10)
     print(time.time() - t)
     print(ham.shape)
-    cutoff_matrix = (flake.sparse_distance_matrix(flake, max_distance = 20*1.43) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
+    mask = (flake.sparse_distance_matrix(flake, max_distance = 20*1.43) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
     t = time.time()
-    rho = get_density_matrix_cp(ham, cutoff = 1e-6, max_steps = 400)
+    rho = get_density_matrix_cp(ham, mask, cutoff = 1e-6, max_steps = 400)
     print("Canonical Purification ", time.time() - t)
     r = get_rho_exact(ham)
     print(np.linalg.norm(r-rho))
