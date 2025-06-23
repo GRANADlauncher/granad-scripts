@@ -169,7 +169,7 @@ def get_density_matrix_cp(H, mask, cutoff=1e-6, max_steps=200):
         if step % 5 == 0 or err < cutoff:
             # err = abs(rho.trace() - Ne)/Ne
             err = scp.sparse.linalg.norm(rho@rho - rho)
-            print((rho @ ham).trace() / -2.7 / (ham.shape[0]//2))
+            # print((rho @ H).trace() / -2.7 / (H.shape[0]//2))
             print(f"step {step:3d}: ΔTrρ = {err:.2e}")
             
     err = scp.sparse.linalg.norm(rho@rho - rho)
