@@ -378,8 +378,8 @@ def sim():
         cutoff_matrix    
     )
 
-    sparse.save_npz("rho.npz",        rho)          # ρ(t = 0)
-    sparse.save_npz("rho_final.npz",  rho_final)    # ρ(t = t_final)
+    scp.sparse.save_npz("rho.npz",        rho)          # ρ(t = 0)
+    scp.sparse.save_npz("rho_final.npz",  rho_final)    # ρ(t = t_final)
 
     np.savez_compressed(
         "time_and_dip.npz",
@@ -389,8 +389,8 @@ def sim():
 
 def plot_sim():
 
-    rho        = sparse.load_npz("rho.npz")
-    rho_final  = sparse.load_npz("rho_final.npz")
+    rho        = scp.sparse.load_npz("rho.npz")
+    rho_final  = scp.sparse.load_npz("rho_final.npz")
 
     data       = np.load("time_and_dip.npz")
     t_points   = data["t_points"]
