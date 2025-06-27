@@ -286,6 +286,9 @@ def train():
         loss_arr.append(loss)
         if epoch % 50 == 0:
             print(f"Epoch {epoch}: Loss = {loss:.4f}")
+        if loss < 2:
+            print(f"Loss below threshold {loss}. Stopping...")
+            break
 
     # save params and loss
     with open('params.pkl', 'wb') as f:
