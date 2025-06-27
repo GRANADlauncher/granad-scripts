@@ -176,6 +176,9 @@ def get_density_matrix_cp(H, mask, cutoff=1e-6, max_steps=200):
     print(f"Converged in {step} steps, idempotency error ", f"{err}")
     return rho
 
+def get_linear_response():
+    return
+
 def get_density_matrix_foe():
     # basis vectors as sparse matrix (just permutation of identity lol)
     # chebyshev loop => sparse matrix R

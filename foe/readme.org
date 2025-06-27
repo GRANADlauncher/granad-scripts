@@ -36,11 +36,10 @@
    2. Trace is evaluated stochastically
 
    Singularity in DOS is bad, because one needs more moments, Gibbs ringing. Cure by Kernel Polynomial Method (KPM): Convolve $\mu_n$ with Lorentz kernel $g^L_n = \sinh(\lambda(1 - n / M)) / \sinh(\lambda)$, where $\lambda$ is resolution parameter s.t. delta fun gets smeared out.
-   
-
 
    
-   
+   $\sigma = \text{Tr}\left[ v_x T_n v_x T_n \right]$
+
 * Idea
   - Approximate $\rho_{ab}(H) \approx \sum_{n = 0}^M a_n T_n(H)$
   - $\rho_{ab} = \sum_n a_n <i|T_n(H)|j>$
