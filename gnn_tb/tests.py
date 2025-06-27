@@ -9,7 +9,7 @@ from main import *
 # TODO: adjust
 def test_ggnn():
     n_nodes = 4 # 4 atoms
-    n_nodes_large = 100
+    n_feats = 3
     n_batch = 3
     n_feats = 1
 
@@ -34,6 +34,8 @@ def test_ggnn():
 
 
 def test_spectral_vanilla():
+    from vanilla import FusionMLP
+    
     n_batch = 3
     n_nodes = 4
     min_cells = 1

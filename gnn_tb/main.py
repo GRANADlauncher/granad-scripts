@@ -115,7 +115,7 @@ class CNN(nn.Module):
     return x
 
 ## SUPERCELL EMBEDDING ##
-# spectral
+# energy / spectral representation
 class SpectralMLP(nn.Module):
     n_out : int
     n_hidden : int
@@ -131,7 +131,7 @@ class SpectralMLP(nn.Module):
         x = nn.Dense(self.n_out)(x)       # shape inference
         return x
     
-# cell
+# geometry of microscopic cell
 class GGNNLayer(nn.Module):
     """Gated Graph Neural Network.
 
@@ -141,6 +141,13 @@ class GGNNLayer(nn.Module):
     n^{t+1}_i = G(n^{t}, m^{t+1})
 
     where F = id, and G is a Gated Recurrent Unit.
+
+    With B batch dim, N number of orbitals, F number of features per orbital, this is a function F
+
+    F : X, H -> Y
+
+    where X represents the structure of the supercell and is of dimension B x N x F
+    and H is the Hamiltonian of dimension B x N x N
     
     TODO: gain anything from making F MLP? where F = \sigma(W H + B) with W, B regression tensors. G is a Gated Recurrent Unit.
     TODO: generalize edge_tensor to more feats
@@ -160,7 +167,6 @@ class GGNNLayer(nn.Module):
         carry: n_batch x n_nodes x n_feats tensor of previous layer
         """
         ## MAYBE: regression embedding of TB Hamiltonian ##
-
         rng, _ = jax.random.split(rng)
 
         # message : n_batch x n_nodes x n_feats
