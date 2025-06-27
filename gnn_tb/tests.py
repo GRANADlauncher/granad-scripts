@@ -6,22 +6,19 @@ from main import *
 # https://flax-linen.readthedocs.io/en/latest/api_reference/flax.linen/module.html#flax.linen.Module.tabulate
 # print(ggnn.tabulate(jax.random.key(0), jnp.ones((1, 28, 28, 1)), compute_flops=True, compute_vjp_flops=True))
 
-# TODO: adjust
 def test_ggnn():
-    n_nodes = 4 # 4 atoms
-    n_feats = 3
-    n_batch = 3
+    n_nodes = 4 # atoms
     n_feats = 1
+    n_batch = 3
+
+    min_cells = 4
+    max_cells = 5
 
     # init random number generator
     rng = jax.random.PRNGKey(0)
 
-    # macro hoppings and extensions
-    hoppings = jnp.stack([jnp.zeros(n_batch), jnp.linspace(3, 10, n_batch)]).T
-    lengths = jax.random.randint(rng, (n_batch,), 80, 100)
-
-    # generate tranining batch
-    batch = generate_batch(n_nodes, lengths, hoppings)
+    # batch
+    batch, rng = generate_batch(rng, min_cells, max_cells, n_nodes, n_batch)
 
     # initialize single layer
     ggnn = GGNNLayer(n_nodes, n_feats, n_batch)
@@ -32,9 +29,10 @@ def test_ggnn():
 
     assert output.shape == (n_batch, n_nodes, n_feats)
 
+    
 
 def test_spectral_vanilla():
-    from vanilla import FusionMLP
+    from vanilla import FusionMLP, generate_batch
     
     n_batch = 3
     n_nodes = 4
