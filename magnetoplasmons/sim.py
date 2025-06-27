@@ -71,10 +71,10 @@ def sim():
     beta = 1 / (kb * 300)
 
     # magnetic field
-    Bs = jnp.linspace(0, 10, 2)
+    Bs = jnp.linspace(0, 10, 20)
 
     # frequency
-    omegas = jnp.linspace(0, 1, 3)
+    omegas = jnp.linspace(0, 1, 100)
 
     # results
     corr_map = []
