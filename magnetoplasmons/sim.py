@@ -83,7 +83,8 @@ def sim():
     shape = Hexagon(50)
 
     for B in Bs:
-        flake = get_graphene_b_field(B, -2.7, shape)    
+        flake = get_graphene_b_field(B, -2.7, shape)
+        print(len(flake))
         flake.set_beta(beta)
         flake.show_2d(name = "flake.pdf")
         flake.show_energies(name = "ip_energies.pdf")
