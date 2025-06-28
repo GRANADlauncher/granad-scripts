@@ -65,15 +65,15 @@ def get_absorption_rpa(flake):
 
 def sim():
     # boltzmann constant
-    kb = 8.617 * 1e-5
+    kb = 1 # 8.617 * 1e-5
 
     # beta at room temperature
     beta = 1 / (kb * 300)
 
-    # magnetic field
-    Bs = jnp.linspace(0, 10, 20)
+    # magnetic field / scaled by e * (1e-4 eV)**2
+    Bs = jnp.linspace(0, 10, 20) * 200 * 0.3 * 1e-8
 
-    # frequency
+    # frequency    
     omegas = jnp.linspace(0, 1, 100)
 
     # results
