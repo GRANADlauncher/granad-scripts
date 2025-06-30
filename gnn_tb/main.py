@@ -40,7 +40,7 @@ def chain(n, electrons, ts):
     odd = energies[(electrons // 2) + (electrons % 2)] * (electrons % 2)
 
     # each node is characterized by its atom kind
-    node_features = jnp.array([1 for i in range(n)])
+    node_features = jnp.array([1 for i in range(n)])[:, None]
 
     return {
         "ground_state" : even + odd,
@@ -94,25 +94,32 @@ def generate_batch(rng, min_cells, max_cells, n_nodes, n_batch):
 
 
 ## GEOMETRY EMBEDDING ##
-# TODO: parametric dims
 # input data with dimensions (batch, spatial_dims…, features) => (batch, N, N, 1)
 # learns representation of supercell geometry from cnns
 class CNN(nn.Module):
-  """A simple CNN model. Input: 2D boolean image indicating supercell position in structure. Output: Latent Rep."""
+    """A simple CNN model. Input: 2D boolean image indicating supercell position in structure. Output: Latent Rep."""
 
-  @nn.compact
-  def __call__(self, x):
-    x = nn.Conv(features=32, kernel_size=(3, 3))(x)
-    x = nn.relu(x)
-    x = nn.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
-    x = nn.Conv(features=64, kernel_size=(3, 3))(x)
-    x = nn.relu(x)
-    x = nn.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
-    x = x.reshape((x.shape[0], -1))  # flatten
-    x = nn.Dense(features=256)(x)
-    x = nn.relu(x)
-    x = nn.Dense(features=10)(x)
-    return x
+    features : list[int]
+    kernels : list[tuple]
+    windows : list[tuple]
+    strides : list[tuple]
+    n_hidden_features : int
+    n_out_features : int
+  
+
+    @nn.compact
+    def __call__(self, x):
+        for i, feats in enumerate(self.features):
+            x = nn.Conv(features=feats, kernel_size=self.kernels[i])(x)
+            x = nn.relu(x)
+            x = nn.avg_pool(x, window_shape=self.windows[i], strides=self.strides[i])
+
+        x = x.reshape((x.shape[0], -1))
+        x = nn.Dense(features=self.n_hidden_features)(x)
+        x = nn.relu(x)
+        x = nn.Dense(features=self.n_out_features)(x)
+    
+        return x
 
 ## SUPERCELL EMBEDDING ##
 # energy / spectral representation
@@ -172,11 +179,17 @@ class GGNNLayer(nn.Module):
         # message : n_batch x n_nodes x n_feats
         message = jnp.einsum('bij,bjf->bif', edge_tensor, node_feats)
 
-        # GRUCell: "All dimensions except the final are considered batch dimensions."
+        # TODO: if this sucks, check if one grucell per node performs better
+        # GRUCell: "All dimensions except the final are considered batch dimensions."    
         size_flat = self.n_nodes * self.n_feats
         message = message.reshape((self.n_batch, size_flat))
+
+        # TODO: push up reshape op
+        # TODO: one GRU cell per node
         if carry is None:
             carry = nn.GRUCell(features = size_flat).initialize_carry(rng, (self.n_batch, size_flat) )
+        else:
+            carry = carry.reshape((self.n_batch, size_flat))
         node_feats, _ = nn.GRUCell(features = size_flat)(carry, message)
 
         return node_feats.reshape(self.n_batch, self.n_nodes, self.n_feats), rng
@@ -198,45 +211,49 @@ class GGNNStack(nn.Module):
     
     @nn.compact
     def __call__(self, batch, rng):
-        node_feats, edge_tensor = batch["node_feats"], batch["edge_tensor"]
+        node_feats, edge_tensor = batch["node_features"], batch["hamiltonian"]
 
         # carry for gru
         carry = None
-        
-        for dim in self.n_hidden_dims:
+        for _ in range(self.n_hidden_dims):
             ggnn = GGNNLayer(self.n_nodes, self.n_feats, self.n_batch)
             carry, rng = ggnn(node_feats, edge_tensor, rng = rng, carry = carry)
 
             # TODO: makes sense / skip layers?
-            # TODO: second condition should always be true
             # residual network => add old and new node_feats
-            if self.use_residual and carry.shape == node_feats.shape:
-                node_feats = node_feats + carry                
-            carry = node_feats
+            if self.use_residual:
+                carry += node_feats
+            node_feats = carry
 
         # readout :  R = sigma(nn(h_f, h_0)) \odot nn(h_f)
-        feats = jnp.concatenate([node_feats, batch["node_feats"]], axis = 0)
-        stage1 = nn.Dense(self.node_feats.shape[1])(feats)
-        stage2 = nn.Dense(self.node_feats.shape[1])(node_feats)
+        feats = jnp.stack([node_feats, batch["node_features"]], axis = 1)
+        stage1 = nn.Dense(node_feats.shape[1])(feats.reshape(self.n_batch, self.n_feats * self.n_nodes * 2))
+        stage2 = nn.Dense(node_feats.shape[1])(node_feats.reshape(self.n_batch, self.n_feats * self.n_nodes))
         readout = nn.sigmoid(stage1) * stage2
         return readout
 
 ## FEATURE FUSION ##
 class FusionMLP(nn.Module):
+    spectral_config : dict    
+    ggnn_stack_config : dict    
+    cnn_config : dict
+
+    n_hidden : int
     n_out : int
-    spectrum_n_out : int
-    spectrum_n_hidden : int
-    geometry_n_out : int
-    geometry_n_hidden : int
 
     @nn.compact
-    def __call__(self, energies, cell_arr):
-        spectrum = SpectralMLP(self.spectrum_n_out, self.spectrum_n_hidden)(energies)        
-        geometry = GeometryMLP(self.geometry_n_out, self.geometry_n_hidden)(cell_arr)
-        x = jnp.concatenate([geometry, spectrum], axis = 1)        
-        x = nn.Dense(10)(x)                 # create inline Flax Module submodules
+    def __call__(self, energies, batch, rng, structure):
+        spectrum = SpectralMLP(**self.spectral_config)(energies)
+        
+        stack = GGNNStack(**self.ggnn_stack_config)(batch, rng)
+        
+        geometry = CNN(**self.cnn_config)(structure)
+
+        x = jnp.concatenate([geometry, spectrum, stack], axis = 1)        
+        x = nn.Dense(self.n_hidden)(x)        
         x = nn.relu(x)
-        x = nn.Dense(self.n_out)(x)       # shape inference
+        x = nn.Dense(self.n_out)(x)
+        
         return x           
 
 def train():
@@ -362,4 +379,3 @@ if __name__ == '__main__':
     train()
     plot_loss()
     validate()
-    
