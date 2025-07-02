@@ -60,7 +60,7 @@ def test_ggnn_stack():
     variables = stack.init(rng, batch, rng)
     output = stack.apply(variables, batch, rng)
 
-    assert output.shape == (n_batch, n_nodes)
+    assert output.shape == (n_batch, n_dense_dim)
 
 
 def test_ggnn():
