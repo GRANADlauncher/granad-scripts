@@ -114,7 +114,7 @@ def generate_batch(n_batch, rng, max_atoms, max_supercells):
     
     return {
         "ground_state" : ground_states,
-        "node_features" : node_features,
+        "node_features" : node_features[..., None],
         "energies" : energies,
         "hamiltonian" : hamiltonians,
         "image" : imgs    
@@ -306,7 +306,8 @@ class FusionMLP(nn.Module):
     n_out : int
 
     @nn.compact
-    def __call__(self, energies, batch, rng, structure):
+    def __call__(self, batch, rng):
+        energies, structure = batch["energies"], batch["image"]
         spectrum = SpectralMLP(**self.spectral_config)(energies)
         
         stack = GGNNStack(**self.ggnn_stack_config)(batch, rng)
