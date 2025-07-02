@@ -1,7 +1,7 @@
-# TODO: refactor batch to return sample of geometries / structure as an NWHC image
-# TODO: batch with SK integrals / realistic structures
+# DONE: refactor batch to return sample of geometries / structure as an NWHC image
 # TODO: train, test, validate
 # TODO: cross validation
+# TODO: batch with SK integrals / realistic structures
 # TODO: think of sensible node feats in tb model
 # TODO: global refactor of __call__ to accept batch
 # TODO: how to cleanly handly hyperparameters?
@@ -229,34 +229,32 @@ class GGNNLayer(nn.Module):
     n_batch : int
     
     @nn.compact
-    def __call__(self, node_feats, edge_tensor, rng, carry = None):
+    def __call__(self, node_feats, edge_tensor, rng, carry=None):
         """
-        
-        node_feats: n_batch x n_nodes x n_feats tensor for tb orbitals
-        edge_tensor: n_batch x n_nodes x n_nodes for tb hamiltonian
-        rng: prng
-        carry: n_batch x n_nodes x n_feats tensor of previous layer
+        node_feats: [B, N, F]
+        edge_tensor: [B, N, N]
         """
-        ## MAYBE: regression embedding of TB Hamiltonian ##
-        rng, _ = jax.random.split(rng)
+        B, N, F = node_feats.shape
 
-        # message : n_batch x n_nodes x n_feats
+        # Message passing: H @ node_feats => shape [B, N, F]
         message = jnp.einsum('bij,bjf->bif', edge_tensor, node_feats)
 
-        # TODO: if this sucks, check if one grucell per node performs better
-        # GRUCell: "All dimensions except the final are considered batch dimensions."    
-        size_flat = self.n_nodes * self.n_feats
-        message = message.reshape((self.n_batch, size_flat))
+        # GRU per node: input shape [B, F]
+        gru = nn.GRUCell(features=self.n_feats)
 
-        # TODO: push up reshape op
-        # TODO: one GRU cell per node
+        # Initialize carry if needed: shape [B, N, F]
         if carry is None:
-            carry = nn.GRUCell(features = size_flat).initialize_carry(rng, (self.n_batch, size_flat) )
-        else:
-            carry = carry.reshape((self.n_batch, size_flat))
-        node_feats, _ = nn.GRUCell(features = size_flat)(carry, message)
+            carry = jax.vmap(lambda _: gru.initialize_carry(rng, (B,1)))(jnp.arange(N))
+            carry = jnp.transpose(carry, (1, 0, 2))  # shape [B, N, F]
+            
+        # Apply GRU over nodes using vmap
+        def step(carry_i, msg_i):
+            return gru(carry_i, msg_i)
 
-        return node_feats.reshape(self.n_batch, self.n_nodes, self.n_feats), rng
+        # vmap over node axis
+        new_feats, _ = jax.vmap(step, in_axes=(1, 1), out_axes=(1, 1))(carry, message)
+        
+        return new_feats, rng
 
 
 class GGNNStack(nn.Module):
@@ -290,9 +288,10 @@ class GGNNStack(nn.Module):
             node_feats = carry
 
         # readout :  R = sigma(nn(h_f, h_0)) \odot nn(h_f)
-        feats = jnp.stack([node_feats, batch["node_features"]], axis = 1)
-        stage1 = nn.Dense(node_feats.shape[1])(feats.reshape(self.n_batch, self.n_feats * self.n_nodes * 2))
-        stage2 = nn.Dense(node_feats.shape[1])(node_feats.reshape(self.n_batch, self.n_feats * self.n_nodes))
+        feats = jnp.concatenate([node_feats, batch["node_features"]], axis = -1)
+
+        stage1 = nn.Dense(self.n_dense_dim)(feats.reshape(self.n_batch, self.n_feats * self.n_nodes * 2))
+        stage2 = nn.Dense(self.n_dense_dim)(node_feats.reshape(self.n_batch, self.n_feats * self.n_nodes))
         readout = nn.sigmoid(stage1) * stage2
         return readout
 
@@ -323,63 +322,90 @@ class FusionMLP(nn.Module):
 
 def train():
     @jax.jit
-    def loss_fn(params, energies, cell_arr, targets):
+    def loss_fn(params, batch, rng):
         # batch is dict containing supercell energies and geometry representation
-        preds = model.apply(params, energies, cell_arr)
+        preds = model.apply(params, batch, rng)
         
         # remove singleton dimension
         preds = jnp.squeeze(preds)
 
-        # compute loss
-        loss = jnp.mean((preds - targets) ** 2)
+        # compute loss        
+        loss = jnp.mean((preds - batch["ground_state"]) ** 2)
         return loss
 
     @jax.jit
-    def train_step(params, energies, cell_arr, targets, opt_state):
-        # gradients
-        grads = jax.grad(loss_fn)(params, energies, cell_arr, targets)
+    def train_step(params, batch, rng, opt_state):
+        
+        # gradients        
+        grads = jax.grad(loss_fn)(params, batch, rng)
         
         # update params
         updates, opt_state = optimizer.update(grads, opt_state)        
         new_params = optax.apply_updates(params, updates)
 
         # loss with new params
-        loss = loss_fn(new_params, energies, cell_arr, targets)
+        loss = loss_fn(new_params, batch, rng)
 
         # return info
-        return new_params, opt_state, loss
+        return new_params, opt_state, loss, rng
     
     # Some hyperparameters
     n_batch = 32
-    n_nodes = 4
-    min_cells = 1
-    max_cells = 100 # 400 atoms
+    max_atoms = 4
+    max_supercells = 10
     lr = 1e-3
     num_epochs = 505
+
+    spectral_config = {"n_hidden" : 8,
+                       "n_out" : 10}
     
-    # Model    
-    rng = jax.random.PRNGKey(42)
+    ggnn_stack_config = {"n_nodes" : max_atoms**2,
+                         "n_feats" : 1,
+                         "n_batch" : n_batch,
+                         "n_hidden_dims" : 4,
+                         "n_dense_dim" : 10,
+                         "use_residual" : False}
+    
+    cnn_config = {"features" : [32, 64],
+                  "kernels" : [(3,3), (3,3)],
+                  "windows" : [(2,2), (2,2)],
+                  "strides" : [(2,2), (2,2)],
+                  "n_hidden_features" : 256,
+                  "n_out_features" : 10}    
     
     # batch
-    batch, rng = generate_batch(rng, min_cells, max_cells, n_nodes, n_batch)
-
+    rng = jax.random.PRNGKey(0)    
+    batch = generate_batch(n_batch, rng, max_atoms, max_supercells)
+    rng, _ = jax.random.split(rng)
+    
     # setup model
-    model = FusionMLP(1, 10, 20, 10, 20)
-    params = model.init(rng, batch["energies"], batch["cell_arr"])
+    model = FusionMLP(spectral_config, ggnn_stack_config, cnn_config, n_hidden = 10, n_out = 1)
+    params = fusion.init(rng, batch, rng)
     
     # Optimizer
     optimizer = optax.adam(lr)
     opt_state = optimizer.init(params)
 
+    # end optimization at this loss
+    thresh = 1
+
     # Training loop
     loss_arr = []
     for epoch in range(num_epochs):
-        batch, rng = generate_batch(rng, min_cells, max_cells, n_nodes, n_batch)
-        energies, cell_arr, targets = batch["energies"], batch["cell_arr"], batch["ground_state"]
-        params, opt_state, loss = train_step(params, energies, cell_arr, targets, opt_state)
+        rng, _ = jax.random.split(rng)
+        batch = generate_batch(n_batch, rng, max_atoms, max_supercells)
+        rng, _ = jax.random.split(rng)
+        
+        params, opt_state, loss, rng = train_step(params, batch, rng, opt_state)
+        
         loss_arr.append(loss)
+        
         if epoch % 50 == 0:
             print(f"Epoch {epoch}: Loss = {loss:.4f}")
+        if loss < thresh:
+            break
+
+    print(loss)
 
     # save params and loss
     with open('params.pkl', 'wb') as f:
@@ -402,52 +428,71 @@ def plot_loss(filename='loss.npz'):
     plt.close()
 
 def validate():
-    # Some hyperparameters
-    n_batch = 32
-    n_nodes = 4
-    min_cells = 1
-    max_cells = 100 # 400 atoms
+    @jax.jit
+    def loss_fn(params, batch, rng):
+        # batch is dict containing supercell energies and geometry representation
+        preds = model.apply(params, batch, rng)
+        
+        # remove singleton dimension
+        preds = jnp.squeeze(preds)
+
+        # compute loss        
+        loss = jnp.mean((preds - batch["ground_state"]) ** 2)
+        return loss
+
     
-    # Model    
-    rng = jax.random.PRNGKey(42)
+    # Some hyperparameters
+    n_batch = 20
+    max_atoms = 4
+    max_supercells = 1
+    lr = 1e-3
+    num_epochs = 2
+
+    spectral_config = {"n_hidden" : 8,
+                       "n_out" : 10}
+    
+    ggnn_stack_config = {"n_nodes" : max_atoms**2,
+                         "n_feats" : 1,
+                         "n_batch" : n_batch,
+                         "n_hidden_dims" : 4,
+                         "n_dense_dim" : 10,
+                         "use_residual" : False}
+    
+    cnn_config = {"features" : [32, 64],
+                  "kernels" : [(3,3), (3,3)],
+                  "windows" : [(2,2), (2,2)],
+                  "strides" : [(2,2), (2,2)],
+                  "n_hidden_features" : 256,
+                  "n_out_features" : 10}    
     
     # batch
-    batch, rng = generate_batch(rng, min_cells, max_cells, n_nodes, n_batch)
-
+    rng = jax.random.PRNGKey(10)    
+    batch = generate_batch(n_batch, rng, max_atoms, max_supercells)
+    rng, _ = jax.random.split(rng)
+    
     # setup model
-    model = FusionMLP(1, 10, 20, 10, 20)
-    model.init(rng, batch["energies"], batch["cell_arr"])
-    # print(model.tabulate(rng, (batch["energies"], batch["cell_arr"]), compute_flops=True, compute_vjp_flops=True))
-
+    model = FusionMLP(spectral_config, ggnn_stack_config, cnn_config, n_hidden = 10, n_out = 1)
+    params = fusion.init(rng, batch, rng)    
+    rng, _ = jax.random.split(rng)
+    
     with open('params.pkl', 'rb') as f:        
         params = pickle.load(f)
 
-    # new batch of larger dims
-    batch, rng = generate_batch(rng, min_cells, max_cells, n_nodes, n_batch)
-    preds = model.apply(params, batch["energies"], batch["cell_arr"])
+    preds = model.apply(params, batch, rng)
     preds = jnp.squeeze(preds)
-    targets = batch["ground_state"]
-    loss = jnp.mean((preds - targets) ** 2)    
-    print(loss)
-
-    plt.plot(batch["cell_arr"].sum(axis = 1), targets, 'o', label = "data")
-    plt.plot(batch["cell_arr"].sum(axis = 1), preds, 'o', label = "prediction")
+    
+    atoms = [ img.sum() * batch["node_features"][i].sum() for i, img in enumerate(batch["image"]) ]
+    
+    plt.plot(atoms, batch["ground_state"], 'o', label = "data")
+    plt.plot(atoms, preds, 'o', label = "prediction")
     
     plt.xlabel("Structure Size")
     plt.ylabel("Ground State Energy (eV)")
     plt.legend()
     plt.savefig(f"pred.pdf")
     plt.close()
-    
 
 if __name__ == '__main__':
-    # train()
-    # plot_loss()
-    # validate()
-    
-    n_batch = 3
-    max_atoms = 4
-    min_atoms = 1
-    rng = jax.random.PRNGKey(42)
-    max_supercells = 3    
-    batch = generate_batch(n_batch, rng, max_atoms, max_supercells)
+    train()
+    plot_loss()
+    validate()
