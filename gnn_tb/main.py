@@ -380,7 +380,7 @@ def train():
     
     # setup model
     model = FusionMLP(spectral_config, ggnn_stack_config, cnn_config, n_hidden = 10, n_out = 1)
-    params = fusion.init(rng, batch, rng)
+    params = model.init(rng, batch, rng)
     
     # Optimizer
     optimizer = optax.adam(lr)
@@ -472,7 +472,7 @@ def validate():
     
     # setup model
     model = FusionMLP(spectral_config, ggnn_stack_config, cnn_config, n_hidden = 10, n_out = 1)
-    params = fusion.init(rng, batch, rng)    
+    params = model.init(rng, batch, rng)    
     rng, _ = jax.random.split(rng)
     
     with open('params.pkl', 'rb') as f:        
