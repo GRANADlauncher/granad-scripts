@@ -1,3 +1,7 @@
+# TODO: refactor batch to return sample of geometries / structure as an NWHC image
+# TODO: batch with SK integrals / realistic structures
+# TODO: train, test, validate
+# TODO: cross validation
 # TODO: think of sensible node feats in tb model
 # TODO: global refactor of __call__ to accept batch
 # TODO: how to cleanly handly hyperparameters?
@@ -11,6 +15,110 @@ from flax.serialization import to_state_dict, from_state_dict
 import pickle
 
 import matplotlib.pyplot as plt
+
+def generate_batch(n_batch, rng, max_atoms, max_supercells):
+    """Generates training batch. Random 1D or 2D structure, characterized by supercell and TB Hamiltonian.
+
+    Args:
+        n_batch : batch size
+        rng : prng key
+        max_atoms : max number of atoms in supercell
+        max_supercells : max number of overall supercells
+
+    Returns:
+        Dictionary with keys
+    
+        ground_state : energy of structure
+        image : supercell boolean
+        node_features : N_atoms x N_features
+        energies : supercell energies
+        hamiltonian : supercell hamiltonian
+    """
+    def get_hamiltonian(pos, ts):
+        d = jnp.linalg.norm(pos - pos[:, None], axis = -1)
+        ds = jnp.unique(d)
+
+        ham = jnp.zeros_like(d)
+        for i, t in enumerate(ts):
+            ham += t * (d == ds[i])
+            
+        return ham
+
+    # supercell
+    grid = jnp.array([[i, j] for i in range(0, max_atoms) for j in range(0, max_atoms)])
+    masks = jax.random.randint(rng, (n_batch, max_atoms**2), 0, 2).astype(bool)  # randomly delete atoms in supercell
+    rng, _ = jax.random.split(rng)
+    no_neighbors = jax.random.randint(rng, (n_batch,), 1, 10)  # randomly assign hopping range
+    rng, _ = jax.random.split(rng)
+    
+
+    # return vals
+    imgs = []
+    supercell_ham = []
+    supercell_energies = []    
+    ground_states = []
+    node_features = []
+    
+    ## structure
+    coefficients = jax.random.randint(rng, (n_batch, 2), 1, max_supercells)
+    for batch_idx, (x,y) in enumerate(coefficients):
+        from itertools import product
+        
+        # displacement vectors for positions in supercell
+        prod = list(product(range(x+1), range(y+1)))
+        displacements = jnp.array(prod) * (max_atoms)
+
+        # final positions of structure
+        supercell_masked = grid[masks[batch_idx]]
+        positions = (supercell_masked + displacements[:, None, :]).reshape(supercell_masked.shape[0] * displacements.shape[0], 2)
+
+        # hopping rates 
+        ts = jax.random.randint(rng, (no_neighbors[batch_idx],), 1, 100) / 100
+        rng, _ = jax.random.split(rng)
+        
+        # hamiltonian of supercell
+        ham_sup = get_hamiltonian(supercell_masked, ts)
+        supercell_ham.append(jnp.pad(ham_sup, (0, max_atoms**2 - ham_sup.shape[0])))
+
+        # energies
+        vals, _ = jnp.linalg.eigh(ham_sup)
+        supercell_energies.append(jnp.pad(vals, (0, max_atoms**2 - vals.size)))
+
+        # node features
+        node_features.append( jnp.pad(jnp.ones(vals.size), (0, max_atoms**2 - vals.size)) )
+            
+        # ground state energy of structure
+        ham = get_hamiltonian(positions, ts)        
+        electrons = ham.shape[0] // 2
+        even = 2 * vals[:electrons//2].sum()
+        odd = vals[(electrons // 2) + (electrons % 2)] * (electrons % 2)
+        ground_states.append(even + odd)
+
+        # boolean mask representing displacement
+        img = [[1 if (i,j) in prod else 0 for i in range(max_atoms)] for j in range(max_atoms)]
+        imgs.append(img)
+
+        # print(jnp.array(img))
+        # plt.scatter(positions[:, 0], positions[:, 1])
+        # plt.scatter(grid[masks[batch_idx]][:, 0], grid[masks[batch_idx]][:, 1])
+        # for idx, pos in enumerate(positions):
+        #     plt.annotate(str(idx), (pos[0], pos[1]), textcoords="offset points", xytext=(0,10), ha='center')
+        # plt.show()
+
+
+    imgs = jnp.array(imgs)[..., None]
+    node_features = jnp.array(node_features)
+    energies = jnp.array(supercell_energies)
+    hamiltonians = jnp.array(supercell_ham)
+    ground_states = jnp.array(ground_states)
+    
+    return {
+        "ground_state" : ground_states,
+        "node_features" : node_features,
+        "energies" : energies,
+        "hamiltonian" : hamiltonians,
+        "image" : imgs    
+    }
 
 ## GEOMETRIES ##
 def chain(n, electrons, ts):
@@ -48,50 +156,6 @@ def chain(n, electrons, ts):
         "hamiltonian" : hamiltonian,
         "node_features" : node_features
     }
-
-def generate_batch(rng, min_cells, max_cells, n_nodes, n_batch):    
-    """Generate a training batch.
-
-    Arguments:
-        rng: PRNG
-        min_cells : min_number of units cells
-        max_cells : max_number of units cells
-        n_nodes : number of nodes / atoms in supercell
-        n_batch : batch size
-       
-    Returns: Dict with keys
-       ground_state : gs energy of the structure
-       cell_arr : boolean array indicating presence / absence of supercell
-       energies : IP energies of supercell
-       hamiltonian : IP hamiltonian of supercell
-
-       array: new PRNG key
-    
-    """
-    
-    # chains up to max_cells * n_nodes atoms
-    ns = jax.random.randint(rng, (n_batch,), min_cells, max_cells)
-
-    # scale nn hopping rates array to floats
-    ts = jax.random.randint(rng, (n_batch,), 1, 100)
-    ts /= ts.max() * 4
-    ts = jnp.vstack([jnp.zeros_like(ts), ts]).T
-
-    # TARGET: metallic chain gs energies 
-    energies = jnp.array([chain(n * n_nodes, n * n_nodes, ts[i])["ground_state"] for i, n in enumerate(ns)])
-
-    # MICROSCOPIC PREDICTOR: hamiltonians and energies of supercell
-    f_chains_train = lambda t: chain(n_nodes, n_nodes, t)
-    chains_train = jax.vmap(f_chains_train, in_axes = 0, out_axes = 0)(ts)
-
-    # MACROSCOPIC PREDICTOR: boolean array indicating presence / absence of supercells
-    cell_arr = ns[:, None] >= jnp.arange(max_cells)
-
-    rng, _ = jax.random.split(rng)
-    
-    # put all together in dict
-    return chains_train | {"ground_state" : energies, "cell_arr" : cell_arr}, rng
-
 
 ## GEOMETRY EMBEDDING ##
 # input data with dimensions (batch, spatial_dims…, features) => (batch, N, N, 1)
@@ -376,6 +440,13 @@ def validate():
     
 
 if __name__ == '__main__':
-    train()
-    plot_loss()
-    validate()
+    # train()
+    # plot_loss()
+    # validate()
+    
+    n_batch = 3
+    max_atoms = 4
+    min_atoms = 1
+    rng = jax.random.PRNGKey(42)
+    max_supercells = 3    
+    batch = generate_batch(n_batch, rng, max_atoms, max_supercells)
