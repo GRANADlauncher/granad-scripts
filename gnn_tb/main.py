@@ -73,7 +73,7 @@ def generate_batch(n_batch, rng, max_atoms, max_supercells):
         positions = (supercell_masked + displacements[:, None, :]).reshape(supercell_masked.shape[0] * displacements.shape[0], 2)
 
         # hopping rates 
-        ts = jax.random.randint(rng, (no_neighbors[batch_idx],), 1, 100) / 100
+        ts = jnp.sort(jax.random.randint(rng, (no_neighbors[batch_idx],), 1, 100) / 100)
         rng, _ = jax.random.split(rng)
         
         # hamiltonian of supercell
@@ -352,7 +352,7 @@ def train():
     # Some hyperparameters
     n_batch = 32
     max_atoms = 4
-    max_supercells = 10
+    max_supercells = 100
     lr = 1e-3
     num_epochs = 505
 
@@ -442,9 +442,9 @@ def validate():
 
     
     # Some hyperparameters
-    n_batch = 20
+    n_batch = 50
     max_atoms = 4
-    max_supercells = 1
+    max_supercells = 100
     lr = 1e-3
     num_epochs = 2
 
