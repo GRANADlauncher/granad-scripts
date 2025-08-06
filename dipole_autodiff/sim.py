@@ -13,7 +13,6 @@ for size in [10, 15, 20, 25]:
         return 2*es[:(flake.electrons // 2)].sum()
 
     sus_fun = jax.jacrev(jax.jacrev(gs))
-    field = jnp.array([1e-9, 1e-9, 1e-9])
-    field = 1e-7
+    field = 1e-7 # zero => nans
     sus_autodiff = sus_fun(field)
     print(sus, sus_autodiff)
