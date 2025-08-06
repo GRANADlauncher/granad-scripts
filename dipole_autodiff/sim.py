@@ -10,6 +10,7 @@ for size in [10, 15, 20, 25]:
     def gs(field):
         ham =  flake.hamiltonian + jnp.diag(flake.positions[:, 0] *  field)
         es, _ = jnp.linalg.eigh(ham)
+        # spin degeneracy => mult by 2
         return 2*es[:(flake.electrons // 2)].sum()
 
     sus_fun = jax.jacrev(jax.jacrev(gs))
