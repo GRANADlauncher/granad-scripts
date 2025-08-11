@@ -62,57 +62,51 @@ def plot_orbital_layout_2d(orbs, show_tags=None, circle_scale: float = 1e3, inse
         plt.show()
         
 
-hbn = MaterialCatalog.get("hBN")
 
-flake = hbn.cut_flake( Triangle(18)  )
-
-omegas_rpa = jnp.linspace( 0, 3, 100 )
-
-polarizability = flake.get_polarizability_rpa(
-    omegas_rpa,
-    relaxation_rate = 1/10,
-    polarization = 0,
-    hungry = 1 # higher numbers are faster and consume more RAM
-)
-
-absorption_rpa = polarizability.imag * 4 * jnp.pi * omegas_rpa
-
+flake = MaterialCatalog.get("hBN").cut_flake( Rectangle(10, 10) )
+flake.show_2d()
 
 pulse = Pulse(
     amplitudes=[1e-5, 0, 0], frequency=2.3, peak=5, fwhm=2
 )
 
+operators = [flake.dipole_operator, flake.velocity_operator]
+
 result = flake.master_equation(
-    expectation_values = [ flake.dipole_operator ],
-    end_time=40,
-    relaxation_rate=1/10,
-    illumination=pulse,
-)
-omega_max = omegas_rpa.max()
-omega_min = omegas_rpa.min()
-p_omega = result.ft_output( omega_max, omega_min )[0]
-omegas_td, pulse_omega = result.ft_illumination( omega_max, omega_min )
-absorption_td = jnp.abs( -omegas_td * jnp.imag( p_omega[:,0] / pulse_omega[:,0] )  )
+    relaxation_rate = 1/10,
+    illumination = pulse,
+    expectation_values = operators,
+    end_time = 40,
+     )
 
+omega_min, omega_max = 0, 5
+omegas, pulse_omega = result.ft_illumination( omega_min = omega_min, omega_max = omega_max )
+output_omega = result.ft_output( omega_min = omega_min, omega_max = omega_max )[0]
 
+import matplotlib.pyplot as plt
+
+# Style
+plt.style.use('seaborn-v0_8-paper')
+
+# Data
+p = -(omegas * output_omega[:, 0]).imag
+j = output_omega[:, 3].real
+
+# Figure
 fig, ax = plt.subplots(figsize=(10, 6))
 
-# Plot RPA
-ax.plot(omegas_rpa, absorption_rpa / jnp.max(absorption_rpa),
-        'o', markersize=6, color='C0', alpha=0.8, 
-        label='RPA')
+# Plot curves
+ax.plot(omegas, p, color='C0', linewidth=2.5, 
+        label=r'$-\,\mathrm{Im}[\omega p_x]$')
+ax.plot(omegas, j, linestyle='--', linewidth=2.5, color='C1',
+        label=r'$\mathrm{Re}[j_x]$')
 
-# Plot TD
-ax.plot(omegas_td, absorption_td / jnp.max(absorption_td),
-        linestyle='--', linewidth=2.5, color='C1',
-        label='TD')
+# Labels
+ax.set_xlabel(r'$\omega$ (eV)', fontsize=18)
+ax.set_ylabel(r'$j$ (a.u.)', fontsize=18)  # added units placeholder
+ax.set_title(r'Current and Polarization Components vs $\omega$', fontsize=20, pad=15)
 
-# Labels and title
-ax.set_xlabel(r'$\hbar\omega$ (eV)', fontsize=18)
-ax.set_ylabel(r'$\sigma(\omega)$ (normalized)', fontsize=18)
-ax.set_title('Absorption Spectrum vs Photon Energy', fontsize=20, pad=15)
-
-# Grid & ticks
+# Grid and ticks
 ax.grid(True, linestyle='--', alpha=0.6)
 ax.tick_params(axis='both', which='major', labelsize=14, length=6, width=1.2)
 ax.tick_params(axis='both', which='minor', length=3, width=1)
@@ -125,4 +119,4 @@ plot_orbital_layout_2d(flake, circle_scale=1e3, inset_ax=inset_ax)
 
 # Layout
 plt.tight_layout()
-plt.savefig("rpa_vs_td.pdf")
+plt.savefig("continuity.pdf")
