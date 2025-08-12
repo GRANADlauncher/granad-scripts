@@ -425,7 +425,7 @@ def rk4_propagate(
 def static_sim_hbn():
     t = time.time()
 
-    flake_b, flake_n = get_flake_hbn(30)
+    flake_b, flake_n = get_flake_hbn(200)
     ham = get_hamiltonian_hbn(flake_b, flake_n)
     # vals, _ = np.linalg.eigh(ham.toarray())
     # plt.plot(jnp.arange(vals.size), vals, '.')
