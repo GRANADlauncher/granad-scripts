@@ -351,7 +351,7 @@ def train():
         return new_params, opt_state, loss, rng
     
     # Some hyperparameters
-    n_batch = 32
+    n_batch = 4
     max_atoms = 4
     max_supercells = 30
     lr = 1e-3
