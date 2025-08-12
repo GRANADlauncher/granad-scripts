@@ -297,6 +297,7 @@ def get_density_matrix_cp(H, mask, cutoff=1e-6, max_steps=200):
             err = scp.sparse.linalg.norm(rho@rho - rho)
             # print((rho @ H).trace() / -2.7 / (H.shape[0]//2))
             print(f"step {step:3d}: ΔTrρ = {err:.2e}")
+
             
     err = scp.sparse.linalg.norm(rho@rho - rho)
     print(f"Converged in {step} steps, idempotency error ", f"{err}")
@@ -479,7 +480,7 @@ def rk4_propagate(
 def static_sim_hbn():
     t = time.time()
 
-    flake_b, flake_n = get_flake_hbn(200)
+    flake_b, flake_n = get_flake_hbn(100)
     ham = get_hamiltonian_hbn(flake_b, flake_n)
     # vals, _ = np.linalg.eigh(ham.toarray())
     # plt.plot(jnp.arange(vals.size), vals, '.')
@@ -491,7 +492,7 @@ def static_sim_hbn():
     print(time.time() - t)
     print(ham.shape)
     flake = scp.spatial.KDTree(jnp.concatenate([flake_n.data, flake_b.data]))
-    mask = (flake.sparse_distance_matrix(flake, max_distance = 20*1.5) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
+    mask = (flake.sparse_distance_matrix(flake, max_distance = 10*1.5) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)    
     t = time.time()
     # rho = get_density_matrix_sp2(ham, ham.shape[0]//2, mask, cutoff = 1e-6, max_steps = 400)
     rho = get_density_matrix_cp(ham, mask, cutoff = 1e-6, max_steps = 400)
