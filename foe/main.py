@@ -35,15 +35,30 @@ def get_fourier_transform(t_linspace, function_of_time, omega_max = np.inf, omeg
         return function_of_omega[mask]
 
 
-def remove_dangling_atoms(flake, last_size = np.inf):
-    dist = flake.sparse_distance_matrix(flake, max_distance = 1.43)
+def remove_dangling_atoms(flake, max_distance = 1.43, last_size = np.inf):
+    dist = flake.sparse_distance_matrix(flake, max_distance = max_distance)
     d = jnp.squeeze(np.sum(dist, axis = 0))
     flake =  scp.spatial.KDTree(flake.data[d > 2])
 
     if flake.data.size != last_size:
-        return remove_dangling_atoms(flake, flake.data.size)
+        return remove_dangling_atoms(flake, max_distance = max_distance, last_size = flake.data.size)
     
     return flake
+
+def remove_dangling_atoms_hbn(flake_b, flake_n, max_distance = 1.43, last_size = np.inf):
+    dist_bn = flake_b.sparse_distance_matrix(flake_n, max_distance = max_distance)
+    dist_nb = flake_n.sparse_distance_matrix(flake_b, max_distance = max_distance)
+
+    d = jnp.squeeze(np.sum(dist_bn, axis = 1))
+    flake_b =  scp.spatial.KDTree(flake_b.data[d > 2])
+
+    d = jnp.squeeze(np.sum(dist_nb, axis = 1))
+    flake_n =  scp.spatial.KDTree(flake_n.data[d > 2])
+
+    if flake_n.data.size != last_size:
+        return remove_dangling_atoms_hbn(flake_b, flake_n, max_distance = max_distance, last_size = flake_n.data.size)
+    
+    return flake_b, flake_n
     
 def get_flake(n = 10):    
     """rectangular graphene flake"""
@@ -58,6 +73,59 @@ def get_flake(n = 10):
     flake = scp.spatial.KDTree(orbital_positions[:, :2])
     flake  = remove_dangling_atoms(flake)
     return flake
+
+def get_flake_hbn(n = 10):    
+    """rectangular hbn flake"""
+    grid_range = [(0, n), (0,n)]
+    hbn  = MaterialCatalog.get("hBN")
+    
+    orbital_positions_b =  hbn._get_positions_in_uc(species = ["pz_boron"])
+    orbital_positions_n =  hbn._get_positions_in_uc(species = ["pz_nitrogen"])
+
+    grid = hbn._get_grid( grid_range )
+    orbital_positions_b = hbn._get_positions_in_lattice( orbital_positions_b, grid )
+    orbital_positions_n = hbn._get_positions_in_lattice( orbital_positions_n, grid )
+    
+    # no dangling atoms => nearest neighbors < 2
+    flake_b = scp.spatial.KDTree(orbital_positions_b[:, :2])
+    flake_n = scp.spatial.KDTree(orbital_positions_n[:, :2])
+    flake_b, flake_n  = remove_dangling_atoms_hbn(flake_b, flake_n, max_distance = 1.5)
+
+    # plt.scatter(x = flake_b.data[:, 0], y = flake_b.data[:, 1])
+    # plt.scatter(x = flake_n.data[:, 0], y = flake_n.data[:, 1])
+    # plt.axis('equal')
+    # plt.show()    
+    
+    return flake_b, flake_n
+
+def get_hamiltonian_hbn(flake_b, flake_n):
+    t_bn = -2.16  # eV, nearest-neighbor hopping between B and N
+    t_nn = [-2.55, -0.04]
+    t_bb = [2.46, -0.04]
+
+    # Sparse distance matrix for nearest neighbors
+    dist_nb = flake_n.sparse_distance_matrix(flake_b, max_distance=1.50)  # B–N bond ~1.45 Å
+    ham_nb = dist_nb.tocoo()
+    ham_nb.data = np.piecewise(ham_nb.data, [ham_nb.data == 0, ham_nb.data > 0], [0, t_bn])
+    
+    dist_nn = flake_n.sparse_distance_matrix(flake_n, max_distance=2.50)  # B–B dist ~1.45 Å
+    ham_nn = dist_nn.tocoo()
+    ham_nn.data = np.piecewise(ham_nn.data, [ham_nn.data == 0, ham_nn.data > 0], [0, t_nn[-1]])
+    onsite_term = scp.sparse.spdiags( [[t_nn[0] for i in range(ham_nn.shape[0])]], diags = 0)
+    ham_nn = ham_nn + onsite_term        
+
+    dist_bb = flake_b.sparse_distance_matrix(flake_b, max_distance=2.50)  # B–B dist ~1.45 Å
+    ham_bb = dist_bb.tocoo()
+    ham_bb.data = np.piecewise(ham_bb.data, [ham_bb.data == 0, ham_bb.data > 0], [0, t_bb[-1]])
+    onsite_term = scp.sparse.spdiags( [[t_bb[0] for i in range(ham_bb.shape[0])]], diags = 0)
+    ham_bb = ham_bb + onsite_term    
+
+    ham = scp.sparse.csr_matrix(scp.sparse.block_array([[ham_nn, ham_nb], [ham_nb.T, ham_bb]]))
+    
+    # Convert to CSR for modification of diagonal
+    ham = ham.tocsr()
+
+    return ham
 
 def get_hamiltonian(flake, gap = 0.):
     dist = flake.sparse_distance_matrix(flake, max_distance = 1.43)
@@ -126,6 +194,10 @@ def canonical_iteration(rho_0, mask):
 def spectral_bounds(H, tighten=20):
     """Cheap lower/upper bounds needed for scaling."""
     d = H.diagonal()
+    print(type(H), H.dtype)
+    print(np.abs(H).shape)
+
+    
     R = np.abs(H).sum(axis=1).A1 - np.abs(d)
     Emin, Emax = (d - R).min(), (d + R).max()
     # tighten with a few Lanczos steps
@@ -216,7 +288,7 @@ def get_density_matrix_foe():
     # --- cheap spectral bounds ----------------
     # Gershgorin row sums: one pass over non-zeros
     diag  = H.diagonal()
-    R     = np.abs(H).sum(axis=1).A1 - np.abs(diag)
+    R     = np.abs(H).sum(axis=1).A1 - np.abs(dia)
     Emin  = (diag - R).min()      # safe lower bound
     Emax  = (diag + R).max()      # safe upper bound
 
@@ -350,10 +422,32 @@ def rk4_propagate(
 
     return rho, out
 
+def static_sim_hbn():
+    t = time.time()
+
+    flake_b, flake_n = get_flake_hbn(30)
+    ham = get_hamiltonian_hbn(flake_b, flake_n)
+    # vals, _ = np.linalg.eigh(ham.toarray())
+    # plt.plot(jnp.arange(vals.size), vals, '.')
+    # plt.show()
+    print(time.time() - t)
+    
+    t = time.time()
+    ham = get_hamiltonian_hbn(flake_b, flake_n)
+    print(time.time() - t)
+    print(ham.shape)
+    flake = scp.spatial.KDTree(jnp.concatenate([flake_n.data, flake_b.data]))
+    mask = (flake.sparse_distance_matrix(flake, max_distance = 20*1.5) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
+    t = time.time()
+    rho = get_density_matrix_cp(ham, mask, cutoff = 1e-6, max_steps = 400)
+    print("Canonical Purification ", time.time() - t)
+    r = get_rho_exact(ham)
+    print(np.linalg.norm(r-rho))
+
 def sim():
     ## static
     t = time.time()
-    flake = get_flake(200)
+    flake = get_flake(20)
     print(time.time() - t)
     t = time.time()
     ham = get_hamiltonian(flake, gap = -10)
@@ -417,5 +511,6 @@ def plot_sim():
 
 
 if __name__ == '__main__':
-    sim()
-    plot_sim()
+    # sim()
+    # plot_sim()
+    static_sim_hbn()
