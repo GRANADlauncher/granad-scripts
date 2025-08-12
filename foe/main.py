@@ -214,6 +214,70 @@ def prune(M, mask):
     M.eliminate_zeros()
     return M
 
+def get_density_matrix_sp2(H, Ne, cutoff=1e-7, max_steps=200, mask_expansion=2,
+                           drop0=1e-6, drop_min=1e-10, check_every=10):
+    N = H.shape[0]
+    Id = scp.sparse.identity(N, format='csr')
+
+    # spectral bounds (even rough Gershgorin/Lanczos bounds are fine)
+    Emin, Emax = spectral_bounds(H)
+    X = (Emax*Id - H) * (1.0/(Emax - Emin))      # spectrum in [0,1]
+    rho = X.copy()
+
+    # build a more generous locality mask than (H!=0)
+    mask = (H != 0).astype(bool)
+    A = H.copy()
+    for _ in range(mask_expansion-1):
+        A = (A @ H)  # sparse SpGEMM
+        mask = mask | (A != 0)
+    mask = (mask | Id.astype(bool))
+
+    def prune(M, drop):
+        M = M.multiply(mask)
+        M.data[abs(M.data) < drop] = 0.0
+        M.eliminate_zeros()
+        return M.tocsr()
+
+    rho = prune(rho, drop0)
+
+    step, err = 0, 1.0
+    drop = drop0
+    trNe = float(Ne)
+
+    while step < max_steps:
+        tr = float(rho.diagonal().sum())
+        # choose SP2 branch
+        if tr > trNe:
+            # contract occupations
+            rho = rho @ rho
+        else:
+            # expand occupations
+            r2 = rho @ rho
+            rho = (rho * 2.0) - r2
+
+        step += 1
+
+        # adaptive sparsity control
+        if step <= 5:
+            drop = max(drop_min, drop * 0.5)
+        else:
+            drop = max(drop_min, drop * 0.8)
+        rho = prune(rho, drop)
+
+        if step % check_every == 0 or step == max_steps:
+            # idempotency error
+            r2 = rho @ rho
+            diff = r2 - rho
+            err = scp.sparse.linalg.norm(diff)
+            # trace error (relative to Ne)
+            terr = abs(float(rho.diagonal().sum()) - trNe) / max(1.0, trNe)
+            print(f"step {step:3d}: ||ρ²-ρ||={err:.2e}, ΔTr={terr:.2e}, nnz={rho.nnz}")
+            if err < cutoff:
+                break
+
+    print(f"Converged in {step} steps, idempotency error {err:.3e}")
+    return rho
+
 def get_density_matrix_cp(H, mask, cutoff=1e-6, max_steps=200):
     N  = H.shape[0]
     Ne = N // 2                       # half filling for graphene
@@ -439,7 +503,7 @@ def static_sim_hbn():
     flake = scp.spatial.KDTree(jnp.concatenate([flake_n.data, flake_b.data]))
     mask = (flake.sparse_distance_matrix(flake, max_distance = 20*1.5) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
     t = time.time()
-    rho = get_density_matrix_cp(ham, mask, cutoff = 1e-6, max_steps = 400)
+    rho = get_density_matrix_sp2(ham, ham.shape[0]//2, cutoff = 1e-6, max_steps = 400)
     print("Canonical Purification ", time.time() - t)
     r = get_rho_exact(ham)
     print(np.linalg.norm(r-rho))
