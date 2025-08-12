@@ -88,10 +88,11 @@ def generate_batch(n_batch, rng, max_atoms, max_supercells):
         node_features.append( jnp.pad(jnp.ones(vals.size), (0, max_atoms**2 - vals.size)) )
             
         # ground state energy of structure
-        ham = get_hamiltonian(positions, ts)        
+        ham = get_hamiltonian(positions, ts)
+        vals_full, _ = jnp.linalg.eigh(ham)
         electrons = ham.shape[0] // 2
-        even = 2 * vals[:electrons//2].sum()
-        odd = vals[(electrons // 2) + (electrons % 2)] * (electrons % 2)
+        even = 2 * vals_full[:electrons//2].sum()
+        odd = vals_full[(electrons // 2) + (electrons % 2)] * (electrons % 2)
         ground_states.append(even + odd)
 
         # boolean mask representing displacement
@@ -290,8 +291,8 @@ class GGNNStack(nn.Module):
         # readout :  R = sigma(nn(h_f, h_0)) \odot nn(h_f)
         feats = jnp.concatenate([node_feats, batch["node_features"]], axis = -1)
 
-        stage1 = nn.Dense(self.n_dense_dim)(feats.reshape(self.n_batch, self.n_feats * self.n_nodes * 2))
-        stage2 = nn.Dense(self.n_dense_dim)(node_feats.reshape(self.n_batch, self.n_feats * self.n_nodes))
+        stage1 = nn.Dense(self.n_dense_dim)(feats.reshape(feats.shape[0], self.n_feats * self.n_nodes * 2))
+        stage2 = nn.Dense(self.n_dense_dim)(node_feats.reshape(feats.shape[0], self.n_feats * self.n_nodes))
         readout = nn.sigmoid(stage1) * stage2
         return readout
 
@@ -352,7 +353,7 @@ def train():
     # Some hyperparameters
     n_batch = 32
     max_atoms = 4
-    max_supercells = 100
+    max_supercells = 30
     lr = 1e-3
     num_epochs = 505
 
@@ -377,6 +378,7 @@ def train():
     rng = jax.random.PRNGKey(0)    
     batch = generate_batch(n_batch, rng, max_atoms, max_supercells)
     rng, _ = jax.random.split(rng)
+
     
     # setup model
     model = FusionMLP(spectral_config, ggnn_stack_config, cnn_config, n_hidden = 10, n_out = 1)
@@ -444,7 +446,7 @@ def validate():
     # Some hyperparameters
     n_batch = 50
     max_atoms = 4
-    max_supercells = 100
+    max_supercells = 30
     lr = 1e-3
     num_epochs = 2
 
