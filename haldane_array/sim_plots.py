@@ -205,6 +205,25 @@ def get_ip_abs(flake, omegas, comp, relaxation_rate = 1e-2):
 
     return jax.lax.map(jax.jit(inner), omegas)
 
+def find_peaks(arr):
+    # Create boolean masks for peak conditions
+    left = arr[1:-1] > arr[:-2]   # Compare each element to its left neighbor
+    right = arr[1:-1] > arr[2:]   # Compare each element to its right neighbor
+    
+    peaks = jnp.where(left & right)[0] + 1  # Get indices and shift by 1 to match original array
+    return peaks
+
+def get_closest_transition(flake, omega):
+    diff = jnp.abs(flake.energies - flake.energies[:, None])
+    
+    # Find the index of the closest element to omega
+    idx = jnp.argmin(jnp.abs(diff - omega))
+    
+    # Convert flattened index to row and column indices
+    row, col = jnp.unravel_index(idx, diff.shape)
+    
+    return row, col
+
 ### PLOTTING ###    
 # ==== THESIS PLOTTING THEME (new) ====
 import matplotlib as mpl
