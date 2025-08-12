@@ -214,7 +214,7 @@ def prune(M, mask):
     M.eliminate_zeros()
     return M
 
-def get_density_matrix_sp2(H, Ne, cutoff=1e-7, max_steps=200, mask_expansion=2,
+def get_density_matrix_sp2(H, Ne, mask, cutoff=1e-7, max_steps=200, mask_expansion=2,
                            drop0=1e-6, drop_min=1e-10, check_every=10):
     N = H.shape[0]
     Id = scp.sparse.identity(N, format='csr')
@@ -223,14 +223,6 @@ def get_density_matrix_sp2(H, Ne, cutoff=1e-7, max_steps=200, mask_expansion=2,
     Emin, Emax = spectral_bounds(H)
     X = (Emax*Id - H) * (1.0/(Emax - Emin))      # spectrum in [0,1]
     rho = X.copy()
-
-    # build a more generous locality mask than (H!=0)
-    mask = (H != 0).astype(bool)
-    A = H.copy()
-    for _ in range(mask_expansion-1):
-        A = (A @ H)  # sparse SpGEMM
-        mask = mask | (A != 0)
-    mask = (mask | Id.astype(bool))
 
     def prune(M, drop):
         M = M.multiply(mask)
@@ -287,8 +279,6 @@ def get_density_matrix_cp(H, mask, cutoff=1e-6, max_steps=200):
     alpha      = 1.0/(Emax - Emin)
     rho        = (Emax*Id - H) * alpha
     rho *= Ne / rho.trace()           # enforce Tr ρ = Ne
-
-    mask = ((H != 0) + Id).astype(bool) # locality mask
     rho  = prune(rho, mask)
 
     err, step = 1.0, 0
@@ -503,7 +493,8 @@ def static_sim_hbn():
     flake = scp.spatial.KDTree(jnp.concatenate([flake_n.data, flake_b.data]))
     mask = (flake.sparse_distance_matrix(flake, max_distance = 20*1.5) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)
     t = time.time()
-    rho = get_density_matrix_sp2(ham, ham.shape[0]//2, cutoff = 1e-6, max_steps = 400)
+    # rho = get_density_matrix_sp2(ham, ham.shape[0]//2, mask, cutoff = 1e-6, max_steps = 400)
+    rho = get_density_matrix_cp(ham, mask, cutoff = 1e-6, max_steps = 400)
     print("Canonical Purification ", time.time() - t)
     r = get_rho_exact(ham)
     print(np.linalg.norm(r-rho))
