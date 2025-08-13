@@ -114,14 +114,22 @@ def generate_batch(n_batch: int, key: Array, max_atoms: int, max_supercells: int
         # final positions of structure
         positions = (pos_cell[None, :, :] + disp[:, None, :]).reshape(-1, 2)
 
+        # check layout
+        # plt.scatter(positions[:, 0], positions[:, 1])
+        # plt.scatter(pos_cell[:, 0], pos_cell[:, 1])
+        # plt.show()
+        # plt.close()
+
         # hoppings: onsite + shells
         K = int(no_neighbors[b])
         # smaller magnitudes -> more stable spectra
         tvals = jax.random.uniform(k_b, (K,), minval=-0.5, maxval=0.5)
+        # sort by size to make "feu-physical"
+        tvals = tvals[jnp.argsort(jnp.abs(tvals))[::-1]]
         tvals = tvals.at[0].set(jax.random.uniform(k_b, (), minval=-0.2, maxval=0.2))  # onsite smaller
-
+        
         # Hamiltonians
-        H_cell = get_hamiltonian(pos_cell.astype(jnp.float32), tvals)
+        H_cell = get_hamiltonian(pos_cell.astype(jnp.float32), tvals)        
         # spectrum for the cell (pad to Nmax)
         evals_cell, _ = jnp.linalg.eigh(H_cell)
         nc = evals_cell.shape[0]
@@ -131,7 +139,8 @@ def generate_batch(n_batch: int, key: Array, max_atoms: int, max_supercells: int
 
         # Ground-state energy for the full structure with positions
         H_full = get_hamiltonian(positions.astype(jnp.float32), tvals)
-        evals_full, _ = jnp.linalg.eigh(H_full)
+        evals_full, _ = jnp.linalg.eigh(H_full)        
+        # structures are always half-filled
         electrons = H_full.shape[0] // 2
         # fill two per level; if odd, one more on next level
         even = 2.0 * jnp.sum(evals_full[: electrons // 2])
@@ -142,7 +151,7 @@ def generate_batch(n_batch: int, key: Array, max_atoms: int, max_supercells: int
         gs_per_atom = gs / (Nat + EPS)
 
         # boolean image (x by y tiled supercell indicator)
-        img = jnp.zeros((max_atoms, max_atoms))
+        img = jnp.zeros((max_supercells, max_supercells))
         img = img.at[:x, :y].set(1.0)
         images.append(img[..., None])
 
@@ -317,21 +326,25 @@ class Config:
 
 def create_state(key: Array, cfg: Config) -> tuple[TrainState, FusionMLP, Batch, Array]:
     spectral_config = {"n_hidden": 64, "n_out": 16}
-    ggnn_stack_config = {"n_feats": 8, "n_hidden_layers": 3, "n_dense_dim": 16, "use_residual": True}
+    ggnn_stack_config = {"n_feats": 1, "n_hidden_layers": 3, "n_dense_dim": 16, "use_residual": True}
     cnn_config = {
         "features": [16, 32],
         "kernels": [(3, 3), (3, 3)],
         "windows": [(2, 2), (2, 2)],
         "strides": [(2, 2), (2, 2)],
         "n_hidden_features": 64,
-        "n_out_features": 16,
+        "n_out_features": 1,
     }
-    model = FusionMLP(spectral_config, ggnn_stack_config, cnn_config, n_hidden=64, n_out=1)
-
+    model = FusionMLP(spectral_config, ggnn_stack_config, cnn_config, n_hidden=64, n_out=1)    
     bkey, initkey = jax.random.split(key)
     batch = generate_batch(cfg.n_batch, bkey, cfg.max_atoms, cfg.max_supercells)
     params = model.init(initkey, batch)
+    
+    param_count = sum(x.size for x in jax.tree_util.tree_leaves(params))
+    print(param_count)
+    import pdb; pdb.set_trace()
 
+    
     opt, sched = make_optimizer(cfg.steps)
     state = TrainState.create(apply_fn=model.apply, params=params, tx=opt)
     return state, model, batch, sched
