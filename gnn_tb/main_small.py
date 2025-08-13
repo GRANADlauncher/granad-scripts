@@ -102,6 +102,9 @@ def generate_batch(n_batch: int, key: Array, max_atoms: int, max_supercells: int
     xys = []
     n_cell_atoms = []
 
+    # no noise, but fixed vals
+    tvals = jnp.array([0, 2, 0.5])
+
     # per-sample rngs
     sample_keys = jax.random.split(k_ts, n_batch)
 
@@ -126,11 +129,6 @@ def generate_batch(n_batch: int, key: Array, max_atoms: int, max_supercells: int
 
         # hoppings: onsite + shells
         K = int(no_neighbors[b])
-        # smaller magnitudes -> more stable spectra
-        tvals = jax.random.uniform(k_b, (K,), minval=-0.5, maxval=0.5)
-        # sort by size to make "feu-physical"
-        tvals = tvals[jnp.argsort(jnp.abs(tvals))[::-1]]
-        tvals = tvals.at[0].set(jax.random.uniform(k_b, (), minval=-0.2, maxval=0.2))  # onsite smaller
         
         # Hamiltonians
         H_cell = get_hamiltonian(pos_cell.astype(jnp.float32), tvals)        
@@ -248,14 +246,33 @@ def physics_feats(batch: Batch) -> Array:
     Nt = batch.n_atoms[:, None]
     return jnp.concatenate([x, y, Nc, Nt, 1.0 / (Nt + 1e-8), x * y], axis=1)
 
+class TinyGGNN(nn.Module):
+    n_feats: int = 8
+    @nn.compact
+    def __call__(self, node_features: Array, hamiltonian: Array):
+        # one message-passing step with a small GRU
+        message = jnp.einsum("bij,bjf->bif", hamiltonian, node_features)
+        gru = nn.GRUCell(features=self.n_feats)
+        B, N, _ = node_features.shape
+        carry = jnp.zeros((B, N, self.n_feats), node_features.dtype)
+        def step(c_i, m_i):
+            new_c, _ = gru(c_i, m_i)
+            return new_c, new_c
+        carry, feats = jax.vmap(step, in_axes=(1,1), out_axes=(1,1))(carry, message)
+        # very small readout
+        out = nn.Dense(8)(feats.reshape(B, -1))
+        return out
+
 class LeanModel(nn.Module):
-    hidden1: int = 32
-    hidden2: int = 16
+    hidden1 : int
+    hidden2 : int
+    
     @nn.compact
     def __call__(self, batch: Batch):
-        spec = SpectralMoments(hidden=16, out=8)(batch.energies, batch.energies_mask)  # ~8 dims
-        phy  = physics_feats(batch)                                                    # 6 dims
-        x = jnp.concatenate([spec, phy], axis=1)                                       # ~14 dims
+        spec = SpectralMoments(hidden=16, out=8)(batch.energies, batch.energies_mask)
+        phy  = physics_feats(batch)
+        g    = TinyGGNN(n_feats=8)(batch.node_features, batch.hamiltonian)
+        x = jnp.concatenate([spec, phy, g], axis=1)
         x = nn.Dense(self.hidden1)(x); x = nn.relu(x)
         x = nn.Dense(self.hidden2)(x); x = nn.relu(x)
         x = nn.Dense(1)(x)
@@ -329,7 +346,6 @@ def train(seed: int = 0, save_dir: str = "."):
     for step in range(cfg.steps):
         # fresh batch every step
         batch = generate_batch(cfg.n_batch, rngs[step], cfg.max_atoms, cfg.max_supercells)
-        print(batch.ground_state_per_atom)
         state, loss = train_step(state, batch)
         loss_val = float(loss)
         ema_loss = loss_val if ema_loss is None else cfg.ema_alpha * ema_loss + (1 - cfg.ema_alpha) * loss_val
