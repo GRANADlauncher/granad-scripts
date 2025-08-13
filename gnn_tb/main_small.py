@@ -236,7 +236,6 @@ class SpectralMoments(nn.Module):
         maxv = jnp.take_along_axis(x_sorted, idxlast, axis=1)
 
         feats = jnp.concatenate([mean, std, minv, maxv, q25, q50, q75], axis=1)  # (B,7)
-        feats = jnp.nan_to_num(feats, posinf=0.0, neginf=0.0)
 
         h = nn.Dense(self.hidden)(feats); h = nn.relu(h)
         h = nn.Dense(self.out)(h)
@@ -279,7 +278,7 @@ def make_optimizer(total_steps: int, base_lr: float = 3e-4, weight_decay: float 
 
 @dataclass
 class Config:
-    n_batch: int = 10
+    n_batch: int = 12
     max_atoms: int = 4
     max_supercells: int = 10
     steps: int = 2_000
@@ -330,6 +329,7 @@ def train(seed: int = 0, save_dir: str = "."):
     for step in range(cfg.steps):
         # fresh batch every step
         batch = generate_batch(cfg.n_batch, rngs[step], cfg.max_atoms, cfg.max_supercells)
+        print(batch.ground_state_per_atom)
         state, loss = train_step(state, batch)
         loss_val = float(loss)
         ema_loss = loss_val if ema_loss is None else cfg.ema_alpha * ema_loss + (1 - cfg.ema_alpha) * loss_val
@@ -340,7 +340,7 @@ def train(seed: int = 0, save_dir: str = "."):
 
         # simple early stop if loss diverges
         print(loss_val)
-        if not math.isfinite(loss_val) or loss_val > 1e3:
+        if not math.isfinite(loss_val):
             print("Divergence detected; stopping early.")
             break
         # gentle early stop when very low
