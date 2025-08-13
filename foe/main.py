@@ -375,12 +375,6 @@ def get_rho_exact_hbn(ham):
     electrons = ham.shape[0] // 2
     energies, vecs = np.linalg.eigh(ham.toarray())
     rho_exact = vecs[:, :electrons] @ vecs[:, :electrons].T
-    # rho_exact_energy = np.diag(np.ones_like(energies) * (energies <= -5.0))
-    # rho_exact = vecs @ rho_exact_energy @ vecs.conj().T
-    # rho_exact = vecs.conj().T @ rho_exact_energy @ vecs
-    # rho_exact_energy.diagonal() # occupations
-    # plt.plot(np.arange(ham.shape[0]), energies, 'o')
-    # plt.show()
     return rho_exact
 
 def plot_flake(flake):

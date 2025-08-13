@@ -353,7 +353,7 @@ def train():
     # Some hyperparameters
     n_batch = 4
     max_atoms = 4
-    max_supercells = 30
+    max_supercells = 20
     lr = 1e-3
     num_epochs = 505
 
@@ -402,7 +402,7 @@ def train():
         
         loss_arr.append(loss)
         
-        if epoch % 50 == 0:
+        if epoch % 5 == 0:
             print(f"Epoch {epoch}: Loss = {loss:.4f}")
         if loss < thresh:
             break
