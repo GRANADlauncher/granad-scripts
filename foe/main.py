@@ -371,6 +371,18 @@ def get_rho_exact(ham):
     # plt.show()
     return rho_exact
 
+def get_rho_exact_hbn(ham):
+    electrons = ham.shape[0] // 2
+    energies, vecs = np.linalg.eigh(ham.toarray())
+    rho_exact = vecs[:, :electrons] @ vecs[:, :electrons].T
+    # rho_exact_energy = np.diag(np.ones_like(energies) * (energies <= -5.0))
+    # rho_exact = vecs @ rho_exact_energy @ vecs.conj().T
+    # rho_exact = vecs.conj().T @ rho_exact_energy @ vecs
+    # rho_exact_energy.diagonal() # occupations
+    # plt.plot(np.arange(ham.shape[0]), energies, 'o')
+    # plt.show()
+    return rho_exact
+
 def plot_flake(flake):
     plt.scatter(x = flake.data[:, 0], y = flake.data[:, 1])
     plt.axis('equal')
@@ -494,10 +506,10 @@ def static_sim_hbn():
     flake = scp.spatial.KDTree(jnp.concatenate([flake_n.data, flake_b.data]))
     mask = (flake.sparse_distance_matrix(flake, max_distance = 10*1.5) != 0 + scp.sparse.identity(ham.shape[0])).astype(bool)    
     t = time.time()
-    # rho = get_density_matrix_sp2(ham, ham.shape[0]//2, mask, cutoff = 1e-6, max_steps = 400)
-    rho = get_density_matrix_cp(ham, mask, cutoff = 1e-6, max_steps = 400)
+    rho = get_density_matrix_sp2(ham, ham.shape[0]//2, mask, cutoff = 1e-4, max_steps = 40)
+    # rho = get_density_matrix_cp(ham, mask, cutoff = 1e-6, max_steps = 400)
     print("Canonical Purification ", time.time() - t)
-    r = get_rho_exact(ham)
+    r = get_rho_exact_hbn(ham)
     print(np.linalg.norm(r-rho))
 
 def sim():
