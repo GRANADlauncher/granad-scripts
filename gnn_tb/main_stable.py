@@ -322,22 +322,22 @@ def make_optimizer(total_steps: int, base_lr: float = 3e-4, weight_decay: float 
 class Config:
     n_batch: int = 16
     max_atoms: int = 4
-    max_supercells: int = 20
+    max_supercells: int = 10
     steps: int = 2_000
     print_every: int = 50
     ema_alpha: float = 0.9
 
 
 def create_state(key: Array, cfg: Config) -> tuple[TrainState, FusionMLP, Batch, Array]:
-    spectral_config = {"n_hidden": 64, "n_out": 16}
-    ggnn_stack_config = {"n_feats": 1, "n_hidden_layers": 3, "n_dense_dim": 16, "use_residual": True}
+    spectral_config = {"n_hidden": 32, "n_out": 16}
+    ggnn_stack_config = {"n_feats": 16, "n_hidden_layers": 2, "n_dense_dim": 16, "use_residual": True}
     cnn_config = {
         "features": [16, 32],
         "kernels": [(3, 3), (3, 3)],
         "windows": [(2, 2), (2, 2)],
         "strides": [(2, 2), (2, 2)],
-        "n_hidden_features": 64,
-        "n_out_features": 1,
+        "n_hidden_features": 32,
+        "n_out_features": 8,
     }
     model = FusionMLP(spectral_config, ggnn_stack_config, cnn_config, n_hidden=64, n_out=1)    
     bkey, initkey = jax.random.split(key)
@@ -346,8 +346,6 @@ def create_state(key: Array, cfg: Config) -> tuple[TrainState, FusionMLP, Batch,
     
     param_count = sum(x.size for x in jax.tree_util.tree_leaves(params))
     print(param_count)
-    import pdb; pdb.set_trace()
-
     
     opt, sched = make_optimizer(cfg.steps)
     state = TrainState.create(apply_fn=model.apply, params=params, tx=opt)
