@@ -161,9 +161,13 @@ def generate_batch(n_batch: int, key: Array, max_atoms: int, max_supercells: int
         node_feats.append(nf)
 
         # pad microscopic H to Nmax x Nmax (for GGNN)
-        n = H_cell.shape[0]
-        pad2 = Nmax - n
-        H_pad = jnp.pad(H_cell, ((0, pad2), (0, pad2)))
+        occ_mask = masks[b].astype(jnp.float32)  # shape (Nmax,)
+        # start from full-size zero Hamiltonian
+        H_pad = jnp.zeros((Nmax, Nmax), dtype=jnp.float32)
+        # get indices of occupied sites
+        occ_idx = jnp.where(occ_mask == 1)[0]
+        # fill the block for the occupied sites
+        H_pad = H_pad.at[occ_idx[:, None], occ_idx[None, :]].set(H_cell)
 
         supercell_ham.append(H_pad)
         supercell_eigs.append(evals_padded)
