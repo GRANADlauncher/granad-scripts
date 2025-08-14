@@ -419,7 +419,6 @@ def train(seed: int = 0, save_dir: str = "."):
 
 
 # --------------- Validation ---------------
-
 def validate(params_path: str = "params.pkl", seed: int = 123):
     key = jax.random.PRNGKey(seed)
     cfg = Config(n_batch=128)
@@ -436,8 +435,8 @@ def validate(params_path: str = "params.pkl", seed: int = 123):
     y = batch.ground_state_per_atom
 
     plt.figure()
-    plt.plot(x, y, "o", label="data")
-    plt.plot(x, preds, "o", label="prediction")
+    # plt.plot(x, y, "o", label="data")
+    plt.plot(x, jnp.abs(y - preds)**2 / x, "o", label="error")
     plt.xlabel("Structure Size (atoms)")
     plt.ylabel("Ground State Energy / atom")
     plt.legend()
@@ -447,5 +446,5 @@ def validate(params_path: str = "params.pkl", seed: int = 123):
 
 
 if __name__ == "__main__":
-    train()
+    # train()
     validate()

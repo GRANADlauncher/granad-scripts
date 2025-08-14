@@ -62,7 +62,6 @@ omega_min = 0
 p_omega = result.ft_output( omega_max, omega_min )[0] # polarization in the frequency domain
 omegas_td, pulse_omega = result.ft_illumination( omega_max, omega_min ) # illuminating field in the frequency domain
 absorption_td = jnp.abs( -omegas_td * jnp.imag( p_omega[:,0] / pulse_omega[:,0] ) ) # absorption cross section evaluated based on the time-domain simulation
-
 plt.plot(omegas_td, jnp.abs(p_omega))
 plt.show()
 plt.close()
