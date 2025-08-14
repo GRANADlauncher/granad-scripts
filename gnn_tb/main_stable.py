@@ -421,7 +421,7 @@ def train(seed: int = 0, save_dir: str = "."):
 # --------------- Validation ---------------
 def validate(params_path: str = "params.pkl", seed: int = 123):
     key = jax.random.PRNGKey(seed)
-    cfg = Config(n_batch=128)
+    cfg = Config(n_batch=128, max_supercells = 15)
     state, model, batch, _ = create_state(key, cfg)
     # load params
     with open(params_path, "rb") as f:
