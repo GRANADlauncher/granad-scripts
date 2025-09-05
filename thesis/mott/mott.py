@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from granad import *
 from granad._plotting import *
 
-plt.style.use("thesis.mplstyle")
+plt.style.use("../thesis.mplstyle")
 LATEX_TEXTWIDTH_IN = 5.9  
 
 # --- Your spin-pol plot, but always draw on a provided axis if given ---

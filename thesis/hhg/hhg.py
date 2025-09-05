@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 import jax.numpy as jnp
 
-plt.style.use("thesis.mplstyle")
+plt.style.use("../thesis.mplstyle")
 LATEX_TEXTWIDTH_IN = 5.9  
 
 # --- your existing dependency ---
