@@ -64,5 +64,5 @@ ax.text(-3.2, 1.05, "metal (delocalized)", ha="center", va="center", fontsize=11
 ax.text(3.2, 1.05, "Mott insulator (localized)", ha="center", va="center", fontsize=11)
 
 # Save
-out_path = "/mnt/data/mott_metal_to_insulator_chain.png"
+out_path = "mott_metal_to_insulator_chain.png"
 fig.savefig(out_path, dpi=220, bbox_inches="tight")

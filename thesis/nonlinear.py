@@ -66,15 +66,15 @@ flake.show_energies(name = "energies")
 
 name, end_time, amplitudes, omega, peak, fwhm = "cox_50_1e-4_new", 700, [0.03, 0, 0], 0.68, 0.659 * 200, 0.659 * 166
     
-result = flake.master_equation(
-    dt = 1e-4,
-    end_time = end_time,
-    relaxation_rate = 1/10,
-    expectation_values = [ flake.dipole_operator ],
-    illumination = Pulse(amplitudes, omega, peak, fwhm),
-    max_mem_gb = 50,
-    grid = 100
-)
-result.save(name)        
+# result = flake.master_equation(
+#     dt = 1e-4,
+#     end_time = end_time,
+#     relaxation_rate = 1/10,
+#     expectation_values = [ flake.dipole_operator ],
+#     illumination = Pulse(amplitudes, omega, peak, fwhm),
+#     max_mem_gb = 50,
+#     grid = 100
+# )
+# result.save(name)        
 plot_omega_dipole(name, 6*omega, 0, omega)
-plot_t_dipole(name, end_time, amplitudes, omega, peak, fwhm)
+# plot_t_dipole(name, end_time, amplitudes, omega, peak, fwhm)
