@@ -1046,9 +1046,9 @@ def plot_dipole_moments_broken_symmetry():
 
         
 if __name__ == '__main__':
-    # plot_2d_geometry() # DONE
+    plot_2d_geometry() # DONE
     # plot_projected_polarization() # DONE
-    plot_dipole_moments() # DONE
+    # plot_dipole_moments() # DONE
     # plot_dipole_moments_sweep() # DONE
     # plot_energy_localization() # DONE
     # plot_selectivity_sweep() # DONE
