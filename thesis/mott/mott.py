@@ -17,16 +17,16 @@ def plot_spin_polarization(orbs, show_tags=None, circle_scale: float = 1e3, inse
     diff = rho.diagonal()[up_idxs] - rho.diagonal()[down_idxs]
 
     # Choose axis: explicit ax > inset_ax (back-compat) > new fig
-    draw_ax = ax if ax is not None else (inset_ax if inset_ax is not None else plt.subplots(figsize=(5, 4))[1])
+    draw_ax = ax
 
     positions = jnp.unique(orbs.positions, axis=0)
     for pos, d in zip(positions, diff.real):
         if d > 0:
-            draw_ax.scatter(pos[0], pos[1], s=circle_scale*0.01, c='tab:blue', marker='v', edgecolors='k')
+            draw_ax.scatter(pos[0], pos[1], s=circle_scale*0.01, c='tab:blue', marker='v')
         else:
-            draw_ax.scatter(pos[0], pos[1], s=circle_scale*0.01, c='tab:red', marker='^', edgecolors='k')
+            draw_ax.scatter(pos[0], pos[1], s=circle_scale*0.01, c='tab:red', marker='^')
 
-    draw_ax.set_aspect('equal')
+    # draw_ax.set_aspect('equal')
     draw_ax.set_xticks([])
     draw_ax.set_yticks([])
     draw_ax.grid(False)
@@ -50,7 +50,7 @@ def show_energies_ax(flake, ax, inset_size=("30%", "30%")):
 
     label = "Initial State Occupation"
 
-    sc = ax.scatter(state_indices, filtered_energies, c=colors, cmap="viridis", edgecolors='k', alpha=0.9)
+    sc = ax.scatter(state_indices, filtered_energies, s = 10, c=colors, cmap="viridis", alpha=0.9)
     cbar = plt.colorbar(sc, ax=ax)
     cbar.set_label(label, fontsize=9)
 
@@ -90,28 +90,28 @@ flake5.set_open_shell()
 flake5.set_electrons(len(flake0)//2)
 flake5.set_mean_field()
 
-fig, axs = plt.subplots(2, 2, figsize=(LATEX_TEXTWIDTH_IN, LATEX_TEXTWIDTH_IN * 0.45))
+fig, axs = plt.subplots(2, 2, figsize=(LATEX_TEXTWIDTH_IN, LATEX_TEXTWIDTH_IN * 0.8))
 ((ax_a, ax_b), (ax_c, ax_d)) = axs
 
 # (a) Spin pol @ U=0
 plot_spin_polarization(flake0, ax=ax_a)
-ax_a.set_title("Spin polarization (U = 0)")
-ax_a.text(0.02, 0.96, "(a)", transform=ax_a.transAxes, va="top", ha="left", fontsize=12, fontweight="bold")
+ax_a.set_title(r"Spin polarization $(U/t = 0)$")
+ax_a.text(-0.1, 1.2, "(a)", transform=ax_a.transAxes, va="top", ha="left", fontsize=12, fontweight="bold")
 
 # (b) Energies @ U=0
 show_energies_ax(flake0, ax_b)
-ax_b.text(0.02, 0.96, "(b)", transform=ax_b.transAxes, va="top", ha="left", fontsize=12, fontweight="bold")
-ax_b.set_title("Energies (U = 0)")
+ax_b.text(-0.1, 1.2, "(b)", transform=ax_b.transAxes, va="top", ha="left", fontsize=12, fontweight="bold")
+ax_b.set_title(r"Energies $(U/t = 0)$")
 
 # (c) Spin pol @ U=5
 plot_spin_polarization(flake5, ax=ax_c)
-ax_c.set_title("Spin polarization (U = 5)")
-ax_c.text(0.02, 0.96, "(c)", transform=ax_c.transAxes, va="top", ha="left", fontsize=12, fontweight="bold")
+ax_c.set_title(r"Spin polarization $(U/t = 5)$")
+ax_c.text(-0.1, 1.2, "(c)", transform=ax_c.transAxes, va="top", ha="left", fontsize=12, fontweight="bold")
 
 # (d) Energies @ U=5
 show_energies_ax(flake5, ax_d)
-ax_d.text(0.02, 0.96, "(d)", transform=ax_d.transAxes, va="top", ha="left", fontsize=12, fontweight="bold")
-ax_d.set_title("Energies (U = 5)")
+ax_d.text(-0.1, 1.2, "(d)", transform=ax_d.transAxes, va="top", ha="left", fontsize=12, fontweight="bold")
+ax_d.set_title(r"Energies $(U/t = 5)$")
 
 plt.tight_layout()
 plt.savefig("mott.pdf")

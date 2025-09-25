@@ -125,7 +125,7 @@ def show_2d(
                 edgecolor='white',
                 alpha=0.7,
             )
-        ax.legend(title='Orbital Tags')
+        # ax.legend(title='Orbital Tags')
 
     # Optionally annotate points with their indexes
     if show_index:
@@ -143,8 +143,8 @@ def show_2d(
     # Finalize plot settings
     if title is not None:
         ax.set_title(title)
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
+    ax.set_xlabel("x (Å)")
+    ax.set_ylabel("y (Å)")
     ax.grid(grid)
     ax.axis('equal')
 
@@ -163,25 +163,19 @@ def plot_omega_dipole_ax(name, omega_max, omega_min, omega_0, ax=None):
 
     ax.semilogy(omegas / omega_0, p, linewidth=2.0)
 
-    ax.set_xlabel(r'$\omega / \omega_0$', fontsize=18)
-    ax.set_ylabel('Dipole Strength (a.u.)', fontsize=18)
-    ax.set_title('Frequency-Domain Dipole Moment', fontsize=20, pad=15)
+    ax.set_xlabel(r'$\omega / \omega_0$')
+    ax.set_ylabel('Dipole Strength (a.u.)')
     ax.grid(True, linestyle='--', alpha=0.6, which='both')
     ax.tick_params(axis='both', which='major', labelsize=14)
+
+    # Add dashed vlines at 1, 2, 3, 4, 5
+    for xpos in [1, 2, 3, 4, 5]:
+        ax.axvline(x=xpos, color="brown", linestyle="--", linewidth=1)
 
     if created_fig:
         fig.tight_layout()
 
     return fig, ax
-
-
-def _panel_label(ax, label, xy=(0.0, 1.0), dx=0.02, dy=-0.02, **textkw):
-    """
-    Add a bold panel label like 'A', 'B' at the top-left inside an Axes.
-    """
-    defaults = dict(fontsize=16, fontweight='bold', ha='left', va='top')
-    defaults.update(textkw)
-    ax.text(xy[0] + dx, xy[1] + dy, label, transform=ax.transAxes, **defaults)
 
 
 def plot_geometry_and_spectrum(
@@ -223,20 +217,34 @@ def plot_geometry_and_spectrum(
         scale=scale,
         cmap=cmap,
         circle_scale=circle_scale,
-        title='Geometry',
         mode=geom_mode,
         indicate_atoms=indicate_atoms,
         grid=grid,
         ax=axA,
         fig=fig,
     )
-    _panel_label(axA, 'A')
 
     # Right panel: spectrum
     plot_omega_dipole_ax(name, omega_max, omega_min, omega_0, ax=axB)
-    _panel_label(axB, 'B')
 
     fig.tight_layout(w_pad=2.0)
+
+    fig.canvas.draw_idle()  # make sure positions are up-to-date
+
+    pos_a = axA.get_position()
+    pos_b = axB.get_position()
+
+    common_y = max(pos_a.y1, pos_b.y1) + 0.01  # a little above the taller axes
+    offset = 0.01  # leftward offset
+
+    fig.text(pos_a.x0 - offset, common_y, "(a)",
+             ha="right", va="bottom", fontsize=11, fontweight="bold",
+             transform=fig.transFigure)
+
+    fig.text(pos_b.x0 - offset, common_y, "(b)",
+             ha="right", va="bottom", fontsize=11, fontweight="bold",
+             transform=fig.transFigure)
+
 
     if savepath:
         fig.savefig(savepath, bbox_inches='tight')
@@ -297,7 +305,7 @@ name, end_time, amplitudes, omega, peak, fwhm = "cox_50_1e-4_new", 700, [0.03, 0
 #     grid = 100
 # )
 # result.save(name)        
-plot_omega_dipole(name, 6*omega, 0, omega)
+# plot_omega_dipole_ax(name, 6*omega, 0, omega)
 fig = plot_geometry_and_spectrum(
     flake,
     name=name,

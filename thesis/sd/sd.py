@@ -129,15 +129,15 @@ def figure_band_plus_gs(flake, x, y, z, levels=200,
     pos_a = ax_a.get_position()
     pos_b = ax_b.get_position()
 
-    common_y = max(pos_a.y1, pos_b.y1) + 0.01  # a little above the taller axes
+    common_y = max(pos_a.y1, pos_b.y1) + 0.12  # a little above the taller axes
     offset = 0.01  # leftward offset
 
     fig.text(pos_a.x0 - offset, common_y, "(a)",
-             ha="right", va="bottom", fontsize=11, fontweight="bold",
+             ha="right", va="bottom", fontweight="bold",
              transform=fig.transFigure)
 
     fig.text(pos_b.x0 - offset, common_y, "(b)",
-             ha="right", va="bottom", fontsize=11, fontweight="bold",
+             ha="right", va="bottom", fontweight="bold",
              transform=fig.transFigure)
 
     # save

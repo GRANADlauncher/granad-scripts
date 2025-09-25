@@ -4,25 +4,37 @@ from diagrams.aws.compute import EC2
 from diagrams.aws.database import RDS
 from diagrams.aws.network import ELB
 
-from diagrams import Diagram, Cluster
-from diagrams.custom import Custom    
+from diagrams import Cluster, Diagram, Edge
+from diagrams.custom import Custom
 
-with Diagram("Web Service", show=False):
-    ELB("lb") >> EC2("web") >> RDS("userdb")
+cols = ("#E5F5FD", "#EBF3E7", "#ECE8F6", "#FDF7E3")
 
-with Diagram("Custom with local icons\n Can be downloaded here: \nhttps://creativecommons.org/about/downloads/", show=False, filename="custom_local", direction="LR"):
-  cc_heart = Custom("Creative Commons", "./my_resources/cc_heart.black.png")
-  cc_attribution = Custom("Credit must be given to the creator", "./my_resources/cc_attribution.png")
+EDGE_FONT = "25"
+NODE_FONT = "25"
 
-  cc_sa = Custom("Adaptations must be shared\n under the same terms", "./my_resources/cc_sa.png")
-  cc_nd = Custom("No derivatives or adaptations\n of the work are permitted", "./my_resources/cc_nd.png")
-  cc_zero = Custom("Public Domain Dedication", "./my_resources/cc_zero.png")
 
-  with Cluster("Non Commercial"):
-    non_commercial = [Custom("Y", "./my_resources/cc_nc-jp.png") - Custom("E", "./my_resources/cc_nc-eu.png") - Custom("S", "./my_resources/cc_nc.png")]
+with Diagram("", show=False, direction = "LR", graph_attr = {"size":"10,10!"}, node_attr = {"fontsize" : NODE_FONT}, outformat = "pdf", filename = "granad_schema"):
+    with Cluster("Building Blocks", graph_attr = {"bgcolor" : cols[0]} ) as cluster1:
+        cluster1.dot.graph_attr["bgcolor"] = cols[0]
+        cluster1.dot.graph_attr["fontsize"] = NODE_FONT
 
-  cc_heart >> cc_attribution
-  cc_heart >> non_commercial
-  cc_heart >> cc_sa
-  cc_heart >> cc_nd
-  cc_heart >> cc_zero    
+        material, orbital = Custom("Material", "geometry.png"), Custom("Orbital", "pz_orbital_v2.png")
+
+    with Cluster("Structure Specification") as cluster2:
+        cluster2.dot.graph_attr["bgcolor"] = cols[1]
+        cluster2.dot.graph_attr["fontsize"] = NODE_FONT
+
+        orb1 = Custom("OrbitalList", "single.png")
+        orb2 = Custom("OrbitalList", "double.png")
+        orbs = [orb1 >> Edge(label="Rotate, Dope, Combine", fontsize = EDGE_FONT) >> orb2]
+        material >> Edge(label="cut", fontsize = EDGE_FONT) >> orb1
+        orbital >> Edge(label="append", fontsize = EDGE_FONT) >> orb1
+
+    with Cluster("Simulation Output") as cluster3:
+        cluster3.dot.graph_attr["bgcolor"] = cols[2]
+        cluster3.dot.graph_attr["fontsize"] = NODE_FONT
+
+        output_time, output_freq, output_static = Custom("γ(t)\n\n", "", fontsize = "30"), Custom("G(ω)\n\n", "", fontsize = "30"), Custom("ε\n\n", "", fontsize = "30")
+        orbs >> Edge(label="Dynamical Simulation", fontsize = EDGE_FONT) >> output_time
+        orbs >> Edge(label="Green's Function", fontsize = EDGE_FONT) >> output_freq
+        orbs >> Edge(label="Independent Particle", fontsize = EDGE_FONT) >> output_static    

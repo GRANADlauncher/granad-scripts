@@ -7,7 +7,7 @@ import numpy as np
 from collections import defaultdict
 from mpl_toolkits.mplot3d import Axes3D  # Required for 3D plotting
 
-def show_3d(orbs, show_tags=None, cmap=None, circle_scale: float = 1e3, title=None):
+def show_3d(orbs, show_tags=None, cmap=None, circle_scale: float = 1e3, title=None, name = None):
     # Determine which tags to display
     if show_tags is None:
         show_tags = {orb.tag for orb in orbs}
@@ -49,20 +49,25 @@ def show_3d(orbs, show_tags=None, cmap=None, circle_scale: float = 1e3, title=No
         )
 
     # Plot appearance settings
-    ax.set_xlabel("X (Å)")
-    ax.set_ylabel("Y (Å)")
-    ax.set_zlabel("Z (Å)")
-    ax.set_title(title or "Orbital Positions in 3D", fontsize=12)
-    ax.grid(True)
-    ax.legend(title="Orbital Tags", loc="upper right", fontsize='small', frameon=False)
+    ax.grid(False)
+    ax.axis("off")
+
     plt.tight_layout()
-    plt.savefig("graphene_bilayer.pdf")
+
+    if name is None:
+        name = "graphene_bilayer.png"
+    plt.savefig(name, transparent = True)
+        
 
 triangle = Triangle(15)
 flake = MaterialCatalog.get("graphene").cut_flake( triangle )
+show_3d(flake, name = "single.png")
+
+
+flake = MaterialCatalog.get("graphene").cut_flake( triangle )
+flake.rotate(flake.positions[flake.center_index], 0.2)
 flake.shift_by_vector( [0,0,1]  )
 print(flake.positions)
 second_flake = MaterialCatalog.get("graphene").cut_flake( triangle )
 stack = flake + second_flake
-show_3d(stack)
-plt.show()
+show_3d(stack, name = "double.png")

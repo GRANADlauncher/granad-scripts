@@ -126,22 +126,54 @@ def plot_combined():
     ax.set_xlabel("X (Å)")
     ax.set_ylabel("Y (Å)")
     ax.axis("equal")
-    ax.set_title("(a)", loc="left", fontsize=26, fontweight="bold")
+    # ax.set_title("(a)", loc="left",  fontweight="bold")
 
     # ---------- (b) Projected polarization ----------
     ax = axes[1]
     flake = get_haldane_graphene(1.0, 1j*0.2, 1.0).cut_flake(shape)
     v = flake.velocity_operator_e[:2]
-    im = ax.matshow(jnp.abs(v[0])**2, cmap="plasma")
+    mat = jnp.abs(v[0])**2
+    fermi = len(flake) // 2
+
+    # plot matrix
+    im = ax.matshow(mat[fermi-10:fermi+11, fermi-10:fermi+11], cmap="plasma")
+
+    # 1. add dashed line at fermi index (relative to the zoomed slice)
+    fermi_rel = 10   # because fermi lies in the middle of the [fermi-10:fermi+10] slice
+    ax.axhline(fermi_rel, color="grey", linestyle="--", linewidth=1)
+
+    # 2. turn off y label
+    ax.set_xticks([])
+
+    # 3. set x-ticks at [fermi-10, fermi, fermi+10]
+    ax.set_yticks([0, fermi_rel, 20])  # positions in the displayed submatrix
+    ax.set_yticklabels([r"$n - 10$", r"$n$", r"$n + 10$"])
 
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("top", size="5%", pad=0.1)
     cbar = plt.colorbar(im, cax=cax, orientation="horizontal")
+    cbar.set_label(r"$\vert J_x \vert^2$", labelpad=-30)
     cax.xaxis.set_ticks_position("top")
-    ax.set_xlabel(r"$m$")
-    ax.set_ylabel(r"$n$")
-    ax.set_title("(b)", loc="left", fontsize=26, fontweight="bold")
+    ax.set_xlabel(r"State Index")
+    # ax.set_title("(b)", loc="left", fontweight="bold")
 
+    fig.canvas.draw_idle()  # make sure positions are up-to-date
+
+    pos_a = axes[0].get_position()
+    pos_b = axes[1].get_position()
+
+    common_y = max(pos_a.y1, pos_b.y1) + 0.01  # a little above the taller axes
+    offset = 0.01  # leftward offset
+
+    fig.text(pos_a.x0 - offset, common_y, "(a)",
+             ha="right", va="bottom", fontweight="bold",
+             transform=fig.transFigure)
+
+    fig.text(pos_b.x0 - offset, common_y, "(b)",
+             ha="right", va="bottom", fontweight="bold",
+             transform=fig.transFigure)
+
+    
     plt.tight_layout()
     plt.savefig("haldane_illustration.pdf")
     # plt.show()
