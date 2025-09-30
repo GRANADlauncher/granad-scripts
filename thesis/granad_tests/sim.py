@@ -85,4 +85,4 @@ def sim(length, hopping = -2.66, rpa = True, td = True, reload_td = True):
 if __name__ == '__main__':
     for length in [180]:
         for hopping in [-2.2]:
-            sim(length, hopping = hopping, rpa = False, td = True, reload_td = False)
+            sim(length, hopping = hopping, rpa = False, td = True, reload_td = True)
