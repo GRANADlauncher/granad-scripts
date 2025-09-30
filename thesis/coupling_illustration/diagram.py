@@ -15,9 +15,9 @@ NODE_FONT = "25"
 
 with Diagram("", show=False, direction = "LR", graph_attr = {"size":"10,10!"}, node_attr = {"fontsize" : NODE_FONT}, outformat = "pdf", filename = "coupling_illustration"):
     
-    graphene = Custom("Material", "geometry.png")
-    tls = Custom("Material", "geometry.png")
-    combined = Custom("Material", "geometry.png")
+    graphene = Custom("Material", "graphene.png")
+    tls = Custom("Material", "orbital.png")
+    combined = Custom("Material", "stack.png")
     combined_hamiltonian = Custom("Material", "geometry.png")
 
 

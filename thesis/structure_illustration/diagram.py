@@ -15,16 +15,16 @@ NODE_FONT = "25"
 
 with Diagram("", show=False, direction = "LR", graph_attr = {"size":"10,10!"}, node_attr = {"fontsize" : NODE_FONT}, outformat = "pdf", filename = "structure_illustration"):
     
-    hbn = Custom("Material", "geometry.png")
-    hbn_rotated = Custom("Material", "geometry.png")
-    graphene = Custom("Material", "geometry.png")
-    graphene_defective = Custom("Material", "geometry.png")
-    orbital = Custom("Material", "geometry.png")    
-    stack = Custom("Material", "geometry.png")
+    hbn = Custom("hBN", "hbn.png", height="2", width="3")
+    hbn_rotated = Custom("", "hbn_rotated.png", height="2", width="3")
+    graphene = Custom("Graphene", "graphene.png", height="2", width="3")
+    graphene_defective = Custom("", "graphene_defective.png", height="2", width="3")
+    orbital = Custom("Isolated Orbital", "orbital.png", height="2", width="3")    
+    stack = Custom("", "stack.png", height="2", width="3")
 
     hbn >> Edge(label="flake.rotate", fontsize = EDGE_FONT) >> hbn_rotated
-    graphene >> Edge(label="del flake[0]", fontsize = EDGE_FONT) >> graphene_defective
+    graphene >> Edge(label="del flake[index]", fontsize = EDGE_FONT) >> graphene_defective
 
-    hbn_rotated >> Edge(label="stack", fontsize = EDGE_FONT) >> stack
-    graphene_defective >> Edge(label="stack", fontsize = EDGE_FONT) >> stack
-    orbital >> Edge(label="stack", fontsize = EDGE_FONT) >> stack
+    hbn_rotated >> Edge(label="add", fontsize = EDGE_FONT) >> stack
+    graphene_defective >> Edge(label="add", fontsize = EDGE_FONT) >> stack
+    orbital >> Edge(label="append", fontsize = EDGE_FONT) >> stack
