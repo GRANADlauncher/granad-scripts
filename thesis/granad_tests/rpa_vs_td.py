@@ -37,7 +37,7 @@ omegas_td, pulse_omega = result.ft_illumination( omega_max, omega_min )
 absorption_td = jnp.abs( -omegas_td * jnp.imag( p_omega[:,0] / pulse_omega[:,0] )  )
 
 # Save in a single compressed file
-jnp.savez_compressed(
+jnp.savez(
     "rpa_vs_td.npz",
     omegas_rpa=omegas_rpa,
     absorption_rpa=absorption_rpa,

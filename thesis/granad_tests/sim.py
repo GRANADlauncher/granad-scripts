@@ -73,7 +73,7 @@ def sim(length, hopping = -2.66, rpa = True, td = True, reload_td = True):
 
 
     # Save in a single compressed file
-    jnp.savez_compressed(
+    jnp.savez(
         "acsnano.npz",
         omegas_rpa=omegas_rpa,
         ref_data=ref_data,
