@@ -7,6 +7,7 @@ from granad import *
 hbn = MaterialCatalog.get("hBN")
 
 flake = hbn.cut_flake( Triangle(18)  )
+print(len(flake))
 
 omegas_rpa = jnp.linspace( 0, 3, 100 )
 

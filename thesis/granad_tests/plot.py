@@ -60,23 +60,27 @@ def plot_orbital_layout_2d(orbs, show_tags=None, circle_scale: float = 1e3, inse
         ax.legend(title="Orbital Tags", fontsize='small', frameon=False)
         plt.tight_layout()
         plt.show()
-        
 
-plt.style.use('ggplot')
-plt.figure(figsize=(10, 6))
-if rpa:
-    plt.plot(omegas_rpa, absorption_rpa / jnp.max(absorption_rpa), '-', linewidth=2, label = 'RPA')
-if reload_td:
-    plt.plot(omegas_td, absorption_td / jnp.max(absorption_td), linewidth=2, ls = '--', label = 'TD' )
-plt.plot(omegas_rpa, ref_data, 'o', label='Reference')
+data = jnp.load("acsnano.npz")
+acsnano_absorption_ref = data["ref_data"]   # shape (N,)
+acsnano_omegas_ref    = data["omegas_rpa"]      # shape (N,)
+acsnano_absorption_granad    = data["absorption_td"]      # shape (N,)
+acsnano_omegas_granad = data["omegas_td"]   # shape (N,)
+
+plt.plot(acsnano_omegas_granad, acsnano_absorption_granad / jnp.max(ascnano_absorption_granad), linewidth=2, ls = '--', label = 'GRANAD' )
+plt.plot(ascnano_omegas_ref, acsnano_absorption_ref, 'o', label='Experiment')
 plt.xlabel(r'$\hbar\omega$', fontsize=20)
 plt.ylabel(r'$\sigma(\omega)$', fontsize=25)
 plt.title('Absorption Spectrum as a Function of Photon Energy', fontsize=15)
 plt.legend()
-plt.grid(True)
-plt.savefig(f'acsnano_res_td_{hopping}.pdf')
+
 
 fig, ax = plt.subplots(figsize=(10, 6))
+data = jnp.load("rpa_vs_td.npz")
+absorption_td = data["absorption_td"]   # shape (N,)
+omegas_td    = data["omegas_td"]      # shape (N,)
+absorption_rpa    = data["absorption_rpa"]      # shape (N,)
+omegas_rpa= data["omegas_rpa"]   # shape (N,)
 
 # Plot RPA
 ax.plot(omegas_rpa, absorption_rpa / jnp.max(absorption_rpa),
@@ -101,9 +105,6 @@ ax.tick_params(axis='both', which='minor', length=3, width=1)
 # Legend
 ax.legend(fontsize=14, loc='best', frameon=True)
 
-inset_ax = inset_axes(ax, width="35%", height="35%", loc='upper left', borderpad=1)
-plot_orbital_layout_2d(flake, circle_scale=1e3, inset_ax=inset_ax)
-
 # Layout
 plt.tight_layout()
-plt.savefig("rpa_vs_td.pdf")
+plt.show()
